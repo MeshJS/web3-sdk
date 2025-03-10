@@ -1,0 +1,81 @@
+# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
+# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+
+name: Publish Mesh Web3 SDK Package
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+      - name: Install dependencies
+        run: npm install
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+
+  check-version:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    outputs:
+      sdk-version-updated: ${{ steps.compare-versions.outputs.sdk-version-updated }}
+    steps:
+      - name: Checkout main branch at commit before merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Get package version from main branch before merge
+        id: pre-merge-version
+        run: |
+          SDK_PRE_MERGE_VERSION=$(node -p "require('./package.json').version")
+          echo "sdk_pre_merge_version=$SDK_PRE_MERGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout main branch at commit after merge
+        uses: actions/checkout@v4
+        with:
+          ref: "main"
+
+      - name: Get package version from main branch after merge
+        id: post-merge-version
+        run: |
+          SDK_POST_MERGE_VERSION=$(node -p "require('./package.json').version")
+          echo "sdk_post_merge_version=$SDK_POST_MERGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compare versions
+        id: compare-versions
+        run: |
+          if [[ "${{ steps.pre-merge-version.outputs.sdk_pre_merge_version }}" != "${{ steps.post-merge-version.outputs.sdk_post_merge_version }}" ]]; then
+              echo "sdk-version-updated=true" >> "$GITHUB_OUTPUT"
+          else
+              echo "sdk-version-updated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish-sdk:
+    needs: [build, check-version]
+    if: needs.check-version.outputs.sdk-version-updated == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+      - run: npm install && npm run build
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+  
