@@ -6,5 +6,4 @@ This is the SDK for the Mesh Web3 Services. It provides a simple way to interact
 
 ```bash
 npm install npm install @meshsdk/web3-sdk
-
 ```
