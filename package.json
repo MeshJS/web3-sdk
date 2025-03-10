@@ -1,0 +1,48 @@
+{
+  "name": "@meshsdk/web3-sdk",
+  "version": "0.0.1",
+  "description": "SDK for Mesh Web3 Services",
+  "main": "./dist/index.cjs",
+  "browser": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./eslint/base": "./src/configs/eslint/base.js",
+    "./eslint/next.js": "./src/configs/eslint/next.js",
+    "./eslint/react-internal": "./src/configs/eslint/react-internal.js",
+    "./typescript/base.json": "./src/configs/typescript/base.json",
+    "./typescript/nextjs.json": "./src/configs/typescript/nextjs.json",
+    "./typescript/node.json": "./src/configs/typescript/node.json",
+    "./typescript/react-library.json": "./src/configs/typescript/react-library.json",
+    "./prettier": "./src/configs/prettier/index.js"
+  },
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/base32-encoding": "^1.0.2",
+    "eslint": "^8.57.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@meshsdk/common": "^1.9.0-beta.17",
+    "@meshsdk/core-cst": "^1.9.0-beta.17",
+    "@meshsdk/wallet": "^1.9.0-beta.17",
+    "base32-encoding": "^1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
