@@ -61,3 +61,104 @@ export function decryptWithCipher({
 
   return result.toString("utf8");
 }
+
+export function encryptString(publicKey: string, payload: string) {
+  return crypto
+    .publicEncrypt(publicKey, Buffer.from(payload))
+    .toString("base64");
+}
+
+export function decryptString(privateKey: string, payload: string) {
+  const decrypted = crypto.privateDecrypt(
+    {
+      key: privateKey,
+      passphrase: "",
+    },
+    Buffer.from(payload, "base64")
+  );
+  return decrypted.toString("utf8");
+}
+
+export async function generateKeyPairWindow() {
+  const keyPair = await window.crypto.subtle.generateKey(
+    {
+      name: "RSA-OAEP",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["encrypt", "decrypt"]
+  );
+
+  const publicKey = await window.crypto.subtle.exportKey(
+    "spki",
+    keyPair.publicKey
+  );
+  const privateKey = await window.crypto.subtle.exportKey(
+    "pkcs8",
+    keyPair.privateKey
+  );
+
+  return {
+    publicKey: Buffer.from(publicKey).toString("base64"),
+    privateKey: Buffer.from(privateKey).toString("base64"),
+  };
+}
+
+export async function encryptStringWindow(
+  publicKey: string,
+  data: string
+): Promise<string> {
+  try {
+    const key = await window.crypto.subtle.importKey(
+      "spki",
+      Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0)),
+      {
+        name: "RSA-OAEP",
+        hash: "SHA-256",
+      },
+      true,
+      ["encrypt"]
+    );
+
+    const encrypted = await window.crypto.subtle.encrypt(
+      {
+        name: "RSA-OAEP",
+      },
+      key,
+      new TextEncoder().encode(data)
+    );
+
+    return Buffer.from(encrypted).toString("base64");
+  } catch (error) {
+    console.error("Encryption failed:", error);
+    throw error;
+  }
+}
+
+export async function decryptStringWindow(
+  privateKey: string,
+  encryptedData: string
+): Promise<string> {
+  const key = await window.crypto.subtle.importKey(
+    "pkcs8",
+    Buffer.from(privateKey, "base64"),
+    {
+      name: "RSA-OAEP",
+      hash: "SHA-256",
+    },
+    true,
+    ["decrypt"]
+  );
+
+  const decrypted = await window.crypto.subtle.decrypt(
+    {
+      name: "RSA-OAEP",
+    },
+    key,
+    Buffer.from(encryptedData, "base64")
+  );
+
+  return new TextDecoder().decode(decrypted);
+}
