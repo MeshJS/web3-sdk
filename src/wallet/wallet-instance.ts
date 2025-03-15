@@ -55,7 +55,9 @@ export class Web3Wallet extends MeshWallet {
       projectId: options.projectId,
       appUrl: options.appUrl,
     };
-    return new Web3Wallet(_options);
+    const wallet = new Web3Wallet(_options);
+    await wallet.init();
+    return wallet;
   }
 
   /**
