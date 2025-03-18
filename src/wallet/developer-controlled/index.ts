@@ -1,5 +1,5 @@
 import { MeshWallet } from "@meshsdk/wallet";
-import { decryptStringWindow } from "../../functions";
+import { decryptData } from "../../functions";
 
 export default class DeveloperControlledWallets {
   readonly privateKey: string;
@@ -30,10 +30,7 @@ export default class DeveloperControlledWallets {
       networkId: 0 as 0 | 1,
     };
 
-    const mnemonic = await decryptStringWindow(
-      this.privateKey,
-      _wallet.mnemonic
-    );
+    const mnemonic = await decryptData(this.privateKey, _wallet.mnemonic);
 
     const wallet = new MeshWallet({
       networkId: _wallet.networkId,

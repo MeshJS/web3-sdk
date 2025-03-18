@@ -1,5 +1,5 @@
-import { openWindow } from "../../common/window/open-window";
-import { WindowWalletReq, WindowWalletRes } from "../../types";
+import { openWindow } from "../../../common/window/open-window";
+import { WindowWalletReq, WindowWalletRes } from "../../../types";
 
 export async function getWallet({
   networkId,

@@ -1,13 +1,13 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { getWallet } from "./api/get-wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import { openWindow } from "../common/window/open-window";
+import { openWindow } from "../../common/window/open-window";
 import {
   WindowSignDataReq,
   WindowSignDataRes,
   WindowSignTxReq,
   WindowSignTxRes,
-} from "../types";
+} from "../../types";
 
 export type InitWeb3WalletOptions = {
   networkId: 0 | 1;
