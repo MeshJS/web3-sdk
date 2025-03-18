@@ -1,2 +1,2 @@
-export * from "./api";
-export * from "./wallet-instance";
+export * from "./developer-controlled";
+export * from "./user-controlled";
