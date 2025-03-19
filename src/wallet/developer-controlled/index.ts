@@ -42,7 +42,18 @@ export default class DeveloperControlledWallets {
     // Decide how to return the wallet.
   }
 
-  async getWallets() {}
+  async getWallets() {
+    const res = await fetch(
+      this.appUrl + "api/project-wallet/" + this.projectId,
+      {
+        headers: {
+          "x-api-key": this.apiKey,
+        },
+      }
+    );
+
+    const wallets: SDKWeb3ProjectWallet[] = await res.json();
+  }
 
   async getWallet(id: string) {
     // todo: get wallet from db
