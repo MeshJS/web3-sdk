@@ -4,17 +4,21 @@ import { decryptData } from "../../functions";
 export default class DeveloperControlledWallets {
   readonly privateKey: string;
   readonly projectId: string;
+  readonly apiKey: string;
 
   constructor({
     privateKey,
     projectId,
+    apiKey,
   }: {
     privateKey: string;
     projectId: string;
+    apiKey: string;
   }) {
     {
       this.privateKey = privateKey;
       this.projectId = projectId;
+      this.apiKey = apiKey;
     }
   }
 
