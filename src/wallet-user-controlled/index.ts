@@ -1,5 +1,4 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
-import { getWallet } from "./api/get-wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import { openWindow } from "../common/window/open-window";
 import {
@@ -8,6 +7,7 @@ import {
   WindowSignTxReq,
   WindowSignTxRes,
 } from "../types";
+import { WindowWalletReq, WindowWalletRes } from "../types";
 
 export type InitWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -29,7 +29,7 @@ export class Web3Wallet extends MeshWallet {
   }
 
   static async enable(options: InitWeb3WalletOptions): Promise<Web3Wallet> {
-    const res = await getWallet({
+    const res = await getWalletFromWindow({
       networkId: options.networkId,
       projectId: options.projectId,
       appUrl: options.appUrl,
@@ -133,4 +133,44 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.json = json;
   }
+}
+
+export async function getWalletFromWindow({
+  networkId,
+  projectId,
+  appUrl,
+}: WindowWalletReq): Promise<
+  | {
+      success: false;
+      error: {
+        errorMessage?: string;
+        errorCode?: number;
+      };
+    }
+  | {
+      success: true;
+      data: { address: string };
+    }
+> {
+  const payload: WindowWalletReq = { networkId: networkId, projectId };
+
+  const walletRes: WindowWalletRes = await openWindow(
+    "/client/wallet",
+    payload,
+    appUrl
+  );
+
+  if (walletRes.success) {
+    return {
+      success: true,
+      data: { address: walletRes.wallet.baseAddressBech32 },
+    };
+  }
+
+  return {
+    success: false,
+    error: {
+      errorMessage: "No wallet",
+    },
+  };
 }

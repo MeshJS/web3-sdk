@@ -3,4 +3,6 @@ export * from "./common";
 export * from "./functions";
 export * from "./models";
 export * from "./types";
-export * from "./wallet";
+
+export * from "./wallet-user-controlled";
+export * from "./sdk";
