@@ -20,6 +20,7 @@ export type InitWeb3WalletOptions = {
 export class Web3Wallet extends MeshWallet {
   projectId?: string;
   appUrl?: string;
+
   constructor(
     options: CreateMeshWalletOptions & { projectId?: string; appUrl?: string }
   ) {

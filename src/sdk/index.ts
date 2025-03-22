@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { WalletDeveloperControlled } from "./wallet-developer-controlled/";
 import { Web3Project } from "../types";
+import { IFetcher, ISubmitter } from "@meshsdk/common";
 
 export class Web3Sdk {
   readonly axiosInstance: AxiosInstance;
@@ -11,6 +12,8 @@ export class Web3Sdk {
   readonly networkId: 0 | 1;
   readonly privateKey: string | undefined;
   project: Web3Project | undefined;
+  readonly providerFetcher: IFetcher | undefined;
+  readonly providerSubmitter: ISubmitter | undefined;
 
   readonly wallet: WalletDeveloperControlled;
 
@@ -20,12 +23,16 @@ export class Web3Sdk {
     apiKey,
     networkId,
     privateKey,
+    fetcher,
+    submitter,
   }: {
     appUrl?: string;
     projectId: string;
     apiKey: string;
     networkId: 0 | 1;
     privateKey?: string;
+    fetcher?: IFetcher;
+    submitter?: ISubmitter;
   }) {
     {
       this.appUrl = appUrl ? appUrl : "https://web3.meshjs.dev/";
@@ -33,6 +40,8 @@ export class Web3Sdk {
       this.apiKey = apiKey;
       this.networkId = networkId;
       this.privateKey = privateKey;
+      this.providerFetcher = fetcher;
+      this.providerSubmitter = submitter;
 
       this.axiosInstance = axios.create({
         baseURL: this.appUrl,
