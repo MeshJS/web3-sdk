@@ -19,12 +19,16 @@ export class WalletDeveloperControlled {
   }
 
   /**
-   * Creates a new wallet for the current project.
+   * Creates a new wallet associated with the current project.
+   * This method generates a new wallet encrypts it with the project's public key, and registers the wallet with the backend service.
    *
-   * @param tag - An optional tag to associate with the wallet for identification purposes.
-   * @returns A promise that resolves to the created wallet's details, including its ID, address,
-   *          encrypted mnemonic, network ID, and associated project ID.
-   * @throws An error if the project public key is not found or if the wallet creation fails.
+   * @param {Object} [options] - Optional parameters for wallet creation.
+   * @param {string} [options.tag] - An optional tag to associate with the wallet.
+   * 
+   * @returns {Promise<MeshWallet>} A promise that resolves to the created wallet instance.
+   * 
+   * @throws {Error} If the project's public key is not found.
+   * @throws {Error} If the wallet creation request to the backend fails.
    */
   async createWallet({ tag }: { tag?: string } = {}) {
     const project = await this.sdk.getProject();
@@ -77,11 +81,12 @@ export class WalletDeveloperControlled {
   }
 
   /**
-   * Retrieves all wallets associated with the current project.
+   * Retrieves a list of wallets associated with the current project.
    *
-   * @returns A promise that resolves to an array of wallets, each containing its ID, address,
-   *          network ID, and optional tag.
-   * @throws An error if the wallet retrieval fails.
+   * @returns {Promise<Web3ProjectWallet[]>} A promise that resolves to an array of wallets, 
+   * each containing the wallet's `id`, `address`, `networkId`, and `tag`.
+   * 
+   * @throws {Error} Throws an error if the request to fetch wallets fails.
    */
   async getWallets() {
     const { data, status } = await this.sdk.axiosInstance.get(
@@ -104,12 +109,11 @@ export class WalletDeveloperControlled {
   }
 
   /**
-   * Retrieves a specific wallet by its identifier.
+   * Retrieves a wallet by its ID and decrypts the key with the project's private key.
    *
    * @param walletId - The unique identifier of the wallet to retrieve.
-   * @returns A promise that resolves to an instance of `MeshWallet` initialized with the wallet's
-   *          decrypted mnemonic and other configuration details.
-   * @throws An error if the private key is not found or if the wallet retrieval fails.
+   * @returns A promise that resolves to an initialized `MeshWallet` instance.
+   * @throws Will throw an error if the private key is not found or if the wallet retrieval fails.
    */
   async getWallet(walletId: string) {
     if (this.sdk.privateKey === undefined) {
