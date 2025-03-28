@@ -1,4 +1,5 @@
-import { stringToBytes, shamirSplit, bytesToHex } from "@meshsdk/web3-sdk";
+import { bytesToHex, stringToBytes } from "./convertors";
+import { shamirSplit } from "./shamir-secret-sharing";
 
 export async function spiltKeyIntoShards(key: string) {
   const secret = stringToBytes(key);
