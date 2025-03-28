@@ -80,7 +80,7 @@ export function decryptString(privateKey: string, payload: string) {
 }
 
 export async function generateKeyPairWindow() {
-  const keyPair = await window.crypto.subtle.generateKey(
+  const keyPair = await crypto.subtle.generateKey(
     {
       name: "RSA-OAEP",
       modulusLength: 2048,
@@ -91,14 +91,8 @@ export async function generateKeyPairWindow() {
     ["encrypt", "decrypt"]
   );
 
-  const publicKey = await window.crypto.subtle.exportKey(
-    "spki",
-    keyPair.publicKey
-  );
-  const privateKey = await window.crypto.subtle.exportKey(
-    "pkcs8",
-    keyPair.privateKey
-  );
+  const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+  const privateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
 
   return {
     publicKey: Buffer.from(publicKey).toString("base64"),
@@ -111,7 +105,7 @@ export async function encryptStringWindow(
   data: string
 ): Promise<string> {
   try {
-    const key = await window.crypto.subtle.importKey(
+    const key = await crypto.subtle.importKey(
       "spki",
       Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0)),
       {
@@ -122,7 +116,7 @@ export async function encryptStringWindow(
       ["encrypt"]
     );
 
-    const encrypted = await window.crypto.subtle.encrypt(
+    const encrypted = await crypto.subtle.encrypt(
       {
         name: "RSA-OAEP",
       },
@@ -141,7 +135,7 @@ export async function decryptStringWindow(
   privateKey: string,
   encryptedData: string
 ): Promise<string> {
-  const key = await window.crypto.subtle.importKey(
+  const key = await crypto.subtle.importKey(
     "pkcs8",
     Buffer.from(privateKey, "base64"),
     {
@@ -152,7 +146,7 @@ export async function decryptStringWindow(
     ["decrypt"]
   );
 
-  const decrypted = await window.crypto.subtle.decrypt(
+  const decrypted = await crypto.subtle.decrypt(
     {
       name: "RSA-OAEP",
     },
