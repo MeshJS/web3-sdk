@@ -4,7 +4,7 @@ import { generateMnemonic } from "@meshsdk/common";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
 import { spiltKeyIntoShards } from "../functions";
 
-export async function clientGenerateWallet(encrypPassword: string) {
+export async function clientGenerateWallet(spendingPassword: string) {
   const mnemonic = await generateMnemonic(256);
 
   /* get addresses */
@@ -63,7 +63,7 @@ export async function clientGenerateWallet(encrypPassword: string) {
 
   const encryptedKeyShare1 = encryptWithCipher({
     data: keyShare1,
-    key: encrypPassword,
+    key: spendingPassword,
   });
 
   return {
