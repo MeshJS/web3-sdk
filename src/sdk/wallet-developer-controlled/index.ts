@@ -2,7 +2,7 @@ import { Web3Sdk } from "..";
 import { MeshWallet } from "@meshsdk/wallet";
 import { decryptData, encryptData } from "../../functions";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
-import { Web3ProjectWallet } from "../../types";
+import { Web3ProjectWallet, Web3ProjectWalletInfo } from "../../types";
 
 /**
  * The `WalletDeveloperControlled` class provides functionality for managing developer-controlled wallets
@@ -24,13 +24,16 @@ export class WalletDeveloperControlled {
    *
    * @param {Object} [options] - Optional parameters for wallet creation.
    * @param {string} [options.tag] - An optional tag to associate with the wallet.
-   * 
+   *
    * @returns {Promise<MeshWallet>} A promise that resolves to the created wallet instance.
-   * 
+   *
    * @throws {Error} If the project's public key is not found.
    * @throws {Error} If the wallet creation request to the backend fails.
    */
-  async createWallet({ tag }: { tag?: string } = {}) {
+  async createWallet({ tag }: { tag?: string } = {}): Promise<{
+    info: Web3ProjectWalletInfo;
+    wallet: MeshWallet;
+  }> {
     const project = await this.sdk.getProject();
 
     if (!project.publicKey) {
@@ -74,7 +77,14 @@ export class WalletDeveloperControlled {
     );
 
     if (status === 200) {
-      return { info: web3Wallet, wallet: _wallet };
+      const walletInfo: Web3ProjectWalletInfo = {
+        id: web3Wallet.id,
+        address: web3Wallet.address,
+        networkId: web3Wallet.networkId,
+        tag: web3Wallet.tag,
+      };
+
+      return { info: walletInfo, wallet: _wallet };
     }
 
     throw new Error("Failed to create wallet");
@@ -83,12 +93,12 @@ export class WalletDeveloperControlled {
   /**
    * Retrieves a list of wallets associated with the current project.
    *
-   * @returns {Promise<Web3ProjectWallet[]>} A promise that resolves to an array of wallets, 
+   * @returns {Promise<Web3ProjectWallet[]>} A promise that resolves to an array of wallets,
    * each containing the wallet's `id`, `address`, `networkId`, and `tag`.
-   * 
+   *
    * @throws {Error} Throws an error if the request to fetch wallets fails.
    */
-  async getWallets() {
+  async getWallets(): Promise<Web3ProjectWalletInfo[]> {
     const { data, status } = await this.sdk.axiosInstance.get(
       `api/project-wallet/${this.sdk.projectId}`
     );
@@ -102,7 +112,7 @@ export class WalletDeveloperControlled {
           tag: wallet.tag,
         };
       });
-      return result as Web3ProjectWallet[];
+      return result as Web3ProjectWalletInfo[];
     }
 
     throw new Error("Failed to get wallets");
@@ -115,7 +125,10 @@ export class WalletDeveloperControlled {
    * @returns A promise that resolves to an initialized `MeshWallet` instance.
    * @throws Will throw an error if the private key is not found or if the wallet retrieval fails.
    */
-  async getWallet(walletId: string) {
+  async getWallet(walletId: string): Promise<{
+    info: Web3ProjectWalletInfo;
+    wallet: MeshWallet;
+  }> {
     if (this.sdk.privateKey === undefined) {
       throw new Error("Private key not found");
     }
@@ -143,7 +156,14 @@ export class WalletDeveloperControlled {
       });
       await wallet.init();
 
-      return { info: web3Wallet, wallet: wallet };
+      const walletInfo: Web3ProjectWalletInfo = {
+        id: web3Wallet.id,
+        address: web3Wallet.address,
+        networkId: web3Wallet.networkId,
+        tag: web3Wallet.tag,
+      };
+
+      return { info: walletInfo, wallet: wallet };
     }
 
     throw new Error("Failed to get wallet");

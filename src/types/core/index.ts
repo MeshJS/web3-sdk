@@ -29,3 +29,10 @@ export type Web3ProjectWallet = {
   tag: string | null;
   projectId: string;
 };
+
+export type Web3ProjectWalletInfo = {
+  id: string;
+  address: string;
+  networkId: 0 | 1;
+  tag: string | null;
+};
