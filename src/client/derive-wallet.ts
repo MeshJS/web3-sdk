@@ -1,11 +1,10 @@
 import { combineShardsBuildWallet, decryptWithCipher } from "../functions";
 
-export async function clientSignTx(
+export async function clientDeriveWallet(
   encryptedKeyShard: string,
   spendingPassword: string,
   custodialShard: string,
-  networkId: 0 | 1,
-  unsignedTx: string
+  networkId: 0 | 1
 ) {
   const keyShare1 = decryptWithCipher({
     encryptedData: encryptedKeyShard,
@@ -19,6 +18,5 @@ export async function clientSignTx(
     keyShare2
   );
 
-  const signedTx = await wallet.signTx(unsignedTx);
-  return signedTx;
+  return wallet;
 }
