@@ -1,5 +1,9 @@
 import { Web3Sdk } from "..";
 
+/**
+ * The `Sponsorship` class provides methods to manage and interact with sponsorships
+ * in the Web3 SDK.
+ */
 export class Sponsorship {
   readonly sdk: Web3Sdk;
 

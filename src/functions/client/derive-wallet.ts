@@ -1,4 +1,5 @@
-import { combineShardsBuildWallet, decryptWithCipher } from "../functions";
+import { decryptWithCipher } from "../crypto";
+import { combineShardsBuildWallet } from "../key-shard";
 
 export async function clientDeriveWallet(
   encryptedKeyShard: string,

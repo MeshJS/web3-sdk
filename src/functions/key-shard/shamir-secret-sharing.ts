@@ -1,6 +1,5 @@
-// https://github.com/privy-io/shamir-secret-sharing?tab=readme-ov-file
-
-export function getRandomBytes(numBytes: number): Uint8Array {
+// Get the random bytes from the browser's crypto API.
+function getRandomBytes(numBytes: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(numBytes));
 }
 

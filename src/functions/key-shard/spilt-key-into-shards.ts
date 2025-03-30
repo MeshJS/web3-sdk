@@ -1,4 +1,4 @@
-import { bytesToHex, stringToBytes } from "./convertors";
+import { bytesToHex, stringToBytes } from "../convertors";
 import { shamirSplit } from "./shamir-secret-sharing";
 
 export async function spiltKeyIntoShards(key: string) {

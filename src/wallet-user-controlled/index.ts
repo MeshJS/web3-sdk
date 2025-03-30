@@ -1,6 +1,5 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import { openWindow } from "../common/window/open-window";
 import {
   WindowSignDataReq,
   WindowSignDataRes,
@@ -8,6 +7,7 @@ import {
   WindowSignTxRes,
 } from "../types";
 import { WindowWalletReq, WindowWalletRes } from "../types";
+import { openWindow } from "../functions";
 
 export type InitWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -17,6 +17,10 @@ export type InitWeb3WalletOptions = {
   appUrl?: string;
 };
 
+/**
+ * Mesh wallet-as-a-service are designed to be strictly non-custodial,
+ * meaning neither the developer nor Mesh can access the user's private key.
+ */
 export class Web3Wallet extends MeshWallet {
   projectId?: string;
   appUrl?: string;

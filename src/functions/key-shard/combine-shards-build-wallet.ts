@@ -1,6 +1,6 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { shamirCombine } from "./shamir-secret-sharing";
-import { bytesToString, hexToBytes } from "./convertors";
+import { bytesToString, hexToBytes } from "../convertors";
 
 export async function combineShardsBuildWallet(
   networkId: 0 | 1,

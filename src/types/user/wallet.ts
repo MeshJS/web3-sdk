@@ -1,8 +1,8 @@
-export type userWalletSettings = {
-  wallet: userWalletSettingsWallet;
+export type UserWalletSettings = {
+  wallet: UserWalletSettingsWallet;
 };
 
-export type userWalletSettingsWallet = {
+export type UserWalletSettingsWallet = {
   network: "mainnet" | "preprod";
   authorizedApps?: { url: string }[] | undefined;
 };

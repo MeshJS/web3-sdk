@@ -1,8 +1,9 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { generateMnemonic } from "@meshsdk/common";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
-import { encryptWithCipher, spiltKeyIntoShards } from "../functions";
-import { Web3WalletMeta } from "../types";
+import { Web3WalletMeta } from "../../types";
+import { spiltKeyIntoShards } from "../key-shard";
+import { encryptWithCipher } from "../crypto";
 
 export async function clientGenerateWallet(spendingPassword: string) {
   const mnemonic = await generateMnemonic(256);
