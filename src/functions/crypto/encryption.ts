@@ -46,23 +46,25 @@ export async function encryptWithCipher({
   );
 
   // Return the encrypted data as a base64 string
-  return {
+  return JSON.stringify({
     iv: Buffer.from(iv).toString("base64"),
     ciphertext: Buffer.from(encrypted).toString("base64"),
-  };
+  });
 }
-
 export async function decryptWithCipher({
-  encryptedData,
+  encryptedDataJSON,
   key,
   algorithm = "AES-GCM",
-  initializationVectorSize = IV_LENGTH,
 }: {
-  encryptedData: string;
+  encryptedDataJSON: string;
   key: string;
   algorithm?: string;
-  initializationVectorSize?: number;
 }) {
+  const _encryptedData: {
+    iv: string;
+    ciphertext: string;
+  } = JSON.parse(encryptedDataJSON);
+
   // Derive a cryptographic key from the input key using SHA-256
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -75,7 +77,7 @@ export async function decryptWithCipher({
   const cryptoKey = await crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: new Uint8Array(initializationVectorSize), // Use the same salt as encryption
+      salt: new Uint8Array(Buffer.from(_encryptedData.iv, "base64").length), // Use the same salt size as IV
       iterations: 100000,
       hash: "SHA-256",
     },
@@ -85,21 +87,18 @@ export async function decryptWithCipher({
     ["decrypt"]
   );
 
-  // Decode the encrypted data
-  const buffer = Buffer.from(encryptedData, "base64");
-
-  // Extract the IV and ciphertext
-  const iv = buffer.slice(0, initializationVectorSize);
-  const ciphertext = buffer.slice(initializationVectorSize);
+  // Decode the IV and encrypted data from base64
+  const decodedIv = Buffer.from(_encryptedData.iv, "base64");
+  const decodedEncryptedData = Buffer.from(_encryptedData.ciphertext, "base64");
 
   // Decrypt the data
   const decrypted = await crypto.subtle.decrypt(
-    { name: algorithm, iv: new Uint8Array(iv) },
+    { name: algorithm, iv: decodedIv },
     cryptoKey,
-    ciphertext
+    decodedEncryptedData
   );
 
-  // Return the decrypted data as a UTF-8 string
+  // Return the decrypted data as a string
   return new TextDecoder().decode(decrypted);
 }
 

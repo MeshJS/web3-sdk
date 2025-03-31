@@ -7,8 +7,8 @@ export async function clientDeriveWallet(
   custodialShard: string,
   networkId: 0 | 1
 ) {
-  const keyShare1 = decryptWithCipher({
-    encryptedData: encryptedKeyShard,
+  const keyShare1 = await decryptWithCipher({
+    encryptedDataJSON: encryptedKeyShard,
     key: spendingPassword,
   });
   const keyShare2 = custodialShard;

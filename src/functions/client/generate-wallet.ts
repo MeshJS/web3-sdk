@@ -62,8 +62,8 @@ export async function clientGenerateWallet(spendingPassword: string) {
   /* spilt key shares */
   const [keyShare1, keyShare2, keyShare3] = await spiltKeyIntoShards(mnemonic);
 
-  const encryptedKeyShare1 = encryptWithCipher({
-    data: keyShare1,
+  const encryptedKeyShare1 = await encryptWithCipher({
+    data: keyShare1!,
     key: spendingPassword,
   });
 
