@@ -62,14 +62,16 @@ export class WalletDeveloperControlled {
       mnemonic.join(" ")
     );
 
-    const web3Wallet: Web3ProjectWallet = {
-      id: pubKeyHash,
-      address: address,
-      mnemonic: encryptedMnemonic,
-      networkId: this.sdk.networkId,
-      tag: tag ? tag.trim() : null,
-      projectId: this.sdk.projectId,
-    };
+    const web3Wallet =
+      // : Web3ProjectWallet
+      {
+        id: pubKeyHash,
+        address: address,
+        mnemonic: encryptedMnemonic,
+        networkId: this.sdk.networkId,
+        tag: tag ? tag.trim() : null,
+        projectId: this.sdk.projectId,
+      };
 
     const { status } = await this.sdk.axiosInstance.post(
       `api/project-wallet`,
@@ -104,15 +106,15 @@ export class WalletDeveloperControlled {
     );
 
     if (status === 200) {
-      const result = data.map((wallet: Web3ProjectWallet) => {
-        return {
-          id: wallet.id,
-          address: wallet.address,
-          networkId: wallet.networkId,
-          tag: wallet.tag,
-        };
-      });
-      return result as Web3ProjectWalletInfo[];
+      // const result = data.map((wallet: Web3ProjectWallet) => {
+      //   return {
+      //     id: wallet.id,
+      //     address: wallet.address,
+      //     networkId: wallet.networkId,
+      //     tag: wallet.tag,
+      //   };
+      // });
+      // return result as Web3ProjectWalletInfo[];
     }
 
     throw new Error("Failed to get wallets");
@@ -142,7 +144,7 @@ export class WalletDeveloperControlled {
 
       const mnemonic = await decryptWithPrivateKey(
         this.sdk.privateKey,
-        web3Wallet.mnemonic
+        "" // web3Wallet.mnemonic
       );
 
       const wallet = new MeshWallet({
@@ -158,9 +160,9 @@ export class WalletDeveloperControlled {
 
       const walletInfo: Web3ProjectWalletInfo = {
         id: web3Wallet.id,
-        address: web3Wallet.address,
-        networkId: web3Wallet.networkId,
-        tag: web3Wallet.tag,
+        address: "",
+        networkId: 0,
+        tag: "",
       };
 
       return { info: walletInfo, wallet: wallet };
