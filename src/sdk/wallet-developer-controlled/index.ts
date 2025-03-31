@@ -1,6 +1,6 @@
 import { Web3Sdk } from "..";
 import { MeshWallet } from "@meshsdk/wallet";
-import { decryptData, encryptData } from "../../functions";
+import { decryptWithPrivateKey, encryptWithPublicKey } from "../../functions";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
 import { Web3ProjectWallet, Web3ProjectWalletInfo } from "../../types";
 
@@ -57,7 +57,7 @@ export class WalletDeveloperControlled {
     const keyHashesMainnet = deserializeBech32Address(address);
     const pubKeyHash = keyHashesMainnet.pubKeyHash;
 
-    const encryptedMnemonic = await encryptData(
+    const encryptedMnemonic = await encryptWithPublicKey(
       project.publicKey,
       mnemonic.join(" ")
     );
@@ -140,7 +140,7 @@ export class WalletDeveloperControlled {
     if (status === 200) {
       const web3Wallet = data as Web3ProjectWallet;
 
-      const mnemonic = await decryptData(
+      const mnemonic = await decryptWithPrivateKey(
         this.sdk.privateKey,
         web3Wallet.mnemonic
       );
