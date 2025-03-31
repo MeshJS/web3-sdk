@@ -24,17 +24,11 @@ export type Web3ProjectBranding = {
 export type Web3ProjectWallet = {
   id: string;
   mnemonicKey: string;
-  tags: Web3ProjectWalletTag[];
+  tags: string[];
   projectId: string;
   pubKeyHash: string;
   baseAddressBech32: string;
   preprodBaseAddressBech32: string;
-};
-
-export type Web3ProjectWalletTag = {
-  id: string;
-  projectWalletId: string;
-  tag: string;
 };
 
 export type Web3ProjectWalletInfo = {
