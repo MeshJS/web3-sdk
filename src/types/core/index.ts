@@ -23,7 +23,7 @@ export type Web3ProjectBranding = {
 
 export type Web3ProjectWallet = {
   id: string;
-  mnemonicKey: string;
+  key: string;
   tags: string[];
   projectId: string;
   pubKeyHash: string;
