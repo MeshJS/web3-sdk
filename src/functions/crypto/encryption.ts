@@ -1,65 +1,106 @@
-import * as crypto from "crypto";
+import { crypto } from ".";
 
 const IV_LENGTH = 16;
 
-export function encryptWithCipher({
+export async function encryptWithCipher({
   data,
   key,
-  algorithm = "aes-256-ctr",
+  algorithm = "AES-GCM",
   initializationVectorSize = IV_LENGTH,
 }: {
-  data: any;
+  data: string;
   key: string;
   algorithm?: string;
   initializationVectorSize?: number;
 }) {
-  const _key = crypto
-    .createHash("sha256")
-    .update(String(key))
-    .digest("base64")
-    .substr(0, 32);
+  // Derive a cryptographic key from the input key using SHA-256
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(key),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
 
-  const buffer = Buffer.from(data);
+  const cryptoKey = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: new Uint8Array(initializationVectorSize), // Use a fixed salt for simplicity
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: algorithm, length: 256 },
+    false,
+    ["encrypt"]
+  );
 
   // Create an initialization vector
-  const iv = crypto.randomBytes(initializationVectorSize);
-  // Create a new cipher using the algorithm, key, and iv
-  const cipher = crypto.createCipheriv(algorithm, _key, iv);
-  // Create the new (encrypted) buffer
-  const result = Buffer.concat([iv, cipher.update(buffer), cipher.final()]);
+  const iv = crypto.getRandomValues(new Uint8Array(initializationVectorSize));
 
-  return result.toString("base64");
+  // Encrypt the data
+  const encrypted = await crypto.subtle.encrypt(
+    { name: algorithm, iv },
+    cryptoKey,
+    new TextEncoder().encode(data)
+  );
+
+  // Return the encrypted data as a base64 string
+  return {
+    iv: Buffer.from(iv).toString("base64"),
+    ciphertext: Buffer.from(encrypted).toString("base64"),
+  };
 }
 
-export function decryptWithCipher({
+export async function decryptWithCipher({
   encryptedData,
   key,
-  algorithm = "aes-256-ctr",
-  initializationVectorSize = 16,
+  algorithm = "AES-GCM",
+  initializationVectorSize = IV_LENGTH,
 }: {
   encryptedData: string;
   key: string;
   algorithm?: string;
   initializationVectorSize?: number;
 }) {
-  key = crypto
-    .createHash("sha256")
-    .update(String(key))
-    .digest("base64")
-    .substr(0, 32);
+  // Derive a cryptographic key from the input key using SHA-256
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(key),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
 
-  let buffer = Buffer.from(encryptedData, "base64");
+  const cryptoKey = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: new Uint8Array(initializationVectorSize), // Use the same salt as encryption
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: algorithm, length: 256 },
+    false,
+    ["decrypt"]
+  );
 
-  // Get the iv: the first 16 bytes
+  // Decode the encrypted data
+  const buffer = Buffer.from(encryptedData, "base64");
+
+  // Extract the IV and ciphertext
   const iv = buffer.slice(0, initializationVectorSize);
-  // Get the rest
-  buffer = buffer.slice(initializationVectorSize);
-  // Create a decipher
-  const decipher = crypto.createDecipheriv(algorithm, key, iv);
-  // Actually decrypt it
-  const result = Buffer.concat([decipher.update(buffer), decipher.final()]);
+  const ciphertext = buffer.slice(initializationVectorSize);
 
-  return result.toString("utf8");
+  // Decrypt the data
+  const decrypted = await crypto.subtle.decrypt(
+    { name: algorithm, iv: new Uint8Array(iv) },
+    cryptoKey,
+    ciphertext
+  );
+
+  // Return the decrypted data as a UTF-8 string
+  return new TextDecoder().decode(decrypted);
 }
 
 export async function generateKeyPair() {
@@ -187,3 +228,67 @@ export async function decryptData(
 
   return new TextDecoder().decode(decrypted);
 }
+
+/**
+ * these methods do not use crypto.subtle
+ */
+
+// export function encryptWithCipher({
+//   data,
+//   key,
+//   algorithm = "aes-256-ctr",
+//   initializationVectorSize = IV_LENGTH,
+// }: {
+//   data: any;
+//   key: string;
+//   algorithm?: string;
+//   initializationVectorSize?: number;
+// }) {
+//   const _key = crypto
+//     .createHash("sha256")
+//     .update(String(key))
+//     .digest("base64")
+//     .substr(0, 32);
+
+//   const buffer = Buffer.from(data);
+
+//   // Create an initialization vector
+//   const iv = crypto.randomBytes(initializationVectorSize);
+//   // Create a new cipher using the algorithm, key, and iv
+//   const cipher = crypto.createCipheriv(algorithm, _key, iv);
+//   // Create the new (encrypted) buffer
+//   const result = Buffer.concat([iv, cipher.update(buffer), cipher.final()]);
+
+//   return result.toString("base64");
+// }
+
+// export function decryptWithCipher({
+//   encryptedData,
+//   key,
+//   algorithm = "aes-256-ctr",
+//   initializationVectorSize = 16,
+// }: {
+//   encryptedData: string;
+//   key: string;
+//   algorithm?: string;
+//   initializationVectorSize?: number;
+// }) {
+//   key = crypto
+//     .createHash("sha256")
+//     .update(String(key))
+//     .digest("base64")
+//     .substr(0, 32);
+
+//   let buffer = Buffer.from(encryptedData, "base64");
+
+//   // Get the iv: the first 16 bytes
+//   const iv = buffer.slice(0, initializationVectorSize);
+//   // Get the rest
+//   buffer = buffer.slice(initializationVectorSize);
+//   // Create a decipher
+//   const decipher = crypto.createDecipheriv(algorithm, key, iv);
+//   // Actually decrypt it
+//   const result = Buffer.concat([decipher.update(buffer), decipher.final()]);
+
+//   return result.toString("utf8");
+// }
