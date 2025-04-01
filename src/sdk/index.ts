@@ -9,7 +9,6 @@ export class Web3Sdk {
   readonly appUrl: string;
   readonly projectId: string;
   readonly apiKey: string;
-  readonly networkId: 0 | 1;
   readonly privateKey: string | undefined;
   project: Web3Project | undefined;
   readonly providerFetcher: IFetcher | undefined;
@@ -21,7 +20,6 @@ export class Web3Sdk {
     appUrl,
     projectId,
     apiKey,
-    networkId,
     privateKey,
     fetcher,
     submitter,
@@ -29,7 +27,6 @@ export class Web3Sdk {
     appUrl?: string;
     projectId: string;
     apiKey: string;
-    networkId: 0 | 1;
     privateKey?: string;
     fetcher?: IFetcher;
     submitter?: ISubmitter;
@@ -38,7 +35,6 @@ export class Web3Sdk {
       this.appUrl = appUrl ? appUrl : "https://web3.meshjs.dev/";
       this.projectId = projectId;
       this.apiKey = apiKey;
-      this.networkId = networkId;
       this.privateKey = privateKey;
       this.providerFetcher = fetcher;
       this.providerSubmitter = submitter;
