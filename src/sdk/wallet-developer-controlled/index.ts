@@ -62,9 +62,9 @@ export class WalletDeveloperControlled {
       mnemonic.join(" ")
     );
 
-    const web3Wallet: Web3ProjectWallet = {
+    const web3Wallet = {
       id: pubKeyHash,
-      address: address,
+      // address: address,
       mnemonic: encryptedMnemonic,
       networkId: this.sdk.networkId,
       tag: tag ? tag.trim() : null,
@@ -77,14 +77,11 @@ export class WalletDeveloperControlled {
     );
 
     if (status === 200) {
-      const walletInfo: Web3ProjectWalletInfo = {
+      const walletInfo = {
         id: web3Wallet.id,
-        address: web3Wallet.address,
         networkId: web3Wallet.networkId,
         tag: web3Wallet.tag,
       };
-
-      return { info: walletInfo, wallet: _wallet };
     }
 
     throw new Error("Failed to create wallet");
@@ -107,9 +104,9 @@ export class WalletDeveloperControlled {
       const result = data.map((wallet: Web3ProjectWallet) => {
         return {
           id: wallet.id,
-          address: wallet.address,
-          networkId: wallet.networkId,
-          tag: wallet.tag,
+          address: "",
+          networkId: "",
+          tag: "",
         };
       });
       return result as Web3ProjectWalletInfo[];
@@ -142,7 +139,8 @@ export class WalletDeveloperControlled {
 
       const mnemonic = await decryptWithPrivateKey(
         this.sdk.privateKey,
-        web3Wallet.mnemonic
+        ""
+        // web3Wallet.mnemonic
       );
 
       const wallet = new MeshWallet({
@@ -158,9 +156,9 @@ export class WalletDeveloperControlled {
 
       const walletInfo: Web3ProjectWalletInfo = {
         id: web3Wallet.id,
-        address: web3Wallet.address,
-        networkId: web3Wallet.networkId,
-        tag: web3Wallet.tag,
+        address: "",
+        networkId: 0,
+        tag: "",
       };
 
       return { info: walletInfo, wallet: wallet };
