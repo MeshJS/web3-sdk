@@ -1,4 +1,5 @@
-import { crypto } from ".";
+import { Crypto } from "@peculiar/webcrypto";
+const crypto = new Crypto();
 
 const IV_LENGTH = 16;
 

@@ -40,6 +40,7 @@
     "@meshsdk/common": "^1.9.0-beta.17",
     "@meshsdk/core-cst": "^1.9.0-beta.17",
     "@meshsdk/wallet": "^1.9.0-beta.17",
+    "@peculiar/webcrypto": "^1.5.0",
     "axios": "^1.8.3",
     "base32-encoding": "^1.0.0",
     "uuid": "^11.1.0"
