@@ -26,8 +26,8 @@ export type Web3ProjectWallet = {
   key: string;
   tags: string[];
   projectId: string;
-  baseAddressBech32: string;
-  preprodBaseAddressBech32: string;
+  pubKeyHash: string;
+  stakeCredentialHash: string;
 };
 
 export type Web3ProjectWalletInfo = {
