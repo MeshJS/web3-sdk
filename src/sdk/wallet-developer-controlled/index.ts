@@ -74,14 +74,14 @@ export class WalletDeveloperControlled {
       stakeCredentialHash: stakeCredentialHash,
     };
 
-    const { status } = await this.sdk.axiosInstance.post(
+    const { data, status } = await this.sdk.axiosInstance.post(
       `api/project-wallet`,
       web3Wallet
     );
     console.log("status", status);
 
     if (status === 200) {
-      return web3Wallet;
+      return data as Web3ProjectWallet;
     }
 
     throw new Error("Failed to create wallet");
