@@ -29,10 +29,3 @@ export type Web3ProjectWallet = {
   pubKeyHash: string;
   stakeCredentialHash: string;
 };
-
-export type Web3ProjectWalletInfo = {
-  id: string;
-  address: string;
-  networkId: 0 | 1;
-  tag: string | null;
-};

@@ -123,7 +123,13 @@ export async function generateKeyPair() {
   return key;
 }
 
-export async function encryptWithPublicKey(publicKey: string, data: string) {
+export async function encryptWithPublicKey({
+  publicKey,
+  data,
+}: {
+  publicKey: string;
+  data: string;
+}) {
   const publicKeyBuffer = Buffer.from(publicKey, "base64");
 
   const _publicKey = await crypto.subtle.importKey(
@@ -176,10 +182,13 @@ export async function encryptWithPublicKey(publicKey: string, data: string) {
   });
 }
 
-export async function decryptWithPrivateKey(
-  privateKey: string,
-  encryptedDataJSON: string
-) {
+export async function decryptWithPrivateKey({
+  privateKey,
+  encryptedDataJSON,
+}: {
+  privateKey: string;
+  encryptedDataJSON: string;
+}) {
   const privateKeyBuffer = Buffer.from(privateKey, "base64");
 
   const _encryptedData: {
