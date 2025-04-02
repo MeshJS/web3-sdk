@@ -7,7 +7,7 @@ import {
   WindowSignTxRes,
 } from "../types";
 import { WindowWalletReq, WindowWalletRes } from "../types";
-import { openWindow } from "../functions";
+import { getAddressFromHashes, openWindow } from "../functions";
 
 export type InitWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -46,6 +46,12 @@ export class Web3Wallet extends MeshWallet {
         info: "Refused - The request was refused due to lack of access - e.g. wallet disconnects.",
       });
 
+    const address = getAddressFromHashes(
+      res.data.pubKeyHash,
+      res.data.stakeCredentialHash,
+      options.networkId
+    );
+
     const _options: CreateMeshWalletOptions & {
       projectId?: string;
       appUrl?: string;
@@ -53,7 +59,7 @@ export class Web3Wallet extends MeshWallet {
       networkId: options.networkId,
       key: {
         type: "address",
-        address: res.data.address,
+        address: address,
       },
       fetcher: options.fetcher,
       submitter: options.submitter,
@@ -154,7 +160,7 @@ export async function getWalletFromWindow({
     }
   | {
       success: true;
-      data: { address: string };
+      data: { pubKeyHash: string; stakeCredentialHash: string };
     }
 > {
   const payload: WindowWalletReq = { networkId: networkId, projectId };
@@ -168,7 +174,10 @@ export async function getWalletFromWindow({
   if (walletRes.success) {
     return {
       success: true,
-      data: { address: walletRes.wallet.baseAddressBech32 },
+      data: {
+        pubKeyHash: walletRes.pubKeyHash,
+        stakeCredentialHash: walletRes.stakeCredentialHash,
+      },
     };
   }
 
