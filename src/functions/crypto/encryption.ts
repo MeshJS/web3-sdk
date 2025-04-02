@@ -1,6 +1,4 @@
-import { Crypto } from "@peculiar/webcrypto";
-const crypto = new Crypto();
-
+import { crypto } from ".";
 const IV_LENGTH = 16;
 
 export async function encryptWithCipher({
