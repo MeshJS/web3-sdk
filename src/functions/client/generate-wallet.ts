@@ -1,7 +1,6 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { generateMnemonic } from "@meshsdk/common";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
-import { Web3WalletMeta } from "../../types";
 import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
 
@@ -9,55 +8,17 @@ export async function clientGenerateWallet(spendingPassword: string) {
   const mnemonic = await generateMnemonic(256);
 
   /* get addresses */
-  const walletMainnet = new MeshWallet({
+  const wallet = new MeshWallet({
     networkId: 1,
     key: {
       type: "mnemonic",
       words: mnemonic.split(" "),
     },
   });
-  await walletMainnet.init();
+  await wallet.init();
 
-  const mainnetAddresses = await walletMainnet.getAddresses();
-  const keyHashesMainnet = deserializeBech32Address(
-    mainnetAddresses.baseAddressBech32!
-  );
-  const mainnet: Web3WalletMeta = {
-    baseAddressBech32: mainnetAddresses.baseAddressBech32!,
-    enterpriseAddressBech32: mainnetAddresses.enterpriseAddressBech32!,
-    rewardsAddressBech32: mainnetAddresses.rewardAddressBech32!,
-    pubKeyHash: keyHashesMainnet.pubKeyHash,
-    stakeKeyHash: keyHashesMainnet.stakeCredentialHash,
-  };
-
-  const walletTestnet = new MeshWallet({
-    networkId: 0,
-    key: {
-      type: "mnemonic",
-      words: mnemonic.split(" "),
-    },
-  });
-  await walletTestnet.init();
-
-  const testnetAddresses = await walletTestnet.getAddresses();
-  const keyHashesTestNet = deserializeBech32Address(
-    testnetAddresses.baseAddressBech32!
-  );
-  const testnet: Web3WalletMeta = {
-    baseAddressBech32: testnetAddresses.baseAddressBech32!,
-    enterpriseAddressBech32: testnetAddresses.enterpriseAddressBech32!,
-    rewardsAddressBech32: testnetAddresses.rewardAddressBech32!,
-    pubKeyHash: keyHashesTestNet.pubKeyHash,
-    stakeKeyHash: keyHashesTestNet.stakeCredentialHash,
-  };
-
-  const addresses: {
-    mainnet: Web3WalletMeta;
-    testnet: Web3WalletMeta;
-  } = {
-    mainnet,
-    testnet,
-  };
+  const addresses = await wallet.getAddresses();
+  const keyHashes = deserializeBech32Address(addresses.baseAddressBech32!);
 
   /* spilt key shares */
   const [keyShare1, keyShare2, keyShare3] = await spiltKeyIntoShards(mnemonic);
@@ -68,7 +29,8 @@ export async function clientGenerateWallet(spendingPassword: string) {
   });
 
   return {
-    addresses,
+    pubKeyHash: keyHashes.pubKeyHash,
+    stakeCredentialHash: keyHashes.stakeCredentialHash,
     encryptedKeyShare1,
     keyShare2: keyShare2!,
     keyShare3: keyShare3!,
