@@ -52,22 +52,15 @@ export class Web3Wallet extends MeshWallet {
       options.networkId
     );
 
-    const _options: CreateMeshWalletOptions & {
-      projectId?: string;
-      appUrl?: string;
-    } = {
+    const wallet = await Web3Wallet.initWallet({
       networkId: options.networkId,
-      key: {
-        type: "address",
-        address: address,
-      },
+      address,
       fetcher: options.fetcher,
       submitter: options.submitter,
       projectId: options.projectId,
       appUrl: options.appUrl,
-    };
-    const wallet = new Web3Wallet(_options);
-    await wallet.init();
+    });
+
     return wallet;
   }
 
@@ -133,6 +126,53 @@ export class Web3Wallet extends MeshWallet {
       });
 
     return res.signature;
+  }
+
+  /**
+   * Initializes a new instance of a Web3 wallet with the specified options.
+   *
+   * @param params - The parameters required to initialize the wallet.
+   * @param params.networkId - The network ID to connect to. Must be either `0` (testnet) or `1` (mainnet).
+   * @param params.address - The wallet address to associate with the wallet instance.
+   * @param params.fetcher - (Optional) An implementation of the `IFetcher` interface for fetching data.
+   * @param params.submitter - (Optional) An implementation of the `ISubmitter` interface for submitting transactions.
+   * @param params.projectId - (Optional) The project ID for analytics or tracking purposes.
+   * @param params.appUrl - (Optional) The application URL for associating the wallet with a specific app.
+   *
+   * @returns A promise that resolves to an initialized instance of `Web3Wallet`.
+   */
+  static async initWallet({
+    networkId,
+    address,
+    fetcher,
+    submitter,
+    projectId,
+    appUrl,
+  }: {
+    networkId: 0 | 1;
+    address: string;
+    fetcher?: IFetcher;
+    submitter?: ISubmitter;
+    projectId?: string;
+    appUrl?: string;
+  }) {
+    const _options: CreateMeshWalletOptions & {
+      projectId?: string;
+      appUrl?: string;
+    } = {
+      networkId: networkId,
+      key: {
+        type: "address",
+        address: address,
+      },
+      fetcher: fetcher,
+      submitter: submitter,
+      projectId: projectId,
+      appUrl: appUrl,
+    };
+    const wallet = new Web3Wallet(_options);
+    await wallet.init();
+    return wallet;
   }
 }
 
