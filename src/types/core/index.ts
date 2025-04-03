@@ -8,6 +8,8 @@ export type Web3Project = {
   discordOauthSecret: string | null;
   twitterOauthClient: string | null;
   twitterOauthSecret: string | null;
+  googleOauthClient: string | null;
+  googleOauthSecret: string | null;
   branding: Web3ProjectBranding;
   publicKey: string | null;
   apiKey: string;
