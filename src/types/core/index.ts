@@ -19,6 +19,7 @@ export type Web3ProjectBranding = {
   logoUrl?: string;
   twitterEnabled?: boolean;
   discordEnabled?: boolean;
+  googleEnabled?: boolean;
 };
 
 export type Web3ProjectWallet = {
