@@ -8,6 +8,8 @@ export type Web3Project = {
   discordOauthSecret: string | null;
   twitterOauthClient: string | null;
   twitterOauthSecret: string | null;
+  googleOauthClient: string | null;
+  googleOauthSecret: string | null;
   branding: Web3ProjectBranding;
   publicKey: string | null;
   apiKey: string;
@@ -19,6 +21,7 @@ export type Web3ProjectBranding = {
   logoUrl?: string;
   twitterEnabled?: boolean;
   discordEnabled?: boolean;
+  googleEnabled?: boolean;
 };
 
 export type Web3ProjectWallet = {
