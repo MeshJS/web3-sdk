@@ -1,6 +1,6 @@
 {
   "name": "@meshsdk/web3-sdk",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "SDK for Mesh Web3 Services",
   "main": "./dist/index.cjs",
   "browser": "./dist/index.js",
@@ -26,7 +26,7 @@
     "dist/**"
   ],
   "scripts": {
-    "build:packages": "tsup src/index.ts --format esm,cjs --dts",
+    "build:sdk": "tsup src/index.ts --format esm,cjs --dts",
     "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
     "test": "jest"
   },
