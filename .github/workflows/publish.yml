@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build
-        run: npm run build:packages
+        run: npm run build:sdk
 
   check-version:
     runs-on: ubuntu-latest
