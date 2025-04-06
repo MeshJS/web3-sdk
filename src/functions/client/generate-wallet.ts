@@ -4,7 +4,10 @@ import { deserializeBech32Address } from "@meshsdk/core-cst";
 import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
 
-export async function clientGenerateWallet(spendingPassword: string) {
+export async function clientGenerateWallet(
+  spendingPassword: string,
+  recoveryAnswer: string
+) {
   const mnemonic = await generateMnemonic(256);
 
   /* get addresses */
@@ -23,16 +26,23 @@ export async function clientGenerateWallet(spendingPassword: string) {
   /* spilt key shares */
   const [keyShare1, keyShare2, keyShare3] = await spiltKeyIntoShards(mnemonic);
 
-  const encryptedKeyShare1 = await encryptWithCipher({
+  const encryptedAuthKey = await encryptWithCipher({
     data: keyShare1!,
     key: spendingPassword,
+  });
+
+  /* recovery */
+
+  const encryptedRecoveryKey = await encryptWithCipher({
+    data: keyShare3!,
+    key: recoveryAnswer,
   });
 
   return {
     pubKeyHash: keyHashes.pubKeyHash,
     stakeCredentialHash: keyHashes.stakeCredentialHash,
-    encryptedKeyShare1,
-    keyShare2: keyShare2!,
-    keyShare3: keyShare3!,
+    deviceKey: encryptedAuthKey,
+    authKey: keyShare2!,
+    recoveryKey: encryptedRecoveryKey,
   };
 }
