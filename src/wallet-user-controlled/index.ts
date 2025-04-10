@@ -1,6 +1,7 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import {
+  UserControlledWalletDirectTo,
   WindowSignDataReq,
   WindowSignDataRes,
   WindowSignTxReq,
@@ -15,6 +16,7 @@ export type InitWeb3WalletOptions = {
   submitter?: ISubmitter;
   projectId?: string;
   appUrl?: string;
+  directTo?: UserControlledWalletDirectTo;
 };
 
 /**
@@ -38,6 +40,7 @@ export class Web3Wallet extends MeshWallet {
       networkId: options.networkId,
       projectId: options.projectId,
       appUrl: options.appUrl,
+      directTo: options.directTo,
     });
 
     if (res.success === false)
@@ -190,6 +193,7 @@ export async function getWalletFromWindow({
   networkId,
   projectId,
   appUrl,
+  directTo,
 }: WindowWalletReq): Promise<
   | {
       success: false;
@@ -203,7 +207,11 @@ export async function getWalletFromWindow({
       data: { pubKeyHash: string; stakeCredentialHash: string };
     }
 > {
-  const payload: WindowWalletReq = { networkId: networkId, projectId };
+  const payload: WindowWalletReq = {
+    networkId: networkId,
+    projectId,
+    directTo,
+  };
 
   const walletRes: WindowWalletRes = await openWindow(
     "/client/wallet",
