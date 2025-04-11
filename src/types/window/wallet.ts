@@ -2,6 +2,7 @@ export type WindowWalletReq = {
   networkId: 0 | 1;
   projectId?: string;
   appUrl?: string;
+  directTo?: UserControlledWalletDirectTo;
 };
 
 export type WindowWalletRes = {
@@ -9,3 +10,5 @@ export type WindowWalletRes = {
   pubKeyHash: string;
   stakeCredentialHash: string;
 };
+
+export type UserControlledWalletDirectTo = "google" | "twitter" | "discord";

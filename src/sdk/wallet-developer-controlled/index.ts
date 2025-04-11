@@ -78,7 +78,6 @@ export class WalletDeveloperControlled {
       `api/project-wallet`,
       web3Wallet
     );
-    console.log("status", status);
 
     if (status === 200) {
       return data as Web3ProjectWallet;
