@@ -2,6 +2,7 @@ import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import {
   UserControlledWalletDirectTo,
+  UserSocialData,
   WindowSignDataReq,
   WindowSignDataRes,
   WindowSignTxReq,
@@ -10,13 +11,19 @@ import {
 import { WindowWalletReq, WindowWalletRes } from "../types";
 import { getAddressFromHashes, openWindow } from "../functions";
 
-export type InitWeb3WalletOptions = {
+export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
   fetcher?: IFetcher;
   submitter?: ISubmitter;
   projectId?: string;
   appUrl?: string;
   directTo?: UserControlledWalletDirectTo;
+};
+
+type InitWeb3WalletOptions = CreateMeshWalletOptions & {
+  projectId?: string;
+  appUrl?: string;
+  user?: UserSocialData;
 };
 
 /**
@@ -26,16 +33,29 @@ export type InitWeb3WalletOptions = {
 export class Web3Wallet extends MeshWallet {
   projectId?: string;
   appUrl?: string;
+  user?: UserSocialData;
 
-  constructor(
-    options: CreateMeshWalletOptions & { projectId?: string; appUrl?: string }
-  ) {
+  constructor(options: InitWeb3WalletOptions) {
     super(options);
     this.projectId = options.projectId;
     this.appUrl = options.appUrl;
+    this.user = options.user;
   }
 
-  static async enable(options: InitWeb3WalletOptions): Promise<Web3Wallet> {
+  /**
+   * Initializes a new instance of the Web3Wallet class.
+   *
+   * @param options - The options to initialize the wallet.
+   * @param options.networkId - The network ID (0 for testnet, 1 for mainnet).
+   * @param options.fetcher - An optional fetcher for network requests.
+   * @param options.submitter - An optional submitter for transaction submissions.
+   * @param options.projectId - An optional project ID for analytics or tracking.
+   * @param options.appUrl - An optional application URL for the wallet.
+   * @param options.directTo - An optional parameter to specify the user-controlled wallet direct-to option.
+   *
+   * @returns A promise that resolves to an instance of Web3Wallet.
+   */
+  static async enable(options: EnableWeb3WalletOptions): Promise<Web3Wallet> {
     const res = await getWalletFromWindow({
       networkId: options.networkId,
       projectId: options.projectId,
@@ -50,8 +70,8 @@ export class Web3Wallet extends MeshWallet {
       });
 
     const address = getAddressFromHashes(
-      res.data.pubKeyHash,
-      res.data.stakeCredentialHash,
+      res.pubKeyHash,
+      res.stakeCredentialHash,
       options.networkId
     );
 
@@ -62,9 +82,14 @@ export class Web3Wallet extends MeshWallet {
       submitter: options.submitter,
       projectId: options.projectId,
       appUrl: options.appUrl,
+      user: res.user,
     });
 
     return wallet;
+  }
+
+  getUser() {
+    return this.user;
   }
 
   /**
@@ -151,6 +176,7 @@ export class Web3Wallet extends MeshWallet {
     submitter,
     projectId,
     appUrl,
+    user,
   }: {
     networkId: 0 | 1;
     address: string;
@@ -158,11 +184,9 @@ export class Web3Wallet extends MeshWallet {
     submitter?: ISubmitter;
     projectId?: string;
     appUrl?: string;
+    user?: UserSocialData;
   }) {
-    const _options: CreateMeshWalletOptions & {
-      projectId?: string;
-      appUrl?: string;
-    } = {
+    const _options: InitWeb3WalletOptions = {
       networkId: networkId,
       key: {
         type: "address",
@@ -172,6 +196,7 @@ export class Web3Wallet extends MeshWallet {
       submitter: submitter,
       projectId: projectId,
       appUrl: appUrl,
+      user: user,
     };
     const wallet = new Web3Wallet(_options);
     await wallet.init();
@@ -202,10 +227,7 @@ export async function getWalletFromWindow({
         errorCode?: number;
       };
     }
-  | {
-      success: true;
-      data: { pubKeyHash: string; stakeCredentialHash: string };
-    }
+  | WindowWalletRes
 > {
   const payload: WindowWalletReq = {
     networkId: networkId,
@@ -220,13 +242,7 @@ export async function getWalletFromWindow({
   );
 
   if (walletRes.success) {
-    return {
-      success: true,
-      data: {
-        pubKeyHash: walletRes.pubKeyHash,
-        stakeCredentialHash: walletRes.stakeCredentialHash,
-      },
-    };
+    return walletRes;
   }
 
   return {
