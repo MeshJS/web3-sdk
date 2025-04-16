@@ -241,6 +241,13 @@ export async function getWalletFromWindow({
     appUrl
   );
 
+  if (walletRes.user) {
+    walletRes.user.id = walletRes.user.id.replace(
+      /discord|twitter|google/g,
+      ""
+    );
+  }
+
   if (walletRes.success) {
     return walletRes;
   }
