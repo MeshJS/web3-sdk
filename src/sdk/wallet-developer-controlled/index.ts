@@ -152,4 +152,21 @@ export class WalletDeveloperControlled {
 
     throw new Error("Failed to get wallet");
   }
+
+  async getWalletsByTag(tag: string): Promise<Web3ProjectWallet[]> {
+    if (this.sdk.privateKey === undefined) {
+      throw new Error("Private key not found");
+    }
+
+    const { data, status } = await this.sdk.axiosInstance.get(
+      `api/project-wallet/${this.sdk.projectId}/tag/${tag}`
+    );
+
+    if (status === 200) {
+      const web3Wallets = data as Web3ProjectWallet[];
+      return web3Wallets;
+    }
+
+    throw new Error("Failed to get wallet");
+  }
 }
