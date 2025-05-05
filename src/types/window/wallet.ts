@@ -14,4 +14,8 @@ export type WindowWalletRes = {
   user: UserSocialData | undefined;
 };
 
-export type UserControlledWalletDirectTo = "google" | "twitter" | "discord";
+export type UserControlledWalletDirectTo =
+  | "google"
+  | "twitter"
+  | "discord"
+  | "apple";

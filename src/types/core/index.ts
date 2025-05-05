@@ -22,6 +22,7 @@ export type Web3ProjectBranding = {
   twitterEnabled?: boolean;
   discordEnabled?: boolean;
   googleEnabled?: boolean;
+  appleEnabled?: boolean;
 };
 
 export type Web3ProjectWallet = {
