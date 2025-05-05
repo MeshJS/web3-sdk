@@ -26,7 +26,7 @@ export class WalletDeveloperControlled {
    * @param {Object} [options] - Optional parameters for wallet creation.
    * @param {string} [options.tag] - An optional tag to associate with the wallet.
    *
-   * @returns {Promise<MeshWallet>} A promise that resolves to the created wallet instance.
+   * @returns {Promise<Web3ProjectWallet>} A promise that resolves to the created wallet instance.
    *
    * @throws {Error} If the project's public key is not found.
    * @throws {Error} If the wallet creation request to the backend fails.
@@ -66,7 +66,7 @@ export class WalletDeveloperControlled {
     // create wallet
 
     const web3Wallet: Web3ProjectWallet = {
-      id: uuidv4(), // todo, to be removed should be generated at DB
+      id: uuidv4(),
       key: encryptedMnemonic,
       tags: tags || [],
       projectId: this.sdk.projectId,
@@ -110,12 +110,16 @@ export class WalletDeveloperControlled {
    * Retrieves a wallet by its ID and decrypts the key with the project's private key.
    *
    * @param walletId - The unique identifier of the wallet to retrieve.
+   * @param networkId - The network ID associated with the wallet (0 or 1).
+   * @param decryptKey - A boolean indicating whether to decrypt the wallet key (default: false).
+   * 
    * @returns A promise that resolves to an initialized `MeshWallet` instance.
    * @throws Will throw an error if the private key is not found or if the wallet retrieval fails.
    */
   async getWallet(
     walletId: string,
-    networkId: 0 | 1
+    networkId: 0 | 1,
+    decryptKey = false
   ): Promise<{
     info: Web3ProjectWallet;
     wallet: MeshWallet;
@@ -135,6 +139,10 @@ export class WalletDeveloperControlled {
         privateKey: this.sdk.privateKey,
         encryptedDataJSON: web3Wallet.key,
       });
+
+      if (decryptKey) {
+        web3Wallet.key = mnemonic;
+      }
 
       const wallet = new MeshWallet({
         networkId: networkId,
