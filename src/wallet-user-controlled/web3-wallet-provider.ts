@@ -5,15 +5,18 @@
  * - how do we seperate user's wallet by app id?
  */
 
-type Web3WalletCustomOptions = {
+type Web3WalletProviderOptions = {
   projectId?: string;
   appUrl?: string;
 };
 
-export class Web3WalletCustom {
-  constructor(options: Web3WalletCustomOptions) {}
+export class Web3WalletProvider {
+  user: undefined;
+  wallet: undefined;
 
-  signInWithGoogle() {
+  constructor(options: Web3WalletProviderOptions) {}
+
+  signInWithGoogle(openNewWindow: boolean) {
     /**
      * if already logged in, return session?
      * if not logged in, return either redirect URL or open a new window
@@ -31,17 +34,17 @@ export class Web3WalletCustom {
 
   getWallet() {
     /**
-     * params needed:
-     * - user
-     */
-    /**
      * 1. (if no session) throw error
      * 2. (with auth) get user wallet (from `wallets`)
      * 3. return `wallet` (if exists, otherwise return `null`)
      */
   }
 
-  createWallet() {
+  createWallet(
+    spendingPassword: string,
+    recoveryQuestion: string,
+    recoveryAnswer: string
+  ) {
     /**
      * params needed:
      * - spending password
@@ -56,10 +59,14 @@ export class Web3WalletCustom {
      */
   }
 
-  performRecovery() {
+  performRecovery(
+    currentRecoveryAnswer: string,
+    newSpendingPassword: string,
+    newRecoveryQuestion: string,
+    newRecoveryAnswer: string
+  ) {
     /**
      * params needed:
-     * - wallet
      * - current recovery answer
      * - new spending password
      * - new recovery question
@@ -73,10 +80,9 @@ export class Web3WalletCustom {
      */
   }
 
-  decryptWallet() {
+  decryptWallet(spendingPassword: string, deviceShare: string) {
     /**
      * params needed:
-     * - wallet
      * - spending password
      * - device share
      *
@@ -85,4 +91,10 @@ export class Web3WalletCustom {
      * 3. return decrypted key
      */
   }
+
+  /**
+   * optional functions that devs can use
+   */
+  setDeviceShare(deviceShare: string) {}
+  getDeviceShare() {}
 }
