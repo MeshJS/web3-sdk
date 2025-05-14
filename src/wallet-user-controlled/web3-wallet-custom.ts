@@ -1,7 +1,8 @@
 /**
  * some questions:
  * - how to gatekeep this feature to seperate this from us and clients?
- * - how to do auth provider 
+ * - how to do auth provider
+ * - how do we seperate user's wallet by app id?
  */
 
 type Web3WalletCustomOptions = {
@@ -12,20 +13,23 @@ type Web3WalletCustomOptions = {
 export class Web3WalletCustom {
   constructor(options: Web3WalletCustomOptions) {}
 
+  signInWithGoogle() {
+    /**
+     * if already logged in, return session?
+     * if not logged in, return either redirect URL or open a new window
+     */
+  }
+
   getUser() {
     /**
-     * params needed:
-     * - auth provider
-     * - auth provider config (app id and secret etc)
-     *
-     * 1. (if no session) login with auth provider, do window.open
+     * 1. (if no session) throw error
      * 2. (if session) get user (from `users`)
      * 3. (if no user) create user
      * 4. return user
      */
   }
 
-  getUserWallet() {
+  getWallet() {
     /**
      * params needed:
      * - user
@@ -46,14 +50,16 @@ export class Web3WalletCustom {
      */
     /**
      * 1. (if no session) throw error
-     * 2. create wallet
-     * 3. return wallet with device share
+     * 2. create wallet, do SSS and encryption
+     * 3. save to DB (`wallets`)
+     * 4. return `wallet` and device share
      */
   }
 
   performRecovery() {
     /**
      * params needed:
+     * - wallet
      * - current recovery answer
      * - new spending password
      * - new recovery question
@@ -61,16 +67,18 @@ export class Web3WalletCustom {
      *
      * 1. (if no session) throw error
      * 2. perform recovery
-     * 3. return wallet with device share
+     * 3. create keyshards
+     * 4. save update keyshards to DB (`wallets`)
+     * 5. return `wallet` with device share
      */
   }
 
   decryptWallet() {
     /**
      * params needed:
+     * - wallet
      * - spending password
      * - device share
-     * - auth share
      *
      * 1. decrypt device key share
      * 2. merge key shares
