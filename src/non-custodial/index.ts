@@ -42,6 +42,12 @@ export class Web3NonCustodialProvider {
       : "https://web3.meshjs.dev";
   }
 
+  async getWallet() {
+    // get local shard.
+    // get database shard from mesh server using deviceId + authentication.
+    // return all these in a wallet object.
+  }
+
   getUser():
     | { user: Web3NonCustodialProviderUser; error: null }
     | { user: null; error: UserNotAuthenticated | UserSessionExpired } {
