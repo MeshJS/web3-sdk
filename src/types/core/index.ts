@@ -33,3 +33,24 @@ export type Web3ProjectWallet = {
   pubKeyHash: string;
   stakeCredentialHash: string;
 };
+
+export type Web3JWTBody = {
+  /** User's ID */
+  sub: string;
+  /** Can contain: 'projectId' or 'dashboard'. */
+  scopes: string[];
+  /** Issued at */
+  iat: number;
+  /** Expires at */
+  exp: number;
+  /** OAuth2 Provider */
+  provider: string;
+  /** User ID on OAuth2 Provider */
+  providerId: string;
+  /** Profile picture from OAuth2 Provider */
+  avatarUrl: string | null;
+  /** Email from OAuth2 Provider */
+  email: string | null;
+  /** Username from OAuth2 Provider */
+  username: string | null;
+};
