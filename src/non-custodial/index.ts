@@ -1,6 +1,10 @@
 import { Web3JWTBody } from "../types";
 
 const AUTH_KEY = "mesh-web3-services-auth";
+type AuthJwtLocationObject = {
+  jwt: string;
+};
+
 const LOCAL_SHARD_KEY = "mesh-web3-services-local-shard";
 
 export type StorageLocation = "local_storage" | "chrome_local" | "chrome_sync";
@@ -21,17 +25,24 @@ export type Web3NonCustodialProviderUser = {
   username: string | null;
 };
 
-export class UserNotAuthenticated extends Error {
+export class NotAuthenticatedError extends Error {
   constructor(message = "User is not authenticated") {
     super(message);
-    this.name = "UserNotAuthenticated";
+    this.name = "NotAuthenticatedError";
   }
 }
 
-export class UserSessionExpired extends Error {
+export class SessionExpiredError extends Error {
   constructor(message = "User session has expired") {
     super(message);
-    this.name = "UserSessionExpired";
+    this.name = "SessionExpiredError";
+  }
+}
+
+export class AuthRouteError extends Error {
+  constructor(message = "Unable to finish authentication process.") {
+    super(message);
+    this.name = "AuthRouteError";
   }
 }
 
@@ -70,26 +81,27 @@ export class Web3NonCustodialProvider {
     // return all these in a wallet object.
   }
 
-  getUser():
+  async getUser(): Promise<
     | { user: Web3NonCustodialProviderUser; error: null }
-    | { user: null; error: UserNotAuthenticated | UserSessionExpired } {
+    | { user: null; error: NotAuthenticatedError | SessionExpiredError }
+  > {
+    const { data } = await this.getFromStorage<AuthJwtLocationObject>(AUTH_KEY);
     // get jwt from localStorage.
-    const jwt = localStorage.getItem(AUTH_KEY);
-    if (jwt === null) {
+    if (data === null) {
       // error for no JWT
-      return { user: null, error: new UserNotAuthenticated() };
+      return { user: null, error: new NotAuthenticatedError() };
     }
-    const parts = jwt.split(".");
+    const parts = data.jwt.split(".");
     const bodyUnparsed = parts[1];
     if (bodyUnparsed === undefined) {
-      return { user: null, error: new UserNotAuthenticated() };
+      return { user: null, error: new NotAuthenticatedError() };
     }
     const body = JSON.parse(
       atob(bodyUnparsed.replace(/-/g, "+").replace(/_/g, "/")),
     ) as Web3JWTBody;
 
-    if (body.exp > Date.now()) {
-      return { user: null, error: new UserSessionExpired() };
+    if (body.exp < Date.now()) {
+      return { user: null, error: new SessionExpiredError() };
     }
 
     return {
@@ -114,6 +126,23 @@ export class Web3NonCustodialProvider {
     const authorizationUrl =
       provider + ".com?" + new URLSearchParams({ redirectUrl }).toString();
     callback(authorizationUrl);
+  }
+
+  /** Always place under /mesh/auth */
+  handleAuthenticationRoute(): { error: AuthRouteError } | void {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const redirect = params.get("redirect");
+    if (token && redirect) {
+      this.putInStorage<AuthJwtLocationObject>(AUTH_KEY, { jwt: token });
+      window.location.href = redirect;
+      return;
+    }
+    return {
+      error: new AuthRouteError(
+        `Either token or redirect are undefined. ?token=${token}, ?redirect=${redirect}`,
+      ),
+    };
   }
 
   private async putInStorage<ObjectType extends object>(
