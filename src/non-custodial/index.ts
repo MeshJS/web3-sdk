@@ -1,10 +1,14 @@
 import { Web3JWTBody } from "../types";
 
 const AUTH_KEY = "mesh-web3-services-auth";
+const LOCAL_SHARD_KEY = "mesh-web3-services-local-shard";
+
+export type StorageLocation = "local_storage" | "chrome_local" | "chrome_sync";
 
 export type Web3NonCustodialProviderParams = {
   projectId: string;
   appOrigin?: string;
+  storageLocation?: StorageLocation;
 };
 
 export type Web3NonCustodialProviderUser = {
@@ -31,15 +35,33 @@ export class UserSessionExpired extends Error {
   }
 }
 
+export class StorageRetrievalError extends Error {
+  constructor(message = "Unable to retrieve key from storage.") {
+    super(message);
+    this.name = "StorageRetrievalError";
+  }
+}
+
+export class StorageInsertError extends Error {
+  constructor(message = "Unable to insert data in storage.") {
+    super(message);
+    this.name = "StorageInsertError";
+  }
+}
+
 export class Web3NonCustodialProvider {
   projectId: string;
   appOrigin: string;
+  storageLocation: StorageLocation;
 
   constructor(params: Web3NonCustodialProviderParams) {
     this.projectId = params.projectId;
     this.appOrigin = params.appOrigin
       ? params.appOrigin
       : "https://web3.meshjs.dev";
+    this.storageLocation = params.storageLocation
+      ? params.storageLocation
+      : "local_storage";
   }
 
   async getWallet() {
@@ -63,7 +85,7 @@ export class Web3NonCustodialProvider {
       return { user: null, error: new UserNotAuthenticated() };
     }
     const body = JSON.parse(
-      atob(bodyUnparsed.replace(/-/g, "+").replace(/_/g, "/"))
+      atob(bodyUnparsed.replace(/-/g, "+").replace(/_/g, "/")),
     ) as Web3JWTBody;
 
     if (body.exp > Date.now()) {
@@ -87,10 +109,84 @@ export class Web3NonCustodialProvider {
   signInWithProvider(
     provider: "google" | "discord" | "twitter",
     redirectUrl: string,
-    callback: (authorizationUrl: string) => void
+    callback: (authorizationUrl: string) => void,
   ) {
     const authorizationUrl =
       provider + ".com?" + new URLSearchParams({ redirectUrl }).toString();
     callback(authorizationUrl);
+  }
+
+  private async putInStorage<ObjectType extends object>(
+    key: string,
+    data: ObjectType,
+  ) {
+    if (this.storageLocation === "chrome_local") {
+      // @todo - If this throws try/catch
+      await chrome.storage.local.set({ [key]: data });
+    } else if (this.storageLocation === "chrome_sync") {
+      // @todo - If this throws try/catch
+      await chrome.storage.sync.set({ [key]: data });
+    } else if (this.storageLocation === "local_storage") {
+      // @todo - If this throws try/catch
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+  }
+  private async getFromStorage<ObjectType extends object>(
+    key: string,
+  ): Promise<
+    | { data: ObjectType; error: null }
+    | { data: null; error: StorageRetrievalError }
+  > {
+    if (this.storageLocation === "chrome_local") {
+      // @todo - If this throws try/catch
+      const query = await chrome.storage.local.get([key]);
+      const data = query[key];
+      if (data) {
+        return { data: data as ObjectType, error: null };
+      } else {
+        return {
+          data: null,
+          error: new StorageRetrievalError(
+            `Unable to retrieve key ${key} from chrome.storage.local.`,
+          ),
+        };
+      }
+    } else if (this.storageLocation === "chrome_sync") {
+      // @todo - If this throws try/catch
+      const query = await chrome.storage.sync.get([key]);
+      const data = query[key];
+      if (data) {
+        return { data: data as ObjectType, error: null };
+      } else {
+        return {
+          data: null,
+          error: new StorageRetrievalError(
+            `Unable to retrieve key ${key} from chrome.storage.sync.`,
+          ),
+        };
+      }
+    } else if (this.storageLocation === "local_storage") {
+      // @todo - If this throws try/catch
+      const data = localStorage.getItem(key);
+      if (data) {
+        return {
+          data: JSON.parse(data) as ObjectType,
+          error: null,
+        };
+      } else {
+        return {
+          data: null,
+          error: new StorageRetrievalError(
+            `Unable to retrieve key ${key} from localStorage.`,
+          ),
+        };
+      }
+    }
+    return {
+      data: null,
+      error: new StorageRetrievalError(
+        "Class missing a valid storage location.",
+      ),
+    };
   }
 }
