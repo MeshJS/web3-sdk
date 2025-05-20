@@ -1,3 +1,4 @@
+import { clientGenerateWallet } from "../functions";
 import { Web3JWTBody } from "../types";
 
 const AUTH_KEY = "mesh-web3-services-auth";
@@ -6,6 +7,11 @@ type AuthJwtLocationObject = {
 };
 
 const LOCAL_SHARD_KEY = "mesh-web3-services-local-shard";
+type LocalShardWalletObject = {
+  deviceId: string;
+  /** json string of {iv: string; ciphertext: string} */
+  keyShard: string;
+}[];
 
 export type StorageLocation = "local_storage" | "chrome_local" | "chrome_sync";
 
@@ -13,6 +19,9 @@ export type Web3NonCustodialProviderParams = {
   projectId: string;
   appOrigin?: string;
   storageLocation?: StorageLocation;
+  googleOauth2ClientId: string;
+  twitterOauth2ClientId: string;
+  discordOauth2ClientId: string;
 };
 
 export type Web3NonCustodialProviderUser = {
@@ -23,6 +32,13 @@ export type Web3NonCustodialProviderUser = {
   avatarUrl: string | null;
   email: string | null;
   username: string | null;
+};
+
+export type Web3NonCustodialWallet = {
+  id: string;
+  authShard: string;
+  localShard: string;
+  userAgent: string | null;
 };
 
 export class NotAuthenticatedError extends Error {
@@ -64,6 +80,9 @@ export class Web3NonCustodialProvider {
   projectId: string;
   appOrigin: string;
   storageLocation: StorageLocation;
+  googleOauth2ClientId: string;
+  twitterOauth2ClientId: string;
+  discordOauth2ClientId: string;
 
   constructor(params: Web3NonCustodialProviderParams) {
     this.projectId = params.projectId;
@@ -73,39 +92,89 @@ export class Web3NonCustodialProvider {
     this.storageLocation = params.storageLocation
       ? params.storageLocation
       : "local_storage";
+    this.googleOauth2ClientId = params.googleOauth2ClientId;
+    this.twitterOauth2ClientId = params.twitterOauth2ClientId;
+    this.discordOauth2ClientId = params.discordOauth2ClientId;
   }
 
-  async getWallet() {
-    // get local shard.
+  async getWallet(): Promise<
+    | { data: Web3NonCustodialWallet; error: null }
+    | {
+        data: null;
+        error:
+          | SessionExpiredError
+          | StorageRetrievalError
+          | SessionExpiredError;
+      }
+  > {
+    const { data: user, error: userError } = await this.getUser();
+    if (userError) {
+      return { error: userError, data: null };
+    }
+
+    const { data: localShard, error: localShardError } =
+      await this.getFromStorage<LocalShardWalletObject>(LOCAL_SHARD_KEY);
+    if (localShardError) {
+      return { error: localShardError, data: null };
+    }
+
     // get database shard from mesh server using deviceId + authentication.
     // return all these in a wallet object.
+    return {
+      data: { id: "", userAgent: "", localShard: "", authShard: "" },
+      error: null,
+    };
+  }
+
+  async createWallet(
+    spendingPassword: string,
+    recoveryQuestion: string,
+    recoveryAnswer: string,
+  ) {
+    const userAgent = navigator.userAgent;
+    const { data: user, error: userError } = await this.getUser();
+    if (userError) {
+      return { error: userError, data: null };
+    }
+
+    const { pubKeyHash, stakeCredentialHash, deviceKey, authKey, recoveryKey } =
+      await clientGenerateWallet(spendingPassword, recoveryAnswer);
+
+    console.log("Logging pub");
+    // attempt to write wallet values to server
   }
 
   async getUser(): Promise<
-    | { user: Web3NonCustodialProviderUser; error: null }
-    | { user: null; error: NotAuthenticatedError | SessionExpiredError }
+    | { data: Web3NonCustodialProviderUser; error: null }
+    | { data: null; error: NotAuthenticatedError | SessionExpiredError }
   > {
     const { data } = await this.getFromStorage<AuthJwtLocationObject>(AUTH_KEY);
     // get jwt from localStorage.
     if (data === null) {
       // error for no JWT
-      return { user: null, error: new NotAuthenticatedError() };
+      return { data: null, error: new NotAuthenticatedError() };
     }
     const parts = data.jwt.split(".");
     const bodyUnparsed = parts[1];
     if (bodyUnparsed === undefined) {
-      return { user: null, error: new NotAuthenticatedError() };
+      return { data: null, error: new NotAuthenticatedError() };
     }
     const body = JSON.parse(
       atob(bodyUnparsed.replace(/-/g, "+").replace(/_/g, "/")),
     ) as Web3JWTBody;
 
-    if (body.exp < Date.now()) {
-      return { user: null, error: new SessionExpiredError() };
+    console.log(
+      "Logging body.exp:",
+      body.exp,
+      "Logging date.now()",
+      Date.now() / 1000,
+    );
+    if (body.exp < Date.now() / 1000) {
+      return { data: null, error: new SessionExpiredError() };
     }
 
     return {
-      user: {
+      data: {
         id: body.sub,
         scopes: body.scopes,
         provider: body.provider,
@@ -123,16 +192,77 @@ export class Web3NonCustodialProvider {
     redirectUrl: string,
     callback: (authorizationUrl: string) => void,
   ) {
-    const authorizationUrl =
-      provider + ".com?" + new URLSearchParams({ redirectUrl }).toString();
-    callback(authorizationUrl);
+    if (provider === "google") {
+      const googleState = JSON.stringify({
+        redirect: redirectUrl,
+        provider: "google",
+        projectId: this.projectId,
+      });
+      const googleSearchParams = new URLSearchParams({
+        client_id: this.googleOauth2ClientId,
+        response_type: "code",
+        redirect_uri: this.appOrigin + "/api/auth",
+        scope:
+          "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
+        state: btoa(googleState),
+      });
+      const googleAuthorizeUrl =
+        "https://accounts.google.com/o/oauth2/v2/auth?" +
+        googleSearchParams.toString();
+      callback(googleAuthorizeUrl);
+      return;
+    } else if (provider === "discord") {
+      const discordState = JSON.stringify({
+        redirect: redirectUrl,
+        provider: "discord",
+        projectId: this.projectId,
+      });
+      const discordSearchParams = new URLSearchParams({
+        client_id: this.discordOauth2ClientId,
+        response_type: "code",
+        redirect_uri: this.appOrigin + "/api/auth",
+        scope: "identify email",
+        state: btoa(discordState),
+      });
+      const discordAuthorizeUrl =
+        "https://discord.com/oauth2/authorize?" +
+        discordSearchParams.toString();
+
+      callback(discordAuthorizeUrl);
+      return;
+    } else if (provider === "twitter") {
+      const twitterState = JSON.stringify({
+        redirect: redirectUrl,
+        provider: "twitter",
+        projectId: this.projectId,
+      });
+      const twitterSearchParams = new URLSearchParams({
+        response_type: "code",
+        client_id: this.twitterOauth2ClientId,
+        redirect_uri: this.appOrigin + "/api/auth",
+        scope: "users.read+tweet.read+offline.access",
+        state: btoa(twitterState),
+        code_challenge: "challenge",
+        code_challenge_method: "plain",
+      });
+      const twitterAuthorizeUrl =
+        "https://x.com/i/oauth2/authorize?" + twitterSearchParams.toString();
+      callback(twitterAuthorizeUrl);
+      return;
+    }
   }
 
-  /** Always place under /mesh/auth */
+  /** Always place under /auth/mesh */
   handleAuthenticationRoute(): { error: AuthRouteError } | void {
+    console.log("Logging params:", window.location.search);
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     const redirect = params.get("redirect");
+    console.log(
+      "Logging from inside handleAuthenticationRoute:",
+      token,
+      redirect,
+    );
     if (token && redirect) {
       this.putInStorage<AuthJwtLocationObject>(AUTH_KEY, { jwt: token });
       window.location.href = redirect;
