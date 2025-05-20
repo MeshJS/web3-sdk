@@ -32,6 +32,7 @@ export type Web3NonCustodialProviderUser = {
   avatarUrl: string | null;
   email: string | null;
   username: string | null;
+  token: string;
 };
 
 export type Web3NonCustodialWallet = {
@@ -182,6 +183,7 @@ export class Web3NonCustodialProvider {
         avatarUrl: body.avatarUrl,
         email: body.email,
         username: body.username,
+        token: data.jwt,
       },
       error: null,
     };
