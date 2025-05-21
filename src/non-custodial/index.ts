@@ -1,4 +1,4 @@
-import { clientGenerateWallet } from "../functions";
+import { clientGenerateWallet, clientRecovery } from "../functions";
 import { Web3JWTBody } from "../types";
 
 const AUTH_KEY = "mesh-web3-services-auth";
@@ -25,6 +25,29 @@ export type CreateWalletBody = {
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
   projectId: string;
+};
+
+export type CreateDeviceBody = {
+  walletId: string;
+  authShard: string;
+  userAgent: string;
+};
+
+export type CreateDeviceResponse = {
+  deviceId: string;
+};
+
+export type GetWalletBody = {
+  id: string;
+  userId: string;
+  recoveryShard: string;
+  createdAt: Date;
+  recoveryShardQuestion: string;
+  cardanoPubKeyHash: string;
+  cardanoStakeCredentialHash: string;
+  bitcoinPubKeyHash: string;
+  projectId: string;
+  authShard: string;
 };
 
 export type CreateWalletResponseBody = {
@@ -169,7 +192,7 @@ export class Web3NonCustodialProvider {
     ids.forEach((id) => params.append("ids", id));
 
     const res = await fetch(
-      this.appOrigin + "/api/wallet/devices?" + params.toString(),
+      this.appOrigin + "/api/devices?" + params.toString(),
       { headers: { Authorization: "Bearer " + user.token } }
     );
     if (res.ok === false) {
@@ -261,23 +284,12 @@ export class Web3NonCustodialProvider {
     }
     const result = (await res.json()) as Web3NonCustodialWallet;
 
-    let { data, error } =
-      await this.getFromStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY);
-    // @todo Make sure this is the best way to retrieve error's from the local storage (e.g. return seperate errors for a critical failure / the object simply doesn't exist.)
-    if (data === null) {
-      console.log(
-        "We are expecting the error here to be that no local shard wallet objects exists yet: " +
-          error!.message
-      );
-      data = [];
-    }
-    data.push({
+    await this.pushDevice({
       deviceId: result.deviceId,
-      keyShard: encryptedDeviceShard,
+      encryptedDeviceShard,
       walletId: result.walletId,
     });
 
-    await this.putInStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY, data);
     return { error: null };
   }
 
@@ -323,6 +335,71 @@ export class Web3NonCustodialProvider {
       },
       error: null,
     };
+  }
+
+  async performRecovery(
+    recoveryAnswer: string,
+    walletId: string,
+    spendingPassword: string
+  ) {
+    const { data: user, error: userError } = await this.getUser();
+    if (userError) {
+      return { error: userError };
+    }
+    const res = await fetch(this.appOrigin + "/api/wallet/" + walletId, {
+      headers: { Authorization: "Bearer " + user.token },
+    });
+    if (res.ok === false) {
+      return {
+        error: new WalletServerRetrievalError(
+          "Retrieving wallet " +
+            walletId +
+            "from the server failed with status " +
+            res.status
+        ),
+      };
+    }
+    const wallet = (await res.json()) as GetWalletBody;
+
+    const { authShard, deviceShard } = await clientRecovery(
+      wallet.authShard,
+      wallet.recoveryShard,
+      recoveryAnswer,
+      spendingPassword
+    );
+
+    const userAgent = navigator.userAgent;
+
+    const createDeviceBody: CreateDeviceBody = {
+      walletId,
+      authShard,
+      userAgent,
+    };
+    const createDeviceRes = await fetch(this.appOrigin + "/api/devices", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + user.token },
+      body: JSON.stringify(createDeviceBody),
+    });
+
+    if (createDeviceRes.ok === false) {
+      return {
+        error: new WalletServerCreationError(
+          "Retrieving wallets from the server failed with status " +
+            createDeviceRes.status
+        ),
+      };
+    }
+
+    const newDeviceWallet =
+      (await createDeviceRes.json()) as CreateDeviceResponse;
+
+    await this.pushDevice({
+      deviceId: newDeviceWallet.deviceId,
+      encryptedDeviceShard: deviceShard,
+      walletId,
+    });
+
+    return { error: null };
   }
 
   signInWithProvider(
@@ -427,6 +504,29 @@ export class Web3NonCustodialProvider {
       // @todo - If this throws try/catch
       localStorage.setItem(key, JSON.stringify(data));
     }
+  }
+  private async pushDevice(deviceWallet: {
+    deviceId: string;
+    encryptedDeviceShard: string;
+    walletId: string;
+  }) {
+    let { data, error } =
+      await this.getFromStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY);
+    // @todo Make sure this is the best way to retrieve error's from the local storage (e.g. return seperate errors for a critical failure / the object simply doesn't exist.)
+    if (data === null) {
+      console.log(
+        "We are expecting the error here to be that no local shard wallet objects exists yet: " +
+          error!.message
+      );
+      data = [];
+    }
+    data.push({
+      deviceId: deviceWallet.deviceId,
+      keyShard: deviceWallet.encryptedDeviceShard,
+      walletId: deviceWallet.walletId,
+    });
+
+    await this.putInStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY, data);
   }
   private async getFromStorage<ObjectType extends object>(
     key: string
