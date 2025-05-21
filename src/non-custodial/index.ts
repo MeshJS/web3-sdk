@@ -312,13 +312,7 @@ export class Web3NonCustodialProvider {
       atob(bodyUnparsed.replace(/-/g, "+").replace(/_/g, "/"))
     ) as Web3JWTBody;
 
-    console.log(
-      "Logging body.exp:",
-      body.exp,
-      "Logging date.now()",
-      Date.now() / 1000
-    );
-    if (body.exp < Date.now() / 1000) {
+    if (body.exp < Date.now()) {
       return { data: null, error: new SessionExpiredError() };
     }
 
