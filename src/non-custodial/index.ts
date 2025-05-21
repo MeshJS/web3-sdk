@@ -7,13 +7,41 @@ type AuthJwtLocationObject = {
 };
 
 const LOCAL_SHARD_KEY = "mesh-web3-services-local-shard";
-type LocalShardWalletObject = {
+type LocalShardWalletObjects = {
   deviceId: string;
+  walletId: string;
   /** json string of {iv: string; ciphertext: string} */
   keyShard: string;
 }[];
 
 export type StorageLocation = "local_storage" | "chrome_local" | "chrome_sync";
+
+export type CreateWalletBody = {
+  userAgent: string;
+  recoveryShard: string;
+  authShard: string;
+  recoveryShardQuestion: string;
+  cardanoPubKeyHash: string;
+  cardanoStakeCredentialHash: string;
+  bitcoinPubKeyHash: string;
+  projectId: string;
+};
+
+export type CreateWalletResponseBody = {
+  walletId: string;
+  deviceId: string;
+};
+
+export type WalletDevice = {
+  id: string;
+  walletId: string;
+  cardanoPubKeyHash: string;
+  cardanoStakeCredentialHash: string;
+  bitcoinPubKeyHash: string;
+  lastConnected: Date;
+  authShard: string;
+  userAgent: string | null;
+};
 
 export type Web3NonCustodialProviderParams = {
   projectId: string;
@@ -36,9 +64,13 @@ export type Web3NonCustodialProviderUser = {
 };
 
 export type Web3NonCustodialWallet = {
-  id: string;
+  deviceId: string;
+  walletId: string;
   authShard: string;
   localShard: string;
+  cardanoPubKeyHash: string;
+  cardanoStakeCredentialHash: string;
+  bitcoinPubKeyHash: string;
   userAgent: string | null;
 };
 
@@ -46,6 +78,20 @@ export class NotAuthenticatedError extends Error {
   constructor(message = "User is not authenticated") {
     super(message);
     this.name = "NotAuthenticatedError";
+  }
+}
+
+export class WalletServerRetrievalError extends Error {
+  constructor(message = "Unable to get custodial shards from the server.") {
+    super(message);
+    this.name = "WalletServerRetrievalError";
+  }
+}
+
+export class WalletServerCreationError extends Error {
+  constructor(message = "Unable to create custodial shards on the server.") {
+    super(message);
+    this.name = "WalletServerCreationError";
   }
 }
 
@@ -98,8 +144,8 @@ export class Web3NonCustodialProvider {
     this.discordOauth2ClientId = params.discordOauth2ClientId;
   }
 
-  async getWallet(): Promise<
-    | { data: Web3NonCustodialWallet; error: null }
+  async getWallets(): Promise<
+    | { data: Web3NonCustodialWallet[]; error: null }
     | {
         data: null;
         error:
@@ -113,16 +159,49 @@ export class Web3NonCustodialProvider {
       return { error: userError, data: null };
     }
 
-    const { data: localShard, error: localShardError } =
-      await this.getFromStorage<LocalShardWalletObject>(LOCAL_SHARD_KEY);
+    const { data: localShards, error: localShardError } =
+      await this.getFromStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY);
     if (localShardError) {
       return { error: localShardError, data: null };
     }
+    const ids = localShards.map((item) => item.deviceId);
+    const params = new URLSearchParams();
+    ids.forEach((id) => params.append("ids", id));
 
-    // get database shard from mesh server using deviceId + authentication.
-    // return all these in a wallet object.
+    const res = await fetch(
+      this.appOrigin + "/api/wallet/devices?" + params.toString(),
+      { headers: { Authorization: "Bearer " + user.token } }
+    );
+    if (res.ok === false) {
+      return {
+        data: null,
+        error: new WalletServerRetrievalError(
+          "Retrieving wallets from the server failed with status " + res.status
+        ),
+      };
+    }
+
+    const walletDevices = (await res.json()) as WalletDevice[];
+
+    const custodialWallets = walletDevices.map((device) => {
+      const localShard = localShards.find(
+        (item) => item.deviceId === device.id
+      );
+      const i: Web3NonCustodialWallet = {
+        deviceId: device.id,
+        walletId: device.walletId,
+        authShard: device.authShard,
+        userAgent: device.userAgent,
+        localShard: localShard!.keyShard,
+        cardanoPubKeyHash: device.cardanoPubKeyHash,
+        cardanoStakeCredentialHash: device.cardanoStakeCredentialHash,
+        bitcoinPubKeyHash: device.bitcoinPubKeyHash,
+      };
+      return i;
+    });
+
     return {
-      data: { id: "", userAgent: "", localShard: "", authShard: "" },
+      data: custodialWallets,
       error: null,
     };
   }
@@ -130,19 +209,76 @@ export class Web3NonCustodialProvider {
   async createWallet(
     spendingPassword: string,
     recoveryQuestion: string,
-    recoveryAnswer: string,
-  ) {
+    recoveryAnswer: string
+  ): Promise<
+    | {
+        error:
+          | NotAuthenticatedError
+          | SessionExpiredError
+          | WalletServerCreationError;
+      }
+    | { error: null }
+  > {
     const userAgent = navigator.userAgent;
     const { data: user, error: userError } = await this.getUser();
     if (userError) {
-      return { error: userError, data: null };
+      return { error: userError };
     }
 
-    const { pubKeyHash, stakeCredentialHash, deviceKey, authKey, recoveryKey } =
-      await clientGenerateWallet(spendingPassword, recoveryAnswer);
+    const {
+      pubKeyHash,
+      stakeCredentialHash,
+      encryptedDeviceShard,
+      encryptedRecoveryShard,
+      authShard,
+    } = await clientGenerateWallet(spendingPassword, recoveryAnswer);
 
-    console.log("Logging pub");
-    // attempt to write wallet values to server
+    // @todo GEN the bitcoin SEGWIT pubKeyHash
+    const bitcoinPubKeyHash = "";
+
+    const body: CreateWalletBody = {
+      userAgent,
+      projectId: this.projectId,
+      recoveryShard: encryptedRecoveryShard,
+      authShard,
+      bitcoinPubKeyHash,
+      cardanoPubKeyHash: pubKeyHash,
+      cardanoStakeCredentialHash: stakeCredentialHash,
+      recoveryShardQuestion: recoveryQuestion,
+    };
+    const res = await fetch(this.appOrigin + "/api/wallet", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + user.token },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok === false) {
+      return {
+        error: new WalletServerCreationError(
+          "Retrieving wallets from the server failed with status " + res.status
+        ),
+      };
+    }
+    const result = (await res.json()) as Web3NonCustodialWallet;
+
+    let { data, error } =
+      await this.getFromStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY);
+    // @todo Make sure this is the best way to retrieve error's from the local storage (e.g. return seperate errors for a critical failure / the object simply doesn't exist.)
+    if (data === null) {
+      console.log(
+        "We are expecting the error here to be that no local shard wallet objects exists yet: " +
+          error!.message
+      );
+      data = [];
+    }
+    data.push({
+      deviceId: result.deviceId,
+      keyShard: encryptedDeviceShard,
+      walletId: result.walletId,
+    });
+
+    await this.putInStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY, data);
+    return { error: null };
   }
 
   async getUser(): Promise<
@@ -161,14 +297,14 @@ export class Web3NonCustodialProvider {
       return { data: null, error: new NotAuthenticatedError() };
     }
     const body = JSON.parse(
-      atob(bodyUnparsed.replace(/-/g, "+").replace(/_/g, "/")),
+      atob(bodyUnparsed.replace(/-/g, "+").replace(/_/g, "/"))
     ) as Web3JWTBody;
 
     console.log(
       "Logging body.exp:",
       body.exp,
       "Logging date.now()",
-      Date.now() / 1000,
+      Date.now() / 1000
     );
     if (body.exp < Date.now() / 1000) {
       return { data: null, error: new SessionExpiredError() };
@@ -192,7 +328,7 @@ export class Web3NonCustodialProvider {
   signInWithProvider(
     provider: "google" | "discord" | "twitter",
     redirectUrl: string,
-    callback: (authorizationUrl: string) => void,
+    callback: (authorizationUrl: string) => void
   ) {
     if (provider === "google") {
       const googleState = JSON.stringify({
@@ -263,7 +399,7 @@ export class Web3NonCustodialProvider {
     console.log(
       "Logging from inside handleAuthenticationRoute:",
       token,
-      redirect,
+      redirect
     );
     if (token && redirect) {
       this.putInStorage<AuthJwtLocationObject>(AUTH_KEY, { jwt: token });
@@ -272,14 +408,14 @@ export class Web3NonCustodialProvider {
     }
     return {
       error: new AuthRouteError(
-        `Either token or redirect are undefined. ?token=${token}, ?redirect=${redirect}`,
+        `Either token or redirect are undefined. ?token=${token}, ?redirect=${redirect}`
       ),
     };
   }
 
   private async putInStorage<ObjectType extends object>(
     key: string,
-    data: ObjectType,
+    data: ObjectType
   ) {
     if (this.storageLocation === "chrome_local") {
       // @todo - If this throws try/catch
@@ -293,7 +429,7 @@ export class Web3NonCustodialProvider {
     }
   }
   private async getFromStorage<ObjectType extends object>(
-    key: string,
+    key: string
   ): Promise<
     | { data: ObjectType; error: null }
     | { data: null; error: StorageRetrievalError }
@@ -308,7 +444,7 @@ export class Web3NonCustodialProvider {
         return {
           data: null,
           error: new StorageRetrievalError(
-            `Unable to retrieve key ${key} from chrome.storage.local.`,
+            `Unable to retrieve key ${key} from chrome.storage.local.`
           ),
         };
       }
@@ -322,7 +458,7 @@ export class Web3NonCustodialProvider {
         return {
           data: null,
           error: new StorageRetrievalError(
-            `Unable to retrieve key ${key} from chrome.storage.sync.`,
+            `Unable to retrieve key ${key} from chrome.storage.sync.`
           ),
         };
       }
@@ -338,7 +474,7 @@ export class Web3NonCustodialProvider {
         return {
           data: null,
           error: new StorageRetrievalError(
-            `Unable to retrieve key ${key} from localStorage.`,
+            `Unable to retrieve key ${key} from localStorage.`
           ),
         };
       }
@@ -346,7 +482,7 @@ export class Web3NonCustodialProvider {
     return {
       data: null,
       error: new StorageRetrievalError(
-        "Class missing a valid storage location.",
+        "Class missing a valid storage location."
       ),
     };
   }

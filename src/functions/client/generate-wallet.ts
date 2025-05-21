@@ -26,14 +26,14 @@ export async function clientGenerateWallet(
   /* spilt key shares */
   const [keyShare1, keyShare2, keyShare3] = await spiltKeyIntoShards(mnemonic);
 
-  const encryptedAuthKey = await encryptWithCipher({
+  const encryptedDeviceShard = await encryptWithCipher({
     data: keyShare1!,
     key: spendingPassword,
   });
 
   /* recovery */
 
-  const encryptedRecoveryKey = await encryptWithCipher({
+  const encryptedRecoveryShard = await encryptWithCipher({
     data: keyShare3!,
     key: recoveryAnswer,
   });
@@ -41,8 +41,8 @@ export async function clientGenerateWallet(
   return {
     pubKeyHash: keyHashes.pubKeyHash,
     stakeCredentialHash: keyHashes.stakeCredentialHash,
-    deviceKey: encryptedAuthKey,
-    authKey: keyShare2!,
-    recoveryKey: encryptedRecoveryKey,
+    encryptedDeviceShard,
+    authShard: keyShare2!,
+    encryptedRecoveryShard,
   };
 }
