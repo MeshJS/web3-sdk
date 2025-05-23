@@ -41,7 +41,7 @@ export type GetWalletBody = {
   id: string;
   userId: string;
   recoveryShard: string;
-  createdAt: Date;
+  createdAt: string;
   recoveryShardQuestion: string;
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
@@ -61,10 +61,17 @@ export type WalletDevice = {
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
-  lastConnected: Date;
+  lastConnected: string;
   authShard: string;
   userAgent: string | null;
 };
+
+export type GetDevicesResponse = {
+  deviceId: string;
+  walletId: string;
+  authShard: string;
+  userAgent: string | null;
+}[];
 
 export type Web3NonCustodialProviderParams = {
   projectId: string;
@@ -91,9 +98,6 @@ export type Web3NonCustodialWallet = {
   walletId: string;
   authShard: string;
   localShard: string;
-  cardanoPubKeyHash: string;
-  cardanoStakeCredentialHash: string;
-  bitcoinPubKeyHash: string;
   userAgent: string | null;
 };
 
@@ -172,7 +176,7 @@ export class Web3NonCustodialProvider {
     | {
         data: null;
         error:
-          | SessionExpiredError
+          | NotAuthenticatedError
           | StorageRetrievalError
           | SessionExpiredError;
       }
@@ -192,7 +196,7 @@ export class Web3NonCustodialProvider {
     ids.forEach((id) => params.append("ids", id));
 
     const res = await fetch(
-      this.appOrigin + "/api/devices?" + params.toString(),
+      this.appOrigin + "/api/device?" + params.toString(),
       { headers: { Authorization: "Bearer " + user.token } }
     );
     if (res.ok === false) {
@@ -204,21 +208,18 @@ export class Web3NonCustodialProvider {
       };
     }
 
-    const walletDevices = (await res.json()) as WalletDevice[];
+    const walletDevices = (await res.json()) as GetDevicesResponse;
 
     const custodialWallets = walletDevices.map((device) => {
       const localShard = localShards.find(
-        (item) => item.deviceId === device.id
+        (item) => item.deviceId === device.deviceId
       );
       const i: Web3NonCustodialWallet = {
-        deviceId: device.id,
+        deviceId: device.deviceId,
         walletId: device.walletId,
         authShard: device.authShard,
         userAgent: device.userAgent,
         localShard: localShard!.keyShard,
-        cardanoPubKeyHash: device.cardanoPubKeyHash,
-        cardanoStakeCredentialHash: device.cardanoStakeCredentialHash,
-        bitcoinPubKeyHash: device.bitcoinPubKeyHash,
       };
       return i;
     });
@@ -235,17 +236,18 @@ export class Web3NonCustodialProvider {
     recoveryAnswer: string
   ): Promise<
     | {
+        data: null;
         error:
           | NotAuthenticatedError
           | SessionExpiredError
           | WalletServerCreationError;
       }
-    | { error: null }
+    | { error: null; data: { deviceId: string; walletId: string } }
   > {
     const userAgent = navigator.userAgent;
     const { data: user, error: userError } = await this.getUser();
     if (userError) {
-      return { error: userError };
+      return { error: userError, data: null };
     }
 
     const {
@@ -280,9 +282,10 @@ export class Web3NonCustodialProvider {
         error: new WalletServerCreationError(
           "Retrieving wallets from the server failed with status " + res.status
         ),
+        data: null,
       };
     }
-    const result = (await res.json()) as Web3NonCustodialWallet;
+    const result = (await res.json()) as CreateWalletResponseBody;
 
     await this.pushDevice({
       deviceId: result.deviceId,
@@ -290,7 +293,10 @@ export class Web3NonCustodialProvider {
       walletId: result.walletId,
     });
 
-    return { error: null };
+    return {
+      data: { deviceId: result.deviceId, walletId: result.walletId },
+      error: null,
+    };
   }
 
   async getUser(): Promise<
@@ -369,7 +375,7 @@ export class Web3NonCustodialProvider {
       authShard,
       userAgent,
     };
-    const createDeviceRes = await fetch(this.appOrigin + "/api/devices", {
+    const createDeviceRes = await fetch(this.appOrigin + "/api/device", {
       method: "POST",
       headers: { Authorization: "Bearer " + user.token },
       body: JSON.stringify(createDeviceBody),
