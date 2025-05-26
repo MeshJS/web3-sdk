@@ -1,5 +1,6 @@
 import { clientGenerateWallet, clientRecovery } from "../functions";
 import { Web3JWTBody } from "../types";
+import { Web3Wallet } from "../wallet-user-controlled";
 
 const AUTH_KEY = "mesh-web3-services-auth";
 type AuthJwtLocationObject = {
@@ -26,6 +27,8 @@ export type CreateWalletBody = {
   bitcoinPubKeyHash: string;
   projectId: string;
 };
+
+export type GetUserIdWalletsResponse = Web3Wallet[];
 
 export type CreateDeviceBody = {
   walletId: string;
@@ -171,6 +174,30 @@ export class Web3NonCustodialProvider {
     this.discordOauth2ClientId = params.discordOauth2ClientId;
   }
 
+  async checkNonCustodialWalletsOnServer(): Promise<
+    | { data: GetUserIdWalletsResponse; error: null }
+    | {
+        data: null;
+        error:
+          | NotAuthenticatedError
+          | StorageRetrievalError
+          | SessionExpiredError;
+      }
+  > {
+    const { data: user, error: userError } = await this.getUser();
+    if (userError) {
+      return { error: userError, data: null };
+    }
+
+    const result = await fetch(this.appOrigin + "/api/wallet", {
+      headers: { Authentication: "Bearer " + user.token },
+    });
+
+    const wallets = (await result.json()) as GetUserIdWalletsResponse;
+
+    return { data: wallets, error: null };
+  }
+
   async getWallets(): Promise<
     | { data: Web3NonCustodialWallet[]; error: null }
     | {
@@ -187,7 +214,9 @@ export class Web3NonCustodialProvider {
     }
 
     const { data: localShards, error: localShardError } =
-      await this.getFromStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY);
+      await this.getFromStorage<LocalShardWalletObjects>(
+        LOCAL_SHARD_KEY + user.id
+      );
     if (localShardError) {
       return { error: localShardError, data: null };
     }
@@ -509,9 +538,16 @@ export class Web3NonCustodialProvider {
     deviceId: string;
     encryptedDeviceShard: string;
     walletId: string;
-  }) {
-    let { data, error } =
-      await this.getFromStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY);
+  }): Promise<
+    { error: NotAuthenticatedError | SessionExpiredError } | { error: null }
+  > {
+    const { data: user, error: userError } = await this.getUser();
+    if (userError) {
+      return { error: userError };
+    }
+    let { data, error } = await this.getFromStorage<LocalShardWalletObjects>(
+      LOCAL_SHARD_KEY + user.id
+    );
     // @todo Make sure this is the best way to retrieve error's from the local storage (e.g. return seperate errors for a critical failure / the object simply doesn't exist.)
     if (data === null) {
       console.log(
@@ -527,6 +563,8 @@ export class Web3NonCustodialProvider {
     });
 
     await this.putInStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY, data);
+
+    return { error: null };
   }
   private async getFromStorage<ObjectType extends object>(
     key: string
