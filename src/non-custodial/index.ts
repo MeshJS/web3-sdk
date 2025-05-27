@@ -562,7 +562,10 @@ export class Web3NonCustodialProvider {
       walletId: deviceWallet.walletId,
     });
 
-    await this.putInStorage<LocalShardWalletObjects>(LOCAL_SHARD_KEY, data);
+    await this.putInStorage<LocalShardWalletObjects>(
+      LOCAL_SHARD_KEY + user.id,
+      data
+    );
 
     return { error: null };
   }
