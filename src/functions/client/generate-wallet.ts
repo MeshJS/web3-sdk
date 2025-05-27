@@ -1,6 +1,7 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { generateMnemonic } from "@meshsdk/common";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
+import { EmbeddedWallet } from "@meshsdk/bitcoin";
 import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
 
@@ -32,11 +33,21 @@ export async function clientGenerateWallet(
   });
 
   /* recovery */
-
   const encryptedRecoveryShard = await encryptWithCipher({
     data: keyShare3!,
     key: recoveryAnswer,
   });
+
+  /* bitcoin */
+  const bitcoinWallet = new EmbeddedWallet({
+    testnet: true,
+    key: {
+      type: "mnemonic",
+      words: mnemonic.split(" "),
+    },
+  });
+
+  const bitcoinPubKeyHash = bitcoinWallet.getPublicKey();
 
   return {
     pubKeyHash: keyHashes.pubKeyHash,
@@ -44,5 +55,6 @@ export async function clientGenerateWallet(
     encryptedDeviceShard,
     authShard: keyShare2!,
     encryptedRecoveryShard,
+    bitcoinPubKeyHash: bitcoinPubKeyHash,
   };
 }

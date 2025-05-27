@@ -285,10 +285,8 @@ export class Web3NonCustodialProvider {
       encryptedDeviceShard,
       encryptedRecoveryShard,
       authShard,
+      bitcoinPubKeyHash,
     } = await clientGenerateWallet(spendingPassword, recoveryAnswer);
-
-    // @todo GEN the bitcoin SEGWIT pubKeyHash
-    const bitcoinPubKeyHash = "";
 
     const body: CreateWalletBody = {
       userAgent,
