@@ -5,8 +5,7 @@ export async function clientRecovery(
   authShard: string,
   recoveryShard: string,
   recoveryAnswer: string,
-  spendingPassword: string,
-  newRecoveryAnswer: string
+  spendingPassword: string
 ) {
   try {
     const answer = recoveryAnswer
@@ -26,7 +25,7 @@ export async function clientRecovery(
       recoverKeyShare3
     );
 
-    const [keyShare1, keyShare2, keyShare3] = await spiltKeyIntoShards(key);
+    const [keyShare1, keyShare2] = await spiltKeyIntoShards(key);
 
     /* encrypt */
 
@@ -35,19 +34,9 @@ export async function clientRecovery(
       key: spendingPassword,
     });
 
-    const newAnswer = newRecoveryAnswer
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toLocaleLowerCase();
-
-    const encryptedRecoveryKey = await encryptWithCipher({
-      data: keyShare3!,
-      key: newAnswer,
-    });
-
     return {
-      deviceKey: encryptedAuthKey,
-      authKey: keyShare2!,
-      recoveryKey: encryptedRecoveryKey,
+      deviceShard: encryptedAuthKey,
+      authShard: keyShare2!,
     };
   } catch (e) {
     console.error(e);
