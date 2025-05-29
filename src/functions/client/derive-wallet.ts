@@ -5,7 +5,7 @@ export async function clientDeriveWallet(
   encryptedKeyShard: string,
   spendingPassword: string,
   custodialShard: string,
-  networkId: 0 | 1
+  networkId: 0 | 1,
 ) {
   const keyShare1 = await decryptWithCipher({
     encryptedDataJSON: encryptedKeyShard,
@@ -13,11 +13,11 @@ export async function clientDeriveWallet(
   });
   const keyShare2 = custodialShard;
 
-  const { bitcoinWallet, cardanoWallet } = await combineShardsBuildWallet(
+  const { bitcoinWallet, cardanoWallet, key } = await combineShardsBuildWallet(
     networkId,
     keyShare1,
-    keyShare2
+    keyShare2,
   );
 
-  return { bitcoinWallet, cardanoWallet };
+  return { bitcoinWallet, cardanoWallet, key };
 }
