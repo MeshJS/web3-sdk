@@ -54,3 +54,5 @@ export type Web3JWTBody = {
   /** Username from OAuth2 Provider */
   username: string | null;
 };
+
+export type Web3AuthProvider = "google" | "discord" | "twitter";

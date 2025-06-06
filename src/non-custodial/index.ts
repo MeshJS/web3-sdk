@@ -1,6 +1,7 @@
 import { clientGenerateWallet, clientRecovery } from "../functions";
 import { Web3JWTBody } from "../types";
 import { Web3WalletObject } from "../types";
+import { Web3AuthProvider } from "../types/core";
 
 const AUTH_KEY = "mesh-web3-services-auth";
 type AuthJwtLocationObject = {
@@ -428,7 +429,7 @@ export class Web3NonCustodialProvider {
   }
 
   signInWithProvider(
-    provider: "google" | "discord" | "twitter",
+    provider: Web3AuthProvider,
     redirectUrl: string,
     callback: (authorizationUrl: string) => void,
   ) {
