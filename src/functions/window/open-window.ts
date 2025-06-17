@@ -1,9 +1,11 @@
+import { OpenWindowParams } from "../../types/window";
+
 export async function openWindow(
-  url: string,
-  params: {},
+  params: OpenWindowParams,
   appUrl: string = "https://web3.meshjs.dev/"
 ): Promise<any> {
-  const _url = `${appUrl}${url}?params=${JSON.stringify(params)}`;
+  const p = new URLSearchParams(params)
+  const _url = `${appUrl}/client/wallet?${p.toString()}`;
 
   return new Promise((resolve, reject) => {
     const windowFeatures =
