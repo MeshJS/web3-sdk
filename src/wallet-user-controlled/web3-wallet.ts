@@ -1,6 +1,7 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import {
+  OpenWindowResult,
   UserControlledWalletDirectTo,
   UserSocialData,
   WindowSignDataReq,
@@ -8,8 +9,9 @@ import {
   WindowSignTxReq,
   WindowSignTxRes,
 } from "../types";
-import { WindowWalletReq, WindowWalletRes } from "../types";
+import { WindowWalletReq, WindowWalletRes, Web3AuthProvider } from "../types";
 import { getAddressFromHashes, openWindow } from "../functions";
+import { OpenWindowParams } from "../functions/window/open-window";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -17,7 +19,7 @@ export type EnableWeb3WalletOptions = {
   submitter?: ISubmitter;
   projectId?: string;
   appUrl?: string;
-  directTo?: UserControlledWalletDirectTo;
+  directTo?: Web3AuthProvider;
 };
 
 type InitWeb3WalletOptions = CreateMeshWalletOptions & {
@@ -56,22 +58,27 @@ export class Web3Wallet extends MeshWallet {
    * @returns A promise that resolves to an instance of Web3Wallet.
    */
   static async enable(options: EnableWeb3WalletOptions): Promise<Web3Wallet> {
-    const res = await getWalletFromWindow({
-      networkId: options.networkId,
-      projectId: options.projectId,
-      appUrl: options.appUrl,
-      directTo: options.directTo,
-    });
+    const res: OpenWindowResult = await openWindow(
+      {method: "enable", projectId: options.projectId!, directTo: options.directTo},
+      options.appUrl
+    );
 
     if (res.success === false)
       throw new ApiError({
         code: -3,
         info: "Refused - The request was refused due to lack of access - e.g. wallet disconnects.",
       });
+    
+    if(res.data.method !== "enable") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
 
     const address = getAddressFromHashes(
-      res.pubKeyHash,
-      res.stakeCredentialHash,
+      res.data.pubKeyHash,
+      res.data.stakeCredentialHash,
       options.networkId
     );
 
@@ -82,7 +89,7 @@ export class Web3Wallet extends MeshWallet {
       submitter: options.submitter,
       projectId: options.projectId,
       appUrl: options.appUrl,
-      user: res.user,
+      user: res.data.user,
     });
 
     return wallet;
@@ -107,9 +114,8 @@ export class Web3Wallet extends MeshWallet {
       projectId: this.projectId,
     };
 
-    const res: WindowSignTxRes = await openWindow(
-      "/client/sign-tx",
-      _payload,
+    const res: OpenWindowResult = await openWindow(
+      {method: "sign-tx", projectId: this.projectId!, unsignedTx, partialSign: partialSign === true ? "true" : "false"},
       this.appUrl
     );
 
@@ -118,8 +124,15 @@ export class Web3Wallet extends MeshWallet {
         code: 2,
         info: "UserDeclined - User declined to sign the transaction.",
       });
+    
+    if(res.data.method !== "sign-tx") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
 
-    return res.tx;
+    return res.data.tx;
   }
 
   /**
@@ -134,16 +147,8 @@ export class Web3Wallet extends MeshWallet {
       address = await this.getChangeAddress()!;
     }
 
-    const _payload: WindowSignDataReq = {
-      method: "sign-data",
-      payload,
-      networkId: (await this.getNetworkId()) as 0 | 1,
-      projectId: this.projectId,
-    };
-
-    const res: WindowSignDataRes = await openWindow(
-      "/client/sign-data",
-      _payload,
+    const res: OpenWindowResult = await openWindow(
+      {method: "sign-data", projectId: this.projectId!, payload, address},
       this.appUrl
     );
 
@@ -152,8 +157,16 @@ export class Web3Wallet extends MeshWallet {
         code: 3,
         info: "UserDeclined - User declined to sign the data.",
       });
+   
+      if(res.data.method !== "sign-data") {
+        throw new ApiError({
+          code: 2,
+          info: "Received the wrong response from the iframe.",
+        });
+      }
 
-    return res.signature;
+
+    return res.data.signature;
   }
 
   /**
@@ -212,50 +225,4 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.json = json;
   }
-}
-
-export async function getWalletFromWindow({
-  networkId,
-  projectId,
-  appUrl,
-  directTo,
-}: WindowWalletReq): Promise<
-  | {
-      success: false;
-      error: {
-        errorMessage?: string;
-        errorCode?: number;
-      };
-    }
-  | WindowWalletRes
-> {
-  const payload: WindowWalletReq = {
-    networkId: networkId,
-    projectId,
-    directTo,
-  };
-
-  const walletRes: WindowWalletRes = await openWindow(
-    "/client/wallet",
-    payload,
-    appUrl
-  );
-
-  if (walletRes.user) {
-    walletRes.user.id = walletRes.user.id.replace(
-      /discord|twitter|google/g,
-      ""
-    );
-  }
-
-  if (walletRes.success) {
-    return walletRes;
-  }
-
-  return {
-    success: false,
-    error: {
-      errorMessage: "No wallet",
-    },
-  };
 }
