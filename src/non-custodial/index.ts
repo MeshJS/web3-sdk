@@ -189,7 +189,7 @@ export class Web3NonCustodialProvider {
     }
 
     const result = await fetch(this.appOrigin + "/api/wallet", {
-      headers: { Authentication: "Bearer " + user.token },
+      headers: { Authorization: "Bearer " + user.token },
     });
 
     const wallets = (await result.json()) as Web3WalletObject[];
