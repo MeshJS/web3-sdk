@@ -1,22 +1,4 @@
-import { Web3AuthProvider } from "../../types";
-
-export type OpenWindowParams = {
-  method: "enable"
-  projectId: string;
-  directTo?: Web3AuthProvider
-} | {
-  method: "sign-tx"
-  projectId: string;
-  directTo?: Web3AuthProvider
-  unsignedTx: string;
-  partialSign: "true" | "false";
-} | {
-  method: "sign-data"
-  projectId: string
-  directTo?: Web3AuthProvider
-  payload: string;
-  address?: string;
-}
+import { OpenWindowParams } from "../../types/window";
 
 export async function openWindow(
   params: OpenWindowParams,

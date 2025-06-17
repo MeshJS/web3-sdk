@@ -11,7 +11,6 @@ import {
 } from "../types";
 import { WindowWalletReq, WindowWalletRes, Web3AuthProvider } from "../types";
 import { getAddressFromHashes, openWindow } from "../functions";
-import { OpenWindowParams } from "../functions/window/open-window";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
