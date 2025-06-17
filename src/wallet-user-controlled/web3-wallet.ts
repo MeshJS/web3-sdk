@@ -107,13 +107,6 @@ export class Web3Wallet extends MeshWallet {
    * @returns a signed transaction in CBOR
    */
   async signTx(unsignedTx: string, partialSign = false): Promise<string> {
-    const _payload: WindowSignTxReq = {
-      method: "sign-tx",
-      unsignedTx,
-      networkId: (await this.getNetworkId()) as 0 | 1,
-      projectId: this.projectId,
-    };
-
     const res: OpenWindowResult = await openWindow(
       {method: "sign-tx", projectId: this.projectId!, unsignedTx, partialSign: partialSign === true ? "true" : "false"},
       this.appUrl
