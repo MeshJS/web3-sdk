@@ -82,6 +82,7 @@ export type Web3NonCustodialProviderParams = {
   googleOauth2ClientId: string;
   twitterOauth2ClientId: string;
   discordOauth2ClientId: string;
+  appleOauth2ClientId: string;
 };
 
 export type Web3NonCustodialProviderUser = {
@@ -159,6 +160,7 @@ export class Web3NonCustodialProvider {
   googleOauth2ClientId: string;
   twitterOauth2ClientId: string;
   discordOauth2ClientId: string;
+  appleOauth2ClientId: string
 
   constructor(params: Web3NonCustodialProviderParams) {
     this.projectId = params.projectId;
@@ -171,6 +173,7 @@ export class Web3NonCustodialProvider {
     this.googleOauth2ClientId = params.googleOauth2ClientId;
     this.twitterOauth2ClientId = params.twitterOauth2ClientId;
     this.discordOauth2ClientId = params.discordOauth2ClientId;
+    this.appleOauth2ClientId = params.appleOauth2ClientId;
   }
 
   async checkNonCustodialWalletsOnServer(): Promise<
@@ -489,6 +492,23 @@ export class Web3NonCustodialProvider {
       const twitterAuthorizeUrl =
         "https://x.com/i/oauth2/authorize?" + twitterSearchParams.toString();
       callback(twitterAuthorizeUrl);
+      return;
+    } else if (provider === "apple") {
+      const appleState = JSON.stringify({
+        redirect: redirectUrl,
+        provider: "apple",
+        projectId: this.projectId,
+      });
+      const appleSearchParams = new URLSearchParams({
+        client_id: this.appleOauth2ClientId,
+        response_type: "code",
+        redirect_uri: this.appOrigin + "/api/auth",
+        response_mode: "query",
+        scope: "name email",
+        state: btoa(appleState),
+      });
+      const appleAuthorizeUrl = "https://appleid.apple.com/auth/authorize?" + appleSearchParams.toString();
+      callback(appleAuthorizeUrl)
       return;
     }
   }
