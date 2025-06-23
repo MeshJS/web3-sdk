@@ -54,7 +54,7 @@ export async function openWindow(
       return reject(new Error("Failed to open window"));
     }
 
-    newWindow.document.title = "Mesh Web3 Services";
+    // newWindow.document.title = "Mesh Web3 Services";
 
     const interval = setInterval(() => {
       if (newWindow.closed) {

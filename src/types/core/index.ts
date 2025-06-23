@@ -55,4 +55,4 @@ export type Web3JWTBody = {
   username: string | null;
 };
 
-export type Web3AuthProvider = "google" | "discord" | "twitter";
+export type Web3AuthProvider = "google" | "discord" | "twitter" | "apple";
