@@ -10,9 +10,10 @@ export class Web3Sdk {
   readonly projectId: string;
   readonly apiKey: string;
   readonly privateKey: string | undefined;
-  project: Web3Project | undefined;
   readonly providerFetcher: IFetcher | undefined;
   readonly providerSubmitter: ISubmitter | undefined;
+  readonly network: "mainnet" | "testnet";
+  project: Web3Project | undefined;
 
   readonly wallet: WalletDeveloperControlled;
 
@@ -20,6 +21,7 @@ export class Web3Sdk {
     appUrl,
     projectId,
     apiKey,
+    network,
     privateKey,
     fetcher,
     submitter,
@@ -27,6 +29,7 @@ export class Web3Sdk {
     appUrl?: string;
     projectId: string;
     apiKey: string;
+    network: "mainnet" | "testnet";
     privateKey?: string;
     fetcher?: IFetcher;
     submitter?: ISubmitter;
@@ -35,6 +38,7 @@ export class Web3Sdk {
       this.appUrl = appUrl ? appUrl : "https://web3.meshjs.dev/";
       this.projectId = projectId;
       this.apiKey = apiKey;
+      this.network = network;
       this.privateKey = privateKey;
       this.providerFetcher = fetcher;
       this.providerSubmitter = submitter;
