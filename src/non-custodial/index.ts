@@ -503,7 +503,7 @@ export class Web3NonCustodialProvider {
         client_id: this.appleOauth2ClientId,
         response_type: "code",
         redirect_uri: this.appOrigin + "/api/auth",
-        response_mode: "query",
+        response_mode: "form_post",
         scope: "name email",
         state: btoa(appleState),
       });
