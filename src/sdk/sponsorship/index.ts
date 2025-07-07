@@ -1,5 +1,4 @@
 import { Web3Sdk } from "..";
-import { WalletDeveloperControlled } from "../wallet-developer-controlled";
 
 /**
  * The `Sponsorship` class provides methods to manage and interact with sponsorships
@@ -7,78 +6,71 @@ import { WalletDeveloperControlled } from "../wallet-developer-controlled";
  */
 export class Sponsorship {
   readonly sdk: Web3Sdk;
-  walletDeveloperControlled: WalletDeveloperControlled;
 
   constructor({ sdk }: { sdk: Web3Sdk }) {
     {
       this.sdk = sdk;
-      this.walletDeveloperControlled = new WalletDeveloperControlled({
-        sdk: this.sdk,
-      });
     }
   }
 
-  async createSponsorship({
-    num_utxos_trigger_prepare,
-    num_utxo_prepare,
-    duration_consume_utxos,
-    utxo_sponsor_amount,
-  }: {
-    num_utxos_trigger_prepare: number;
-    num_utxo_prepare: number;
-    duration_consume_utxos: number;
-    utxo_sponsor_amount: number;
-  }) {
-    // todo create sponsorship and save to DB
-    const sponsorship = {
-      id: "sponsorshipId-uuid",
-      num_utxos_trigger_prepare: num_utxos_trigger_prepare,
-      num_utxo_prepare: num_utxo_prepare,
-      duration_consume_utxos: duration_consume_utxos,
-      utxo_sponsor_amount: utxo_sponsor_amount,
-    };
+  // async createSponsorship({
+  //   num_utxos_trigger_prepare,
+  //   num_utxos_prepare,
+  //   utxo_amount,
+  // }: {
+  //   num_utxos_trigger_prepare: number;
+  //   num_utxos_prepare: number;
+  //   utxo_amount: number;
+  // }) {
+  //   // create mesh developer controlled wallet
+  //   const walletInfo = await this.sdk.wallet.createWallet({
+  //     tags: ["sponsor"],
+  //   });
 
-    // create mesh developer controlled wallet
-    const walletInfo = await this.walletDeveloperControlled.createWallet({
-      tags: [sponsorship.id],
-    });
+  //   const wallet = await this.sdk.wallet.getWallet(
+  //     walletInfo.id,
+  //     this.sdk.network == "mainnet" ? 1 : 0,
+  //   );
 
-    const wallet = await this.walletDeveloperControlled.getWallet(
-      walletInfo.id,
-      this.sdk.network == "mainnet" ? 1 : 0
-    );
+  //   // todo create sponsorship and save to DB
+  //   const sponsorship = {
+  //     id: "sponsorshipId-uuid",
+  //     projectId: this.sdk.projectId,
+  //     projectWalletId: walletInfo.id,
+  //     num_utxos_trigger_prepare: num_utxos_trigger_prepare,
+  //     num_utxos_prepare: num_utxos_prepare,
+  //     utxo_amount: utxo_amount,
+  //   };
 
-    return {
-      sponsorship: sponsorship,
-      wallet: wallet,
-    };
-  }
+  //   return {
+  //     sponsorship: sponsorship,
+  //     wallet: wallet.wallet,
+  //     walletInfo: wallet.info,
+  //   };
+  // }
 
-  async getSponsorshipConfig({ sponsorshipId }: { sponsorshipId: string }) {
-    // todo read from DB
-    const sponsorship = {
-      id: sponsorshipId,
-      num_utxos_trigger_prepare: 10,
-      num_utxo_prepare: 10,
-      duration_consume_utxos: 600000,
-      utxo_sponsor_amount: 500000,
-    };
+  // async getSponsorshipConfig({ sponsorshipId }: { sponsorshipId: string }) {
+  //   // todo read from DB
+  //   const sponsorship = {
+  //     id: sponsorshipId,
+  //     projectId: this.sdk.projectId,
+  //     projectWalletId: "walletInfo.id",
+  //     num_utxos_trigger_prepare: 10,
+  //     num_utxos_prepare: 10,
+  //     utxo_amount: 500000,
+  //   };
 
-    const wallets = await this.walletDeveloperControlled.getWalletsByTag(
-      sponsorship.id
-    );
+  //   const wallet = await this.sdk.wallet.getWallet(
+  //     sponsorship.projectWalletId,
+  //     this.sdk.network == "mainnet" ? 1 : 0,
+  //   );
 
-    if (wallets.length === 0 || wallets.length > 1) {
-      throw new Error(
-        "No wallet found or multiple wallets found for sponsorship"
-      );
-    }
-
-    return {
-      sponsorship: sponsorship,
-      wallet: wallets[0]!,
-    };
-  }
+  //   return {
+  //     sponsorship: sponsorship,
+  //     wallet: wallet.wallet,
+  //     walletInfo: wallet.info,
+  //   };
+  // }
 
   /**
    * Sponsors a transaction by associating it with a specific sponsorship ID and optionally
@@ -94,37 +86,50 @@ export class Sponsorship {
   async sponsorTx({
     sponsorshipId,
     tx,
-    feeChangeAddress,
-    feeOutputIndex,
   }: {
     sponsorshipId: string;
     tx: string;
-    feeChangeAddress?: string;
-    feeOutputIndex?: number;
   }): Promise<string> {
-    return "newTxCbor";
+    console.log(11, "sponsorTx", { sponsorshipId, tx });
+    const { data, status } = await this.sdk.axiosInstance.post(
+      `api/sponsorship/process`,
+      {
+        sponsorshipId,
+        txHex: tx,
+        projectId: this.sdk.projectId,
+        network: this.sdk.network,
+      },
+    );
+
+    console.log(12, "sponsorTx response", { data, status });
+
+    if (status === 200) {
+      return data as string;
+    }
+
+    throw new Error("Failed to create wallet");
   }
 
-  /**
-   * Prepares a sponsorship policy.
-   *
-   * @param params - An object containing the sponsorship details.
-   * @param params.sponsorshipId - The unique identifier of the sponsorship to prepare.
-   * @returns A promise that resolves when the sponsorship preparation is complete.
-   */
-  async prepareSponsorship({
-    sponsorshipId,
-  }: {
-    sponsorshipId: string;
-  }): Promise<boolean> {
-    return true;
-  }
+  // /**
+  //  * Prepares a sponsorship policy.
+  //  *
+  //  * @param params - An object containing the sponsorship details.
+  //  * @param params.sponsorshipId - The unique identifier of the sponsorship to prepare.
+  //  * @returns A promise that resolves when the sponsorship preparation is complete.
+  //  */
+  // async prepareSponsorship({
+  //   sponsorshipId,
+  // }: {
+  //   sponsorshipId: string;
+  // }): Promise<boolean> {
+  //   return true;
+  // }
 
-  async getSponsorshipStatus({
-    sponsorshipId,
-  }: {
-    sponsorshipId: string;
-  }): Promise<{}> {
-    return {};
-  }
+  // async getSponsorshipStatus({
+  //   sponsorshipId,
+  // }: {
+  //   sponsorshipId: string;
+  // }): Promise<{}> {
+  //   return {};
+  // }
 }

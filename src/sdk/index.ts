@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from "axios";
 import { WalletDeveloperControlled } from "./wallet-developer-controlled/";
 import { Web3Project } from "../types";
 import { IFetcher, ISubmitter } from "@meshsdk/common";
+import { Sponsorship } from "./sponsorship";
 
 export class Web3Sdk {
   readonly axiosInstance: AxiosInstance;
@@ -13,9 +14,10 @@ export class Web3Sdk {
   readonly providerFetcher: IFetcher | undefined;
   readonly providerSubmitter: ISubmitter | undefined;
   readonly network: "mainnet" | "testnet";
-  project: Web3Project | undefined;
 
-  readonly wallet: WalletDeveloperControlled;
+  project: Web3Project | undefined;
+  wallet: WalletDeveloperControlled;
+  sponsorship: Sponsorship;
 
   constructor({
     appUrl,
@@ -51,6 +53,9 @@ export class Web3Sdk {
       this.wallet = new WalletDeveloperControlled({
         sdk: this,
       });
+      this.sponsorship = new Sponsorship({
+        sdk: this,
+      });
     }
   }
 
@@ -60,7 +65,7 @@ export class Web3Sdk {
     }
 
     const { data, status } = await this.axiosInstance.get(
-      `api/project/${this.projectId}`
+      `api/project/${this.projectId}`,
     );
 
     if (status === 200) {
