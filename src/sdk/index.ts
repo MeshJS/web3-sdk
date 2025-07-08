@@ -36,27 +36,25 @@ export class Web3Sdk {
     fetcher?: IFetcher;
     submitter?: ISubmitter;
   }) {
-    {
-      this.appUrl = appUrl ? appUrl : "https://web3.meshjs.dev/";
-      this.projectId = projectId;
-      this.apiKey = apiKey;
-      this.network = network;
-      this.privateKey = privateKey;
-      this.providerFetcher = fetcher;
-      this.providerSubmitter = submitter;
+    this.appUrl = appUrl ? appUrl : "https://web3.meshjs.dev/";
+    this.projectId = projectId;
+    this.apiKey = apiKey;
+    this.network = network;
+    this.privateKey = privateKey;
+    this.providerFetcher = fetcher;
+    this.providerSubmitter = submitter;
 
-      this.axiosInstance = axios.create({
-        baseURL: this.appUrl,
-        headers: { "x-api-key": apiKey },
-      });
+    this.axiosInstance = axios.create({
+      baseURL: this.appUrl,
+      headers: { "x-api-key": apiKey },
+    });
 
-      this.wallet = new WalletDeveloperControlled({
-        sdk: this,
-      });
-      this.sponsorship = new Sponsorship({
-        sdk: this,
-      });
-    }
+    this.wallet = new WalletDeveloperControlled({
+      sdk: this,
+    });
+    this.sponsorship = new Sponsorship({
+      sdk: this,
+    });
   }
 
   async getProject() {
