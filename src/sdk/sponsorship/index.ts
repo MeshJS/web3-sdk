@@ -421,9 +421,9 @@ export class Sponsorship {
     const unsignedTx = await txBuilder.complete();
     const signedTx = await wallet.signTx(unsignedTx);
 
-    this.sdk.providerSubmitter!.submitTx(signedTx);
+    const txHash = await this.sdk.providerSubmitter!.submitTx(signedTx);
 
-    const txHash = resolveTxHash(signedTx);
+    // const txHash = resolveTxHash(signedTx);
 
     console.log("UTXOs after prepareUtxo:", (await wallet.getUtxos()).length);
 
