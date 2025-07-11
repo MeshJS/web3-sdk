@@ -20,6 +20,7 @@ export type OpenWindowParams = {
     directTo?: Web3AuthProvider
     payload: string;
     address?: string;
+    networkId?: string;
   }
 
 export type OpenWindowResult = {
