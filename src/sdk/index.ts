@@ -32,7 +32,7 @@ export class Web3Sdk {
     submitter?: ISubmitter;
   }) {
     {
-      this.appUrl = appUrl ? appUrl : "https://web3.meshjs.dev/";
+      this.appUrl = appUrl ? appUrl : "https://utxos.dev/";
       this.projectId = projectId;
       this.apiKey = apiKey;
       this.privateKey = privateKey;
