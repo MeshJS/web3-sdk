@@ -19,12 +19,14 @@ export type EnableWeb3WalletOptions = {
   projectId?: string;
   appUrl?: string;
   directTo?: Web3AuthProvider;
+  chain?: string;
 };
 
 type InitWeb3WalletOptions = CreateMeshWalletOptions & {
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
+  chain?: string;
 };
 
 /**
@@ -35,12 +37,14 @@ export class Web3Wallet extends MeshWallet {
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
+  chain?: string;
 
   constructor(options: InitWeb3WalletOptions) {
     super(options);
     this.projectId = options.projectId;
     this.appUrl = options.appUrl;
     this.user = options.user;
+    this.chain = options.chain;
   }
 
   /**
@@ -58,8 +62,13 @@ export class Web3Wallet extends MeshWallet {
    */
   static async enable(options: EnableWeb3WalletOptions): Promise<Web3Wallet> {
     const res: OpenWindowResult = await openWindow(
-      {method: "enable", projectId: options.projectId!, directTo: options.directTo},
-      options.appUrl
+      {
+        method: "enable",
+        projectId: options.projectId!,
+        directTo: options.directTo,
+        chain: options.chain,
+      },
+      options.appUrl,
     );
 
     if (res.success === false)
@@ -67,8 +76,8 @@ export class Web3Wallet extends MeshWallet {
         code: -3,
         info: "Refused - The request was refused due to lack of access - e.g. wallet disconnects.",
       });
-    
-    if(res.data.method !== "enable") {
+
+    if (res.data.method !== "enable") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
@@ -78,7 +87,7 @@ export class Web3Wallet extends MeshWallet {
     const address = getAddressFromHashes(
       res.data.pubKeyHash,
       res.data.stakeCredentialHash,
-      options.networkId
+      options.networkId,
     );
 
     const wallet = await Web3Wallet.initWallet({
@@ -89,6 +98,7 @@ export class Web3Wallet extends MeshWallet {
       projectId: options.projectId,
       appUrl: options.appUrl,
       user: res.data.user,
+      chain: options.chain,
     });
 
     return wallet;
@@ -107,8 +117,14 @@ export class Web3Wallet extends MeshWallet {
    */
   async signTx(unsignedTx: string, partialSign = false): Promise<string> {
     const res: OpenWindowResult = await openWindow(
-      {method: "sign-tx", projectId: this.projectId!, unsignedTx, partialSign: partialSign === true ? "true" : "false"},
-      this.appUrl
+      {
+        method: "sign-tx",
+        projectId: this.projectId!,
+        unsignedTx,
+        partialSign: partialSign === true ? "true" : "false",
+        chain: this.chain,
+      },
+      this.appUrl,
     );
 
     if (res.success === false)
@@ -116,8 +132,8 @@ export class Web3Wallet extends MeshWallet {
         code: 2,
         info: "UserDeclined - User declined to sign the transaction.",
       });
-    
-    if(res.data.method !== "sign-tx") {
+
+    if (res.data.method !== "sign-tx") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
@@ -141,8 +157,15 @@ export class Web3Wallet extends MeshWallet {
     const networkId = await this.getNetworkId()
 
     const res: OpenWindowResult = await openWindow(
-      {method: "sign-data", projectId: this.projectId!, payload, address, networkId: String(networkId)},
-      this.appUrl
+      {
+        method: "sign-data",
+        projectId: this.projectId!,
+        payload,
+        address,
+        networkId: String(networkId),
+        chain: this.chain,
+      },
+      this.appUrl,
     );
 
     if (res.success === false)
@@ -150,14 +173,13 @@ export class Web3Wallet extends MeshWallet {
         code: 3,
         info: "UserDeclined - User declined to sign the data.",
       });
-   
-      if(res.data.method !== "sign-data") {
-        throw new ApiError({
-          code: 2,
-          info: "Received the wrong response from the iframe.",
-        });
-      }
 
+    if (res.data.method !== "sign-data") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
 
     return res.data.signature;
   }
@@ -183,6 +205,7 @@ export class Web3Wallet extends MeshWallet {
     projectId,
     appUrl,
     user,
+    chain,
   }: {
     networkId: 0 | 1;
     address: string;
@@ -191,6 +214,7 @@ export class Web3Wallet extends MeshWallet {
     projectId?: string;
     appUrl?: string;
     user?: UserSocialData;
+    chain?: string;
   }) {
     const _options: InitWeb3WalletOptions = {
       networkId: networkId,
@@ -203,6 +227,7 @@ export class Web3Wallet extends MeshWallet {
       projectId: projectId,
       appUrl: appUrl,
       user: user,
+      chain: chain,
     };
     const wallet = new Web3Wallet(_options);
     await wallet.init();

@@ -8,18 +8,21 @@ export type OpenWindowParams = {
     method: "enable"
     projectId: string;
     directTo?: Web3AuthProvider
+    chain?: string;
   } | {
     method: "sign-tx"
     projectId: string;
     directTo?: Web3AuthProvider
     unsignedTx: string;
     partialSign: "true" | "false";
+    chain?: string;
   } | {
     method: "sign-data"
     projectId: string
     directTo?: Web3AuthProvider
     payload: string;
     address?: string;
+    chain?: string;
     networkId?: string;
   }
 
