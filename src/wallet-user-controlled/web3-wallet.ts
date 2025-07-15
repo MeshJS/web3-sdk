@@ -154,6 +154,7 @@ export class Web3Wallet extends MeshWallet {
     if (address === undefined) {
       address = await this.getChangeAddress()!;
     }
+    const networkId = await this.getNetworkId()
 
     const res: OpenWindowResult = await openWindow(
       {
@@ -161,6 +162,7 @@ export class Web3Wallet extends MeshWallet {
         projectId: this.projectId!,
         payload,
         address,
+        networkId: String(networkId),
         chain: this.chain,
       },
       this.appUrl,

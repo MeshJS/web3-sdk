@@ -23,6 +23,7 @@ export type OpenWindowParams = {
     payload: string;
     address?: string;
     chain?: string;
+    networkId?: string;
   }
 
 export type OpenWindowResult = {

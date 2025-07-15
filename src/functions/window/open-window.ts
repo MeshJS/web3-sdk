@@ -42,7 +42,7 @@ const buildWindowFeatures = () => {
 
 export async function openWindow(
   params: OpenWindowParams,
-  appUrl: string = "https://web3.meshjs.dev/"
+  appUrl: string = "https://utxos.dev/"
 ): Promise<any> {
   const p = new URLSearchParams(params);
   const _url = `${appUrl}/client/wallet?${p.toString()}`;
