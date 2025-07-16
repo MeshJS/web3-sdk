@@ -1,5 +1,5 @@
 import { Web3Sdk } from "..";
-import { UTxO, resolveTxHash, MeshTxBuilder, TxParser } from "@meshsdk/core";
+import { UTxO, MeshTxBuilder, TxParser } from "@meshsdk/core";
 import { CSLSerializer } from "@meshsdk/core-csl";
 
 type SponsorshipConfig = {
@@ -35,11 +35,10 @@ const meshUniversalStaticUtxo = {
 };
 
 /**
- * The `Sponsorship` class provides methods to manage and interact with sponsorships
- * in the Web3 this.SDK.
+ * The `Sponsorship` class provides methods to process transaction sponsorships
  */
 export class Sponsorship {
-  readonly sdk: Web3Sdk;
+  private readonly sdk: Web3Sdk;
 
   constructor({ sdk }: { sdk: Web3Sdk }) {
     {
@@ -47,65 +46,12 @@ export class Sponsorship {
     }
   }
 
-  // async createSponsorship({
-  //   num_utxos_trigger_prepare,
-  //   num_utxos_prepare,
-  //   utxo_amount,
-  // }: {
-  //   num_utxos_trigger_prepare: number;
-  //   num_utxos_prepare: number;
-  //   utxo_amount: number;
-  // }) {
-  //   // create mesh developer controlled wallet
-  //   const walletInfo = await this.sdk.wallet.createWallet({
-  //     tags: ["sponsor"],
-  //   });
-
-  //   const wallet = await this.sdk.wallet.getWallet(
-  //     walletInfo.id,
-  //     this.sdk.network == "mainnet" ? 1 : 0,
-  //   );
-
-  //   // todo create sponsorship and save to DB
-  //   const sponsorship = {
-  //     id: "sponsorshipId-uuid",
-  //     projectId: this.sdk.projectId,
-  //     projectWalletId: walletInfo.id,
-  //     num_utxos_trigger_prepare: num_utxos_trigger_prepare,
-  //     num_utxos_prepare: num_utxos_prepare,
-  //     utxo_amount: utxo_amount,
-  //   };
-
-  //   return {
-  //     sponsorship: sponsorship,
-  //     wallet: wallet.wallet,
-  //     walletInfo: wallet.info,
-  //   };
-  // }
-
-  // async getSponsorshipConfig({ sponsorshipId }: { sponsorshipId: string }) {
-  //   // todo read from DB
-  //   const sponsorship = {
-  //     id: sponsorshipId,
-  //     projectId: this.sdk.projectId,
-  //     projectWalletId: "walletInfo.id",
-  //     num_utxos_trigger_prepare: 10,
-  //     num_utxos_prepare: 10,
-  //     utxo_amount: 500000,
-  //   };
-
-  //   const wallet = await this.sdk.wallet.getWallet(
-  //     sponsorship.projectWalletId,
-  //     this.sdk.network == "mainnet" ? 1 : 0,
-  //   );
-
-  //   return {
-  //     sponsorship: sponsorship,
-  //     wallet: wallet.wallet,
-  //     walletInfo: wallet.info,
-  //   };
-  // }
-
+  /**
+   * Retrieves static information about the sponsorship, including the change address
+   * and a predefined UTXO used for sponsorship.
+   *
+   * @returns An object containing the change address and the static UTXO.
+   */
   getStaticInfo() {
     return {
       changeAddress: meshUniversalStaticUtxo.output.address,
@@ -131,22 +77,6 @@ export class Sponsorship {
     sponsorshipId: string;
     tx: string;
   }): Promise<string> {
-    // const { data, status } = await this.sdk.axiosInstance.post(
-    //   `api/sponsorship/process`,
-    //   {
-    //     sponsorshipId,
-    //     txHex: tx,
-    //     projectId: this.sdk.projectId,
-    //     network: this.sdk.network,
-    //   },
-    // );
-
-    // if (status === 200) {
-    //   return data as string;
-    // }
-
-    // throw new Error("Failed to create wallet");
-
     /**
      * get sponsorship config
      */
@@ -168,169 +98,153 @@ export class Sponsorship {
     }
 
     const sponsorshipConfig = data as SponsorshipConfig;
-    console.log(111, "sponsorshipConfig", sponsorshipConfig);
 
-    const sponsoredTx = await this.sponsorTxSignAndSubmitTx({
+    const signedRebuiltTxHex = await this.sponsorTxAndSign({
       txHex: tx,
       config: sponsorshipConfig,
     });
 
-    return sponsoredTx.txHash;
+    return signedRebuiltTxHex;
   }
 
-  // /**
-  //  * Prepares a sponsorship policy.
-  //  *
-  //  * @param params - An object containing the sponsorship details.
-  //  * @param params.sponsorshipId - The unique identifier of the sponsorship to prepare.
-  //  * @returns A promise that resolves when the sponsorship preparation is complete.
-  //  */
-  // async prepareSponsorship({
-  //   sponsorshipId,
-  // }: {
-  //   sponsorshipId: string;
-  // }): Promise<boolean> {
-  //   return true;
-  // }
+  /**
+   * functions to sponsor a transaction and sign it with the sponsor wallet.
+   */
 
-  // async getSponsorshipStatus({
-  //   sponsorshipId,
-  // }: {
-  //   sponsorshipId: string;
-  // }): Promise<{}> {
-  //   return {};
-  // }
+  /**
+   * This function looks for UTXOs in the sponsor wallet that can be used to sponsor a transaction.
+   * If there are not enough UTXOs, it prepares more UTXOs using the `prepareSponsorUtxosTx` method.
+   * It then rebuilds the original transaction by adding the selected UTXO as an input (`rebuildTx`) and signs it with the sponsor wallet.
+   */
+  private async sponsorTxAndSign({
+    txHex,
+    config,
+  }: {
+    txHex: string;
+    config: SponsorshipConfig;
+  }) {
+    let prepareUtxo = false;
+    let sponsorshipTxHash: string | undefined = undefined;
 
-  async getSponsorWallet(projectWalletId: string) {
+    const sponsorWallet = await this.getSponsorWallet(config.projectWalletId);
+    const sponsorshipWalletUtxos = await sponsorWallet.getUtxos();
+    const sponsorshipWalletAddress = await sponsorWallet.getChangeAddress();
+
+    const dbPendingUtxos = await this.dbGetIsPendingUtxo(
+      config.projectWalletId,
+    );
+    const pendingUtxoIds = dbPendingUtxos.map((utxo: any) => {
+      return `${utxo.txHash}#${utxo.outputIndex}`;
+    });
+
+    console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
+    const utxosAvailableAsInput = sponsorshipWalletUtxos.filter((utxo: any) => {
+      return (
+        utxo.output.amount[0].unit === "lovelace" &&
+        utxo.output.amount[0].quantity ===
+          (config.utxoAmount * 1000000).toString() &&
+        !pendingUtxoIds.includes(
+          `${utxo.input.txHash}#${utxo.input.outputIndex}`,
+        )
+      );
+    });
+
+    console.log("UTXOs available as input:", utxosAvailableAsInput);
+
+    // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
+    if (utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare) {
+      console.log("Preparing more UTXOs");
+      prepareUtxo = true;
+    }
+
+    // Make more UTXOs if prepareUtxo=true
+    if (prepareUtxo) {
+      sponsorshipTxHash = await this.prepareSponsorUtxosTx({
+        config: config,
+      });
+      console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
+    }
+
+    let selectedUtxo: UTxO | undefined = undefined;
+
+    // If we just prepared the UTXOs, we can use the sponsorship tx hash as input
+    if (sponsorshipTxHash) {
+      selectedUtxo = {
+        input: {
+          txHash: sponsorshipTxHash,
+          outputIndex: 0,
+        },
+        output: {
+          amount: [
+            {
+              unit: "lovelace",
+              quantity: (config.utxoAmount * 1000000).toString(),
+            },
+          ],
+          address: sponsorshipWalletAddress as string,
+        },
+      };
+
+      // and mark this as used
+      await this.dbAppendUtxosUsed(config, sponsorshipTxHash, 0);
+    }
+
+    // Select a random UTXO that is not used
+    while (selectedUtxo === undefined && utxosAvailableAsInput.length > 0) {
+      const selectedIndex = Math.floor(
+        Math.random() * utxosAvailableAsInput.length,
+      );
+      const _selectedUtxo = utxosAvailableAsInput[selectedIndex]!;
+      utxosAvailableAsInput.splice(selectedIndex, 1);
+
+      const isUtxoUsed = await this.dbGetIfUtxoUsed(
+        config.projectWalletId,
+        _selectedUtxo.input.txHash,
+        _selectedUtxo.input.outputIndex,
+      );
+
+      if (!isUtxoUsed) {
+        selectedUtxo = _selectedUtxo;
+        await this.dbAppendUtxosUsed(
+          config,
+          selectedUtxo.input.txHash,
+          selectedUtxo.input.outputIndex,
+        );
+      }
+    }
+
+    if (selectedUtxo) {
+      const rebuiltTxHex = await this.rebuildTx({
+        txHex,
+        sponsorshipWalletUtxos,
+        sponsorshipWalletAddress,
+        selectedUtxo,
+      });
+
+      const signedRebuiltTxHex = await sponsorWallet.signTx(rebuiltTxHex, true);
+
+      return signedRebuiltTxHex;
+    }
+
+    throw new Error("No available UTXOs to sponsor the transaction.");
+  }
+
+  private async getSponsorWallet(projectWalletId: string) {
     const networkId = this.sdk.network === "mainnet" ? 1 : 0;
     const wallet = await this.sdk.wallet.getWallet(projectWalletId, networkId);
     return wallet.wallet;
   }
 
-  async dbGetIsPendingUtxo(projectWalletId: string) {
-    // Get pending UTXOs from the database
-    // const pendingOutputs = await prisma.sponsorshipOutput.findMany({
-    //   where: {
-    //     projectWalletId: projectWalletId,
-    //     isPending: true,
-    //   },
-    // });
-
-    // return pendingOutputs;
-
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/sponsorship/output/${projectWalletId}/pending`,
-    );
-
-    if (status === 200) {
-      return data as SponsorshipOutput[];
-    }
-
-    throw new Error("Failed to get pending UTXOs");
-  }
-
-  async dbGetIfUtxoUsed(
-    projectWalletId: string,
-    txHash: string,
-    outputIndex: number,
-  ) {
-    // Check if UTXO is already used (spent)
-    // const output = await prisma.sponsorshipOutput.findUnique({
-    //   where: {
-    //     txHash_outputIndex: {
-    //       txHash: txHash,
-    //       outputIndex: outputIndex,
-    //     },
-    //   },
-    // });
-
-    // return output ? output.isSpent : false;
-
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/sponsorship/output/${projectWalletId}/${txHash}/${outputIndex}`,
-    );
-
-    if (status === 200) {
-      const output = data as SponsorshipOutput;
-      return output ? output.isSpent : false;
-    }
-
-    throw new Error("Failed to check if UTXO is used");
-  }
-
-  async dbUpdateUtxos(
-    projectWalletId: string,
-    txHash: string,
-    outputIndex: number,
-    isPending: boolean = true,
-    isSpent: boolean = false,
-  ) {
-    const { data, status } = await this.sdk.axiosInstance.put(
-      `api/sponsorship/output/${projectWalletId}/${txHash}/${outputIndex}`,
-      {
-        isPending,
-        isSpent,
-      },
-    );
-
-    if (status === 200) {
-      return data as SponsorshipOutput;
-    }
-
-    throw new Error("Failed to mark UTXO as used");
-  }
-
-  async dbAppendUtxosUsed(
-    config: SponsorshipConfig,
-    txHash: string,
-    outputIndex: number,
-  ) {
-    // Mark UTXO as used (pending)
-    // const output = await prisma.sponsorshipOutput.upsert({
-    //   where: {
-    //     txHash_outputIndex: {
-    //       txHash: txHash,
-    //       outputIndex: outputIndex,
-    //     },
-    //   },
-    //   update: {
-    //     isPending: true,
-    //     isSpent: false,
-    //   },
-    //   create: {
-    //     txHash: txHash,
-    //     outputIndex: outputIndex,
-    //     projectWalletId: projectWalletId,
-    //     isPending: true,
-    //     isSpent: false,
-    //   },
-    // });
-
-    return this.dbUpdateUtxos(
-      config.projectWalletId,
-      txHash,
-      outputIndex,
-      true,
-      false,
-    );
-  }
-
-  async dbMarkUtxoAsConsumed(
-    config: SponsorshipConfig,
-    txHash: string,
-    outputIndex: number,
-  ) {
-    // Mark UTXO as consumed (spent) by calling dbAppendUtxosUsed with isPending=false and isSpent=true
-    return this.dbUpdateUtxos(
-      config.projectWalletId,
-      txHash,
-      outputIndex,
-      false,
-      true,
-    );
-  }
-
-  async prepareSponsorUtxosTx({ config }: { config: SponsorshipConfig }) {
+  /**
+   * Prepares UTXOs for sponsorship by creating new UTXOs in the sponsor wallet.
+   * It uses existing UTXOs that are not the exact sponsor amount and those that have been pending for too long.
+   * It creates a transaction that consumes these UTXOs and produces new UTXOs of the specified amount.
+   */
+  private async prepareSponsorUtxosTx({
+    config,
+  }: {
+    config: SponsorshipConfig;
+  }) {
     const wallet = await this.getSponsorWallet(config.projectWalletId);
     const utxos = await wallet.getUtxos();
     const changeAddress = await wallet.getChangeAddress();
@@ -423,14 +337,16 @@ export class Sponsorship {
 
     const txHash = await this.sdk.providerSubmitter!.submitTx(signedTx);
 
-    // const txHash = resolveTxHash(signedTx);
-
     console.log("UTXOs after prepareUtxo:", (await wallet.getUtxos()).length);
 
     return txHash;
   }
 
-  async rebuildTx({
+  /**
+   * Rebuilds the transaction by adding the selected UTXO as an input and collateral.
+   * It filters out the static UTXOs from the inputs, collaterals, and outputs.
+   */
+  private async rebuildTx({
     txHex,
     sponsorshipWalletUtxos,
     sponsorshipWalletAddress,
@@ -441,11 +357,8 @@ export class Sponsorship {
     sponsorshipWalletAddress: string;
     selectedUtxo: UTxO;
   }) {
-    console.log("rebuildTx", {
-      sponsorshipWalletUtxos,
-      sponsorshipWalletAddress,
-      selectedUtxo,
-    });
+    sponsorshipWalletUtxos.push(meshUniversalStaticUtxo);
+    sponsorshipWalletUtxos.push(selectedUtxo);
 
     const serializer = new CSLSerializer();
     const txParser = new TxParser(serializer, this.sdk.providerFetcher);
@@ -494,7 +407,10 @@ export class Sponsorship {
       .complete();
 
     const endParser = new TxParser(serializer, this.sdk.providerFetcher);
-    const finalTxBody = await endParser.parse(rebuiltTxHex);
+    const finalTxBody = await endParser.parse(
+      rebuiltTxHex,
+      sponsorshipWalletUtxos,
+    );
 
     console.log("finalTxBody", finalTxBody);
 
@@ -506,115 +422,87 @@ export class Sponsorship {
     return rebuiltTxHex;
   }
 
-  async sponsorTxSignAndSubmitTx({
-    txHex,
-    config,
-  }: {
-    txHex: string;
-    config: SponsorshipConfig;
-  }) {
-    let prepareUtxo = false;
-    let sponsorshipTxHash: string | undefined = undefined;
+  /**
+   * DB functions
+   */
 
-    const sponsorWallet = await this.getSponsorWallet(config.projectWalletId);
-    const sponsorshipWalletUtxos = await sponsorWallet.getUtxos();
-    const sponsorshipWalletAddress = await sponsorWallet.getChangeAddress();
-
-    const dbPendingUtxos = await this.dbGetIsPendingUtxo(
-      config.projectWalletId,
+  private async dbGetIsPendingUtxo(projectWalletId: string) {
+    const { data, status } = await this.sdk.axiosInstance.get(
+      `api/sponsorship/output/${projectWalletId}/pending`,
     );
-    const pendingUtxoIds = dbPendingUtxos.map((utxo: any) => {
-      return `${utxo.txHash}#${utxo.outputIndex}`;
-    });
 
-    const utxosAvailableAsInput = sponsorshipWalletUtxos.filter((utxo: any) => {
-      return (
-        utxo.output.amount[0].unit === "lovelace" &&
-        utxo.output.amount[0].quantity === config.utxoAmount * 1000000 &&
-        !pendingUtxoIds.includes(
-          `${utxo.input.txHash}#${utxo.input.outputIndex}`,
-        )
-      );
-    });
-
-    console.log("UTXOs available as input:", utxosAvailableAsInput);
-
-    // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
-    if (utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare) {
-      console.log("Preparing more UTXOs");
-      prepareUtxo = true;
+    if (status === 200) {
+      return data as SponsorshipOutput[];
     }
 
-    // Make more UTXOs if prepareUtxo=true
-    if (prepareUtxo) {
-      sponsorshipTxHash = await this.prepareSponsorUtxosTx({
-        config: config,
-      });
-      console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
+    throw new Error("Failed to get pending UTXOs");
+  }
+
+  private async dbGetIfUtxoUsed(
+    projectWalletId: string,
+    txHash: string,
+    outputIndex: number,
+  ) {
+    const { data, status } = await this.sdk.axiosInstance.get(
+      `api/sponsorship/output/${projectWalletId}/${txHash}/${outputIndex}`,
+    );
+
+    if (status === 200) {
+      const output = data as SponsorshipOutput;
+      return output ? output.isSpent : false;
     }
 
-    let selectedUtxo: UTxO | undefined = undefined;
+    throw new Error("Failed to check if UTXO is used");
+  }
 
-    // If we just prepared the UTXOs, we can use the sponsorship tx hash as input
-    if (sponsorshipTxHash) {
-      selectedUtxo = {
-        input: {
-          txHash: sponsorshipTxHash,
-          outputIndex: 0,
-        },
-        output: {
-          amount: [
-            {
-              unit: "lovelace",
-              quantity: (config.utxoAmount * 1000000).toString(),
-            },
-          ],
-          address: sponsorshipWalletAddress as string,
-        },
-      };
+  private async dbUpdateUtxos(
+    projectWalletId: string,
+    txHash: string,
+    outputIndex: number,
+    isPending: boolean = true,
+    isSpent: boolean = false,
+  ) {
+    const { data, status } = await this.sdk.axiosInstance.put(
+      `api/sponsorship/output/${projectWalletId}/${txHash}/${outputIndex}`,
+      {
+        isPending,
+        isSpent,
+      },
+    );
 
-      // and mark this as used
-      await this.dbAppendUtxosUsed(config, sponsorshipTxHash, 0);
+    if (status === 200) {
+      return data as SponsorshipOutput;
     }
 
-    // Select a random UTXO that is not used
-    while (selectedUtxo === undefined && utxosAvailableAsInput.length > 0) {
-      const selectedIndex = Math.floor(
-        Math.random() * utxosAvailableAsInput.length,
-      );
-      const _selectedUtxo = utxosAvailableAsInput[selectedIndex]!;
-      utxosAvailableAsInput.splice(selectedIndex, 1);
+    throw new Error("Failed to mark UTXO as used");
+  }
 
-      const isUtxoUsed = await this.dbGetIfUtxoUsed(
-        config.projectWalletId,
-        _selectedUtxo.input.txHash,
-        _selectedUtxo.input.outputIndex,
-      );
+  private async dbAppendUtxosUsed(
+    config: SponsorshipConfig,
+    txHash: string,
+    outputIndex: number,
+  ) {
+    return this.dbUpdateUtxos(
+      config.projectWalletId,
+      txHash,
+      outputIndex,
+      true,
+      false,
+    );
+  }
 
-      if (!isUtxoUsed) {
-        selectedUtxo = _selectedUtxo;
-        await this.dbAppendUtxosUsed(
-          config,
-          selectedUtxo.input.txHash,
-          selectedUtxo.input.outputIndex,
-        );
-      }
-    }
-
-    if (selectedUtxo) {
-      const rebuiltTxHex = await this.rebuildTx({
-        txHex,
-        sponsorshipWalletUtxos,
-        sponsorshipWalletAddress,
-        selectedUtxo,
-      });
-
-      const signedTx = await sponsorWallet.signTx(rebuiltTxHex);
-      const txHash = await this.sdk.providerSubmitter!.submitTx(signedTx);
-
-      return { txHash };
-    }
-
-    throw new Error("No available UTXOs to sponsor the transaction.");
+  private async dbMarkUtxoAsConsumed(
+    config: SponsorshipConfig,
+    txHash: string,
+    outputIndex: number,
+  ) {
+    // Mark UTXO as consumed (spent) by calling dbAppendUtxosUsed with isPending=false and isSpent=true
+    return this.dbUpdateUtxos(
+      config.projectWalletId,
+      txHash,
+      outputIndex,
+      false,
+      true,
+    );
   }
 }
