@@ -1,6 +1,7 @@
 import { Web3Sdk } from "..";
-import { UTxO, MeshTxBuilder, TxParser } from "@meshsdk/core";
-import { collateralTxInFromObj, CSLSerializer } from "@meshsdk/core-csl";
+import { UTxO, MeshTxBuilder } from "@meshsdk/core";
+import {meshUniversalStaticUtxo} from "../index"
+import { SponsorshipTxParserPostRequestBody } from "../../types";
 
 type SponsorshipConfig = {
   id: string;
@@ -23,64 +24,7 @@ type SponsorshipOutput = {
 
 const CONFIG_DURATION_CONSUME_UTXOS = 1000 * 60; // 1 minute
 
-const meshUniversalStaticUtxo = {
-  mainnet: {
-    // todo replace with mainnet
-    "5": {
-      input: {
-        outputIndex: 0,
-        txHash:
-          "5a1edf7da58eff2059030abd456947a96cb2d16b9d8c3822ffff58d167ed8bfc",
-      },
-      output: {
-        address:
-          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
-        amount: [
-          {
-            unit: "lovelace",
-            quantity: "5000000",
-          },
-        ],
-      },
-    },
-  },
-  testnet: {
-    "5": {
-      input: {
-        outputIndex: 0,
-        txHash:
-          "5a1edf7da58eff2059030abd456947a96cb2d16b9d8c3822ffff58d167ed8bfc",
-      },
-      output: {
-        address:
-          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
-        amount: [
-          {
-            unit: "lovelace",
-            quantity: "5000000",
-          },
-        ],
-      },
-    },
-    "99": {
-      input: {
-        outputIndex: 0,
-        txHash:
-          "8222b0327a95e8c357016a5df64d93d7cf8a585a07c55327ae618a7e00d58d9e",
-      },
-      output: {
-        address:
-          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
-        amount: [
-          {
-            unit: "lovelace",
-            quantity: "99000000",
-          },
-        ],
-      },
-    },
-  },
-};
+
 
 /**
  * The `Sponsorship` class provides methods to process transaction sponsorships
@@ -244,7 +188,7 @@ export class Sponsorship {
 
     // Select a random UTXO that is not used
     while (selectedUtxo === undefined && utxosAvailableAsInput.length > 0) {
-      const selectedIndex = Math.floor(
+      const selectedIndex = Math.floor( 
         Math.random() * utxosAvailableAsInput.length,
       );
       const _selectedUtxo = utxosAvailableAsInput[selectedIndex]!;
@@ -267,12 +211,24 @@ export class Sponsorship {
     }
 
     if (selectedUtxo) {
-      const rebuiltTxHex = await this.rebuildTx({
+
+      const body: SponsorshipTxParserPostRequestBody = {
         txHex,
-        sponsorshipWalletUtxos,
         sponsorshipWalletAddress,
+        sponsorshipWalletUtxos,
         selectedUtxo,
-      });
+        network: this.sdk.network,
+      }
+      const { data, status } = await this.sdk.axiosInstance.post(
+        `api/sponsorship/tx-parser`,
+        body
+      );
+
+      if(status !== 200) {
+        throw new Error("Failed to parse Tx on server!")
+      }
+
+      const { rebuiltTxHex } = data;
 
       const signedRebuiltTxHex = await sponsorWallet.signTx(rebuiltTxHex, true);
 
@@ -431,94 +387,6 @@ export class Sponsorship {
     console.log("UTXOs after prepareUtxo:", (await wallet.getUtxos()).length);
 
     return txHash;
-  }
-
-  /**
-   * Rebuilds the transaction by adding the selected UTXO as an input and collateral.
-   * It filters out the static UTXOs from the inputs, collaterals, and outputs.
-   */
-  private async rebuildTx({
-    txHex,
-    sponsorshipWalletUtxos,
-    sponsorshipWalletAddress,
-    selectedUtxo,
-  }: {
-    txHex: string;
-    sponsorshipWalletUtxos: UTxO[];
-    sponsorshipWalletAddress: string;
-    selectedUtxo: UTxO;
-  }) {
-    const staticAddress =
-      meshUniversalStaticUtxo[this.sdk.network]["5"].output.address;
-
-    for (const utxos of Object.values(
-      meshUniversalStaticUtxo[this.sdk.network],
-    )) {
-      if (utxos.output.address === staticAddress) {
-        sponsorshipWalletUtxos.push(utxos);
-      }
-    }
-
-    sponsorshipWalletUtxos.push(selectedUtxo);
-
-    const serializer = new CSLSerializer();
-    const txParser = new TxParser(serializer, this.sdk.providerFetcher);
-
-    const txBuilderBody = await txParser.parse(txHex, sponsorshipWalletUtxos);
-
-    // 1. filter out the static utxos and remove from inputs
-    const txInputs = txBuilderBody.inputs.filter((input) => {
-      return input.txIn.address !== staticAddress;
-    });
-
-    // 2. filter out the static utxos and remove from collaterals
-    const txCollateral = txBuilderBody.collaterals.filter((collateral) => {
-      return collateral.txIn.address !== staticAddress;
-    });
-
-    // 3. filter out the static utxos and remove from outputs
-    const txOuts = txBuilderBody.outputs.filter((output) => {
-      return output.address !== staticAddress;
-    });
-
-    txBuilderBody.inputs = txInputs;
-    txBuilderBody.collaterals = txCollateral;
-    txBuilderBody.outputs = txOuts;
-
-    const txBuilder = new MeshTxBuilder({
-      fetcher: this.sdk.providerFetcher,
-    });
-
-    txBuilder.meshTxBuilderBody = txBuilderBody;
-    const rebuiltTxHex = await txBuilder
-      .changeAddress(sponsorshipWalletAddress)
-      .txIn(
-        selectedUtxo.input.txHash,
-        selectedUtxo.input.outputIndex,
-        selectedUtxo.output.amount,
-        selectedUtxo.output.address,
-        0,
-      )
-      .txInCollateral(
-        selectedUtxo.input.txHash,
-        selectedUtxo.input.outputIndex,
-        selectedUtxo.output.amount,
-        selectedUtxo.output.address,
-      )
-      .complete();
-
-    const endParser = new TxParser(serializer, this.sdk.providerFetcher);
-    const finalTxBody = await endParser.parse(
-      rebuiltTxHex,
-      sponsorshipWalletUtxos,
-    );
-
-    const changeOutput = finalTxBody.outputs[finalTxBody.outputs.length - 1];
-
-    if (changeOutput && changeOutput.amount.length > 1) {
-      throw new Error("Change output cannot contain tokens");
-    }
-    return rebuiltTxHex;
   }
 
   /**
