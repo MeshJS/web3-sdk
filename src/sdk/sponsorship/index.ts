@@ -150,6 +150,7 @@ export class Sponsorship {
     }
 
     const sponsorshipConfig = data as SponsorshipConfig;
+    console.log("sponsorshipConfig", sponsorshipConfig)
 
     const signedRebuiltTxHex = await this.sponsorTxAndSign({
       txHex: tx,
@@ -374,8 +375,46 @@ export class Sponsorship {
       );
     }
 
+    /** 
+     * need to detemine total number of balance available in all inputs, both utxosAsInput and utxosNotSpentAfterDuration
+     * to determine how many UTXOs we can create
+     * This is done by dividing the total balance by the amount of each UTXO
+     * and then creating that many UTXOs.
+    */
+
+    // Calculate total balance from all inputs
+    let totalBalance = 0;
+    
+    // Add balance from UTXOs that are not the exact sponsor amount
+    for (const utxo of utxosAsInput) {
+      const lovelaceAmount = utxo.output.amount.find(amount => amount.unit === "lovelace");
+      if (lovelaceAmount) {
+        totalBalance += parseInt(lovelaceAmount.quantity);
+      }
+    }
+    
+    // Add balance from UTXOs that were pending for too long
+    for (const utxo of utxosNotSpentAfterDuration) {
+      const lovelaceAmount = utxo.output.amount.find(amount => amount.unit === "lovelace");
+      if (lovelaceAmount) {
+        totalBalance += parseInt(lovelaceAmount.quantity);
+      }
+    }
+
+    // Calculate how many UTXOs we can create based on available balance
+    const utxoAmountLovelace = config.utxoAmount * 1000000;
+    const maxUtxosWeCanCreate = Math.floor(totalBalance / utxoAmountLovelace);
+    
+    // Use the minimum of what we want to prepare and what we can actually create
+    const numUtxosToCreate = Math.min(config.numUtxosPrepare, maxUtxosWeCanCreate);
+    
+    console.log(`Total balance: ${totalBalance} lovelace`);
+    console.log(`UTXO amount: ${utxoAmountLovelace} lovelace`);
+    console.log(`Max UTXOs we can create: ${maxUtxosWeCanCreate}`);
+    console.log(`UTXOs to create: ${numUtxosToCreate}`);
+
     // Create UTXO outputs
-    for (let i = 0; i < config.numUtxosPrepare; i++) {
+    for (let i = 0; i < numUtxosToCreate; i++) {
       txBuilder.txOut(changeAddress, [
         {
           unit: "lovelace",
