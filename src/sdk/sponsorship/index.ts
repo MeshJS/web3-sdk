@@ -1,6 +1,6 @@
 import { Web3Sdk } from "..";
 import { UTxO, MeshTxBuilder, TxParser } from "@meshsdk/core";
-import { CSLSerializer } from "@meshsdk/core-csl";
+import { collateralTxInFromObj, CSLSerializer } from "@meshsdk/core-csl";
 
 type SponsorshipConfig = {
   id: string;
@@ -22,15 +22,63 @@ type SponsorshipOutput = {
 };
 
 const CONFIG_DURATION_CONSUME_UTXOS = 1000 * 60; // 1 minute
+
 const meshUniversalStaticUtxo = {
-  input: {
-    outputIndex: 0,
-    txHash: "b280c64936f71a909b395cb46f84e8e22ed04e929e02b0b0ded06a7a805981c0",
+  mainnet: {
+    // todo replace with mainnet
+    "5": {
+      input: {
+        outputIndex: 0,
+        txHash:
+          "5a1edf7da58eff2059030abd456947a96cb2d16b9d8c3822ffff58d167ed8bfc",
+      },
+      output: {
+        address:
+          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
+        amount: [
+          {
+            unit: "lovelace",
+            quantity: "5000000",
+          },
+        ],
+      },
+    },
   },
-  output: {
-    address:
-      "addr_test1qqdv0gjenpa6rujd54e8hwyr8vma20vn3e0s5yuernxpj2r3cya2a7t7st0dntg4ljdf24ft0yzzqz20t0drdstszvsqm4u0qs",
-    amount: [{ unit: "lovelace", quantity: "5000000" }],
+  testnet: {
+    "5": {
+      input: {
+        outputIndex: 0,
+        txHash:
+          "5a1edf7da58eff2059030abd456947a96cb2d16b9d8c3822ffff58d167ed8bfc",
+      },
+      output: {
+        address:
+          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
+        amount: [
+          {
+            unit: "lovelace",
+            quantity: "5000000",
+          },
+        ],
+      },
+    },
+    "99": {
+      input: {
+        outputIndex: 0,
+        txHash:
+          "8222b0327a95e8c357016a5df64d93d7cf8a585a07c55327ae618a7e00d58d9e",
+      },
+      output: {
+        address:
+          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
+        amount: [
+          {
+            unit: "lovelace",
+            quantity: "99000000",
+          },
+        ],
+      },
+    },
   },
 };
 
@@ -52,10 +100,15 @@ export class Sponsorship {
    *
    * @returns An object containing the change address and the static UTXO.
    */
-  getStaticInfo() {
+  getStaticInfo(amount: "5" | "99" = "5") {
+    if (this.sdk.network === "mainnet") {
+      throw new Error("Sponsorship is not available on mainnet yet.");
+    }
+
     return {
-      changeAddress: meshUniversalStaticUtxo.output.address,
-      utxo: meshUniversalStaticUtxo,
+      changeAddress: meshUniversalStaticUtxo.testnet["5"].output.address,
+      utxo: meshUniversalStaticUtxo.testnet[amount],
+      collateral: meshUniversalStaticUtxo.testnet["5"],
     };
   }
 
@@ -80,7 +133,6 @@ export class Sponsorship {
     /**
      * get sponsorship config
      */
-
     const { data, status } = await this.sdk.axiosInstance.post(
       `api/sponsorship/${sponsorshipId}`,
       {
@@ -357,7 +409,17 @@ export class Sponsorship {
     sponsorshipWalletAddress: string;
     selectedUtxo: UTxO;
   }) {
-    sponsorshipWalletUtxos.push(meshUniversalStaticUtxo);
+    const staticAddress =
+      meshUniversalStaticUtxo[this.sdk.network]["5"].output.address;
+
+    for (const utxos of Object.values(
+      meshUniversalStaticUtxo[this.sdk.network],
+    )) {
+      if (utxos.output.address === staticAddress) {
+        sponsorshipWalletUtxos.push(utxos);
+      }
+    }
+
     sponsorshipWalletUtxos.push(selectedUtxo);
 
     const serializer = new CSLSerializer();
@@ -367,17 +429,17 @@ export class Sponsorship {
 
     // 1. filter out the static utxos and remove from inputs
     const txInputs = txBuilderBody.inputs.filter((input) => {
-      return input.txIn.address !== meshUniversalStaticUtxo.output.address;
+      return input.txIn.address !== staticAddress;
     });
 
     // 2. filter out the static utxos and remove from collaterals
     const txCollateral = txBuilderBody.collaterals.filter((collateral) => {
-      return collateral.txIn.address !== meshUniversalStaticUtxo.output.address;
+      return collateral.txIn.address !== staticAddress;
     });
 
     // 3. filter out the static utxos and remove from outputs
     const txOuts = txBuilderBody.outputs.filter((output) => {
-      return output.address !== meshUniversalStaticUtxo.output.address;
+      return output.address !== staticAddress;
     });
 
     txBuilderBody.inputs = txInputs;
@@ -411,8 +473,6 @@ export class Sponsorship {
       rebuiltTxHex,
       sponsorshipWalletUtxos,
     );
-
-    console.log("finalTxBody", finalTxBody);
 
     const changeOutput = finalTxBody.outputs[finalTxBody.outputs.length - 1];
 
