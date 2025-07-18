@@ -1,6 +1,6 @@
 import { Web3Sdk } from "..";
 import { UTxO, MeshTxBuilder } from "@meshsdk/core";
-import {meshUniversalStaticUtxo} from "../index"
+import { meshUniversalStaticUtxo } from "../index";
 import { SponsorshipTxParserPostRequestBody } from "../../types";
 
 type SponsorshipConfig = {
@@ -23,8 +23,6 @@ type SponsorshipOutput = {
 };
 
 const CONFIG_DURATION_CONSUME_UTXOS = 1000 * 60; // 1 minute
-
-
 
 /**
  * The `Sponsorship` class provides methods to process transaction sponsorships
@@ -94,7 +92,7 @@ export class Sponsorship {
     }
 
     const sponsorshipConfig = data as SponsorshipConfig;
-    console.log("sponsorshipConfig", sponsorshipConfig)
+    console.log("sponsorshipConfig", sponsorshipConfig);
 
     const signedRebuiltTxHex = await this.sponsorTxAndSign({
       txHex: tx,
@@ -188,7 +186,7 @@ export class Sponsorship {
 
     // Select a random UTXO that is not used
     while (selectedUtxo === undefined && utxosAvailableAsInput.length > 0) {
-      const selectedIndex = Math.floor( 
+      const selectedIndex = Math.floor(
         Math.random() * utxosAvailableAsInput.length,
       );
       const _selectedUtxo = utxosAvailableAsInput[selectedIndex]!;
@@ -211,21 +209,22 @@ export class Sponsorship {
     }
 
     if (selectedUtxo) {
-
       const body: SponsorshipTxParserPostRequestBody = {
         txHex,
-        sponsorshipWalletAddress,
-        sponsorshipWalletUtxos,
-        selectedUtxo,
+        address: sponsorshipWalletAddress,
+        utxos: JSON.stringify(sponsorshipWalletUtxos),
+        sponsorUtxo: JSON.stringify(selectedUtxo),
         network: this.sdk.network,
-      }
+      };
+      console.log("sponsorship body", body);
+
       const { data, status } = await this.sdk.axiosInstance.post(
         `api/sponsorship/tx-parser`,
-        body
+        body,
       );
 
-      if(status !== 200) {
-        throw new Error("Failed to parse Tx on server!")
+      if (status !== 200) {
+        throw new Error("Failed to parse Tx on server!");
       }
 
       const { rebuiltTxHex } = data;
@@ -331,27 +330,31 @@ export class Sponsorship {
       );
     }
 
-    /** 
+    /**
      * need to detemine total number of balance available in all inputs, both utxosAsInput and utxosNotSpentAfterDuration
      * to determine how many UTXOs we can create
      * This is done by dividing the total balance by the amount of each UTXO
      * and then creating that many UTXOs.
-    */
+     */
 
     // Calculate total balance from all inputs
     let totalBalance = 0;
-    
+
     // Add balance from UTXOs that are not the exact sponsor amount
     for (const utxo of utxosAsInput) {
-      const lovelaceAmount = utxo.output.amount.find(amount => amount.unit === "lovelace");
+      const lovelaceAmount = utxo.output.amount.find(
+        (amount) => amount.unit === "lovelace",
+      );
       if (lovelaceAmount) {
         totalBalance += parseInt(lovelaceAmount.quantity);
       }
     }
-    
+
     // Add balance from UTXOs that were pending for too long
     for (const utxo of utxosNotSpentAfterDuration) {
-      const lovelaceAmount = utxo.output.amount.find(amount => amount.unit === "lovelace");
+      const lovelaceAmount = utxo.output.amount.find(
+        (amount) => amount.unit === "lovelace",
+      );
       if (lovelaceAmount) {
         totalBalance += parseInt(lovelaceAmount.quantity);
       }
@@ -360,10 +363,13 @@ export class Sponsorship {
     // Calculate how many UTXOs we can create based on available balance
     const utxoAmountLovelace = config.utxoAmount * 1000000;
     const maxUtxosWeCanCreate = Math.floor(totalBalance / utxoAmountLovelace);
-    
+
     // Use the minimum of what we want to prepare and what we can actually create
-    const numUtxosToCreate = Math.min(config.numUtxosPrepare, maxUtxosWeCanCreate);
-    
+    const numUtxosToCreate = Math.min(
+      config.numUtxosPrepare,
+      maxUtxosWeCanCreate,
+    );
+
     console.log(`Total balance: ${totalBalance} lovelace`);
     console.log(`UTXO amount: ${utxoAmountLovelace} lovelace`);
     console.log(`Max UTXOs we can create: ${maxUtxosWeCanCreate}`);

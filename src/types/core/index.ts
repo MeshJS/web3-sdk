@@ -61,8 +61,8 @@ export type Web3AuthProvider = "google" | "discord" | "twitter" | "apple";
 
 export type SponsorshipTxParserPostRequestBody = {
   txHex: string;
-  sponsorshipWalletUtxos: UTxO[];
-  sponsorshipWalletAddress: string;
-  selectedUtxo: UTxO;
+  utxos: string;
+  address: string;
+  sponsorUtxo: string;
   network: "mainnet" | "testnet";
 }
