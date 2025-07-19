@@ -111,6 +111,11 @@ export class Sponsorship {
    * If there are not enough UTXOs, it prepares more UTXOs using the `prepareSponsorUtxosTx` method.
    * It then rebuilds the original transaction by adding the selected UTXO as an input (`rebuildTx`) and signs it with the sponsor wallet.
    */
+  private calculateMaxUtxos(balance: number, utxoAmount: number): number {
+    const utxoAmountLovelace = utxoAmount * 1000000;
+    return Math.floor(balance / utxoAmountLovelace);
+  }
+
   private async sponsorTxAndSign({
     txHex,
     config,
@@ -146,8 +151,22 @@ export class Sponsorship {
 
     console.log("UTXOs available as input:", utxosAvailableAsInput);
 
-    // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
-    if (utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare) {
+    const totalBalance = sponsorshipWalletUtxos.reduce((acc: number, utxo: any) => {
+      const lovelaceAmount = utxo.output.amount.find(
+        (amount: any) => amount.unit === "lovelace",
+      );
+      return acc + (lovelaceAmount ? parseInt(lovelaceAmount.quantity) : 0);
+    }, 0);
+
+    const maxUtxosWeCanCreate = this.calculateMaxUtxos(
+      totalBalance,
+      config.utxoAmount,
+    );
+
+    if (
+      utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare &&
+      maxUtxosWeCanCreate > sponsorshipWalletUtxos.length
+    ) {
       console.log("Preparing more UTXOs");
       prepareUtxo = true;
     }
@@ -209,6 +228,8 @@ export class Sponsorship {
     }
 
     if (selectedUtxo) {
+      console.log("selectedUtxo", selectedUtxo);
+      
       const body: SponsorshipTxParserPostRequestBody = {
         txHex,
         address: sponsorshipWalletAddress,
@@ -331,13 +352,8 @@ export class Sponsorship {
     }
 
     /**
-     * need to detemine total number of balance available in all inputs, both utxosAsInput and utxosNotSpentAfterDuration
-     * to determine how many UTXOs we can create
-     * This is done by dividing the total balance by the amount of each UTXO
-     * and then creating that many UTXOs.
+     * Calculate total balance from all inputs
      */
-
-    // Calculate total balance from all inputs
     let totalBalance = 0;
 
     // Add balance from UTXOs that are not the exact sponsor amount
@@ -361,8 +377,10 @@ export class Sponsorship {
     }
 
     // Calculate how many UTXOs we can create based on available balance
-    const utxoAmountLovelace = config.utxoAmount * 1000000;
-    const maxUtxosWeCanCreate = Math.floor(totalBalance / utxoAmountLovelace);
+    const maxUtxosWeCanCreate = this.calculateMaxUtxos(
+      totalBalance,
+      config.utxoAmount,
+    );
 
     // Use the minimum of what we want to prepare and what we can actually create
     const numUtxosToCreate = Math.min(
@@ -371,7 +389,7 @@ export class Sponsorship {
     );
 
     console.log(`Total balance: ${totalBalance} lovelace`);
-    console.log(`UTXO amount: ${utxoAmountLovelace} lovelace`);
+    console.log(`UTXO amount: ${config.utxoAmount * 1000000} lovelace`);
     console.log(`Max UTXOs we can create: ${maxUtxosWeCanCreate}`);
     console.log(`UTXOs to create: ${numUtxosToCreate}`);
 
