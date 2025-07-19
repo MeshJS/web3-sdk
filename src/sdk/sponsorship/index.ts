@@ -71,55 +71,37 @@ export class Sponsorship {
   }: {
     sponsorshipId: string;
     tx: string;
-  }): Promise<{ success: boolean; errorCode?: string; message?: string; data?: string }> {
-    try {
-      const { data, status } = await this.sdk.axiosInstance.post(
-        `api/sponsorship/${sponsorshipId}`,
-        {
-          sponsorshipId,
-          txHex: tx,
-          projectId: this.sdk.projectId,
-          network: this.sdk.network,
-        },
-      );
-
-      if (status !== 200) {
-        return {
-          success: false,
-          errorCode: "INVALID_SPONSORSHIP_ID",
-          message: "Failed to fetch sponsorship configuration. Please verify the sponsorship ID and try again.",
-        };
-      }
-
-      const sponsorshipConfig = data as SponsorshipConfig;
-      console.log("sponsorshipConfig", sponsorshipConfig);
-
-      if (!sponsorshipConfig) {
-        return {
-          success: false,
-          errorCode: "SPONSORSHIP_NOT_FOUND",
-          message: "Invalid sponsorship ID or sponsorship does not exist. Please verify the sponsorship ID and try again.",
-        };
-      }
-
-      const result = await this.sponsorTxAndSign({
+  }): Promise<
+    { success: true; data: string } | { success: false; error: string }
+  > {
+    /**
+     * get sponsorship config
+     */
+    const { data, status } = await this.sdk.axiosInstance.post(
+      `api/sponsorship/${sponsorshipId}`,
+      {
+        sponsorshipId,
         txHex: tx,
-        config: sponsorshipConfig,
-      });
+        projectId: this.sdk.projectId,
+        network: this.sdk.network,
+      },
+    );
 
-      return result;
-    } catch (error) {
-      console.error("Error in sponsorTx:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An unexpected error occurred while sponsoring the transaction.";
-      return {
-        success: false,
-        errorCode: "UNEXPECTED_ERROR",
-        message: errorMessage,
-      };
+    if (status !== 200) {
+      throw new Error(
+        "Invalid sponsorship ID or failed to fetch sponsorship config",
+      );
     }
+
+    const sponsorshipConfig = data as SponsorshipConfig;
+    console.log("sponsorshipConfig", sponsorshipConfig);
+
+    const signedRebuiltTxHex = await this.sponsorTxAndSign({
+      txHex: tx,
+      config: sponsorshipConfig,
+    });
+
+    return { success: true, data: signedRebuiltTxHex };
   }
 
   /**
@@ -131,138 +113,130 @@ export class Sponsorship {
    * If there are not enough UTXOs, it prepares more UTXOs using the `prepareSponsorUtxosTx` method.
    * It then rebuilds the original transaction by adding the selected UTXO as an input (`rebuildTx`) and signs it with the sponsor wallet.
    */
-  private calculateMaxUtxos(balance: number, utxoAmount: number): number {
-    const utxoAmountLovelace = utxoAmount * 1000000;
-    return Math.floor(balance / utxoAmountLovelace);
-  }
-
   private async sponsorTxAndSign({
     txHex,
     config,
   }: {
     txHex: string;
     config: SponsorshipConfig;
-  }): Promise<{ success: boolean; errorCode?: string; message?: string; data?: string }> {
-    try {
-      let prepareUtxo = false;
-      let sponsorshipTxHash: string | undefined = undefined;
+  }) {
+    let prepareUtxo = false;
+    let sponsorshipTxHash: string | undefined = undefined;
 
-      const sponsorWallet = await this.getSponsorWallet(config.projectWalletId);
-      const sponsorshipWalletUtxos = await sponsorWallet.getUtxos();
-      const sponsorshipWalletAddress = await sponsorWallet.getChangeAddress();
+    const sponsorWallet = await this.getSponsorWallet(config.projectWalletId);
+    const sponsorshipWalletUtxos = await sponsorWallet.getUtxos();
+    const sponsorshipWalletAddress = await sponsorWallet.getChangeAddress();
 
-      const dbPendingUtxos = await this.dbGetIsPendingUtxo(
-        config.projectWalletId,
+    const dbPendingUtxos = await this.dbGetIsPendingUtxo(
+      config.projectWalletId,
+    );
+    const pendingUtxoIds = dbPendingUtxos.map((utxo: any) => {
+      return `${utxo.txHash}#${utxo.outputIndex}`;
+    });
+
+    console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
+    const utxosAvailableAsInput = sponsorshipWalletUtxos.filter((utxo: any) => {
+      return (
+        utxo.output.amount[0].unit === "lovelace" &&
+        utxo.output.amount[0].quantity ===
+          (config.utxoAmount * 1000000).toString() &&
+        !pendingUtxoIds.includes(
+          `${utxo.input.txHash}#${utxo.input.outputIndex}`,
+        )
       );
-      const pendingUtxoIds = dbPendingUtxos.map((utxo: any) => {
-        return `${utxo.txHash}#${utxo.outputIndex}`;
-      });
+    });
 
-      const utxosAvailableAsInput = sponsorshipWalletUtxos.filter((utxo: any) => {
-        return (
-          utxo.output.amount[0].unit === "lovelace" &&
-          utxo.output.amount[0].quantity === config.utxoAmount * 1000000 &&
-          !pendingUtxoIds.includes(`${utxo.input.txHash}#${utxo.input.outputIndex}`)
-        );
-      });
+    console.log("UTXOs available as input:", utxosAvailableAsInput);
 
-      const totalBalance = sponsorshipWalletUtxos.reduce((acc: number, utxo: any) => {
-        const lovelaceAmount = utxo.output.amount.find(
-          (amount: { unit: string; quantity: string }) => amount.unit === "lovelace",
-        );
-        return lovelaceAmount ? acc + parseInt(lovelaceAmount.quantity) : acc;
-      }, 0);
-
-      const maxUtxosWeCanCreate = this.calculateMaxUtxos(
-        totalBalance,
-        config.utxoAmount,
-      );
-
-      if (
-        utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare &&
-        maxUtxosWeCanCreate > sponsorshipWalletUtxos.length
-      ) {
-        prepareUtxo = true;
-      }
-
-      if (prepareUtxo) {
-        sponsorshipTxHash = await this.prepareSponsorUtxosTx({ config });
-      }
-
-      let selectedUtxo: UTxO | undefined = undefined;
-
-      while (selectedUtxo === undefined && utxosAvailableAsInput.length > 0) {
-        const selectedIndex = Math.floor(
-          Math.random() * utxosAvailableAsInput.length,
-        );
-        const _selectedUtxo = utxosAvailableAsInput[selectedIndex]!;
-        utxosAvailableAsInput.splice(selectedIndex, 1);
-
-        const isUtxoUsed = await this.dbGetIfUtxoUsed(
-          config.projectWalletId,
-          _selectedUtxo.input.txHash,
-          _selectedUtxo.input.outputIndex,
-        );
-
-        if (!isUtxoUsed) {
-          selectedUtxo = _selectedUtxo;
-          await this.dbAppendUtxosUsed(
-            config,
-            selectedUtxo.input.txHash,
-            selectedUtxo.input.outputIndex,
-          );
-        }
-      }
-
-      if (selectedUtxo) {
-        const body: SponsorshipTxParserPostRequestBody = {
-          txHex,
-          address: sponsorshipWalletAddress,
-          utxos: JSON.stringify(sponsorshipWalletUtxos),
-          sponsorUtxo: JSON.stringify(selectedUtxo),
-          network: this.sdk.network,
-        };
-
-        const { data, status } = await this.sdk.axiosInstance.post(
-          `api/sponsorship/tx-parser`,
-          body,
-        );
-
-        if (status !== 200) {
-          return {
-            success: false,
-            errorCode: "TX_PARSER_ERROR",
-            message: "Failed to parse the transaction.",
-          };
-        }
-
-        const { rebuiltTxHex } = data;
-
-        const signedRebuiltTxHex = await sponsorWallet.signTx(rebuiltTxHex, true);
-
-        return {
-          success: true,
-          data: signedRebuiltTxHex,
-        };
-      }
-
-      return {
-        success: false,
-        errorCode: "INSUFFICIENT_UTXOS",
-        message: "Insufficient UTXOs available to sponsor the transaction. Please prepare more UTXOs.",
-      };
-    } catch (error) {
-      console.error("Error in sponsorTxAndSign:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An unexpected error occurred while signing the transaction.";
-      return {
-        success: false,
-        errorCode: "UNEXPECTED_ERROR",
-        message: errorMessage,
-      };
+    // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
+    if (utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare) {
+      console.log("Preparing more UTXOs");
+      prepareUtxo = true;
     }
+
+    // Make more UTXOs if prepareUtxo=true
+    if (prepareUtxo) {
+      sponsorshipTxHash = await this.prepareSponsorUtxosTx({
+        config: config,
+      });
+      console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
+    }
+
+    let selectedUtxo: UTxO | undefined = undefined;
+
+    // If we just prepared the UTXOs, we can use the sponsorship tx hash as input
+    if (sponsorshipTxHash) {
+      selectedUtxo = {
+        input: {
+          txHash: sponsorshipTxHash,
+          outputIndex: 0,
+        },
+        output: {
+          amount: [
+            {
+              unit: "lovelace",
+              quantity: (config.utxoAmount * 1000000).toString(),
+            },
+          ],
+          address: sponsorshipWalletAddress as string,
+        },
+      };
+
+      // and mark this as used
+      await this.dbAppendUtxosUsed(config, sponsorshipTxHash, 0);
+    }
+
+    // Select a random UTXO that is not used
+    while (selectedUtxo === undefined && utxosAvailableAsInput.length > 0) {
+      const selectedIndex = Math.floor(
+        Math.random() * utxosAvailableAsInput.length,
+      );
+      const _selectedUtxo = utxosAvailableAsInput[selectedIndex]!;
+      utxosAvailableAsInput.splice(selectedIndex, 1);
+
+      const isUtxoUsed = await this.dbGetIfUtxoUsed(
+        config.projectWalletId,
+        _selectedUtxo.input.txHash,
+        _selectedUtxo.input.outputIndex,
+      );
+
+      if (!isUtxoUsed) {
+        selectedUtxo = _selectedUtxo;
+        await this.dbAppendUtxosUsed(
+          config,
+          selectedUtxo.input.txHash,
+          selectedUtxo.input.outputIndex,
+        );
+      }
+    }
+
+    if (selectedUtxo) {
+      const body: SponsorshipTxParserPostRequestBody = {
+        txHex,
+        address: sponsorshipWalletAddress,
+        utxos: JSON.stringify(sponsorshipWalletUtxos),
+        sponsorUtxo: JSON.stringify(selectedUtxo),
+        network: this.sdk.network,
+      };
+      console.log("sponsorship body", body);
+
+      const { data, status } = await this.sdk.axiosInstance.post(
+        `api/sponsorship/tx-parser`,
+        body,
+      );
+
+      if (status !== 200) {
+        throw new Error("Failed to parse Tx on server!");
+      }
+
+      const { rebuiltTxHex } = data;
+
+      const signedRebuiltTxHex = await sponsorWallet.signTx(rebuiltTxHex, true);
+
+      return signedRebuiltTxHex;
+    }
+
+    throw new Error("No available UTXOs to sponsor the transaction.");
   }
 
   private async getSponsorWallet(projectWalletId: string) {
@@ -359,8 +333,13 @@ export class Sponsorship {
     }
 
     /**
-     * Calculate total balance from all inputs
+     * need to detemine total number of balance available in all inputs, both utxosAsInput and utxosNotSpentAfterDuration
+     * to determine how many UTXOs we can create
+     * This is done by dividing the total balance by the amount of each UTXO
+     * and then creating that many UTXOs.
      */
+
+    // Calculate total balance from all inputs
     let totalBalance = 0;
 
     // Add balance from UTXOs that are not the exact sponsor amount
@@ -384,10 +363,8 @@ export class Sponsorship {
     }
 
     // Calculate how many UTXOs we can create based on available balance
-    const maxUtxosWeCanCreate = this.calculateMaxUtxos(
-      totalBalance,
-      config.utxoAmount,
-    );
+    const utxoAmountLovelace = config.utxoAmount * 1000000;
+    const maxUtxosWeCanCreate = Math.floor(totalBalance / utxoAmountLovelace);
 
     // Use the minimum of what we want to prepare and what we can actually create
     const numUtxosToCreate = Math.min(
@@ -396,7 +373,7 @@ export class Sponsorship {
     );
 
     console.log(`Total balance: ${totalBalance} lovelace`);
-    console.log(`UTXO amount: ${config.utxoAmount * 1000000} lovelace`);
+    console.log(`UTXO amount: ${utxoAmountLovelace} lovelace`);
     console.log(`Max UTXOs we can create: ${maxUtxosWeCanCreate}`);
     console.log(`UTXOs to create: ${numUtxosToCreate}`);
 
