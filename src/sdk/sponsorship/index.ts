@@ -120,9 +120,6 @@ export class Sponsorship {
     txHex: string;
     config: SponsorshipConfig;
   }) {
-    let prepareUtxo = false;
-    let sponsorshipTxHash: string | undefined = undefined;
-
     const sponsorWallet = await this.getSponsorWallet(config.projectWalletId);
     const sponsorshipWalletUtxos = await sponsorWallet.getUtxos();
     const sponsorshipWalletAddress = await sponsorWallet.getChangeAddress();
@@ -154,6 +151,10 @@ export class Sponsorship {
     console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
     console.log("UTXOs available as input:", utxosAvailableAsInput);
 
+    let prepareUtxo = false;
+    let sponsorshipTxHash: string | undefined = undefined;
+    let sponsorshipIndex: number | undefined = undefined;
+
     // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
     if (utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare) {
       console.log("Preparing more UTXOs");
@@ -162,20 +163,37 @@ export class Sponsorship {
 
     // Make more UTXOs if prepareUtxo=true
     if (prepareUtxo) {
-      sponsorshipTxHash = await this.prepareSponsorUtxosTx({
-        config: config,
-      });
-      console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
+      try {
+        sponsorshipTxHash = await this.prepareSponsorUtxosTx({
+          config: config,
+        });
+        sponsorshipIndex = 0;
+        console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
+      } catch (error) {
+        // if fail, attempt to use refreshTxHash
+        console.error("Failed to prepare sponsor UTXOs:", error);
+
+        const { data: resRefreshTxHash, status: refreshStatus } =
+          await this.sdk.axiosInstance.get(
+            `api/sponsorship/${config.id}/refreshTxHash`,
+          );
+
+        if (refreshStatus !== 200 || !resRefreshTxHash.refreshTxHash) {
+          throw new Error("Failed to get refresh transaction hash");
+        }
+        sponsorshipTxHash = resRefreshTxHash.refreshTxHash as string;
+        sponsorshipIndex = Math.floor(Math.random() * config.numUtxosPrepare);
+      }
     }
 
     let selectedUtxo: UTxO | undefined = undefined;
 
     // If we just prepared the UTXOs, we can use the sponsorship tx hash as input
-    if (sponsorshipTxHash) {
+    if (sponsorshipTxHash !== undefined && sponsorshipIndex !== undefined) {
       selectedUtxo = {
         input: {
           txHash: sponsorshipTxHash,
-          outputIndex: 0,
+          outputIndex: sponsorshipIndex,
         },
         output: {
           amount: [
@@ -189,7 +207,7 @@ export class Sponsorship {
       };
 
       // and mark this as used
-      await this.dbAppendUtxosUsed(config, sponsorshipTxHash, 0);
+      await this.dbAppendUtxosUsed(config, sponsorshipTxHash, sponsorshipIndex);
     }
 
     // Select a random UTXO that is not used
