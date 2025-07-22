@@ -76,7 +76,7 @@ export class WalletDeveloperControlled {
 
     const { data, status } = await this.sdk.axiosInstance.post(
       `api/project-wallet`,
-      web3Wallet
+      web3Wallet,
     );
 
     if (status === 200) {
@@ -96,7 +96,7 @@ export class WalletDeveloperControlled {
    */
   async getWallets(): Promise<Web3ProjectWallet[]> {
     const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}`
+      `api/project-wallet/${this.sdk.projectId}`,
     );
 
     if (status === 200) {
@@ -112,14 +112,14 @@ export class WalletDeveloperControlled {
    * @param walletId - The unique identifier of the wallet to retrieve.
    * @param networkId - The network ID associated with the wallet (0 or 1).
    * @param decryptKey - A boolean indicating whether to decrypt the wallet key (default: false).
-   * 
+   *
    * @returns A promise that resolves to an initialized `MeshWallet` instance.
    * @throws Will throw an error if the private key is not found or if the wallet retrieval fails.
    */
   async getWallet(
     walletId: string,
     networkId: 0 | 1,
-    decryptKey = false
+    decryptKey = false,
   ): Promise<{
     info: Web3ProjectWallet;
     wallet: MeshWallet;
@@ -129,7 +129,7 @@ export class WalletDeveloperControlled {
     }
 
     const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}/${walletId}`
+      `api/project-wallet/${this.sdk.projectId}/${walletId}`,
     );
 
     if (status === 200) {
@@ -167,7 +167,7 @@ export class WalletDeveloperControlled {
     }
 
     const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}/tag/${tag}`
+      `api/project-wallet/${this.sdk.projectId}/tag/${tag}`,
     );
 
     if (status === 200) {

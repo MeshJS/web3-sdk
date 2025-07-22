@@ -1,6 +1,6 @@
 {
   "name": "@meshsdk/web3-sdk",
-  "version": "0.0.42",
+  "version": "0.0.43",
   "description": "SDK for Mesh Web3 Services",
   "main": "./dist/index.cjs",
   "browser": "./dist/index.js",
@@ -43,6 +43,7 @@
   "dependencies": {
     "@meshsdk/bitcoin": "1.9.0-beta.62",
     "@meshsdk/common": "1.9.0-beta.62",
+    "@meshsdk/core": "1.9.0-beta.62",
     "@meshsdk/core-cst": "1.9.0-beta.62",
     "@meshsdk/wallet": "1.9.0-beta.62",
     "@peculiar/webcrypto": "^1.5.0",

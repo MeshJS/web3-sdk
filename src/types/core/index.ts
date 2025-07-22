@@ -1,3 +1,5 @@
+import { UTxO } from "@meshsdk/common";
+
 export type Web3Project = {
   id: string;
   name: string;
@@ -56,3 +58,11 @@ export type Web3JWTBody = {
 };
 
 export type Web3AuthProvider = "google" | "discord" | "twitter" | "apple";
+
+export type SponsorshipTxParserPostRequestBody = {
+  txHex: string;
+  utxos: string;
+  address: string;
+  sponsorUtxo: string;
+  network: "mainnet" | "testnet";
+}
