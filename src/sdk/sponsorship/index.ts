@@ -127,6 +127,12 @@ export class Sponsorship {
     const sponsorshipWalletUtxos = await sponsorWallet.getUtxos();
     const sponsorshipWalletAddress = await sponsorWallet.getChangeAddress();
 
+    if (sponsorshipWalletUtxos.length === 0) {
+      throw new Error(
+        "No UTXOs available in the sponsorship wallet. Please fund the wallet.",
+      );
+    }
+
     const dbPendingUtxos = await this.dbGetIsPendingUtxo(
       config.projectWalletId,
     );
