@@ -134,7 +134,6 @@ export class Sponsorship {
       return `${utxo.txHash}#${utxo.outputIndex}`;
     });
 
-    console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
     const utxosAvailableAsInput = sponsorshipWalletUtxos.filter((utxo: any) => {
       return (
         utxo.output.amount[0].unit === "lovelace" &&
@@ -146,6 +145,7 @@ export class Sponsorship {
       );
     });
 
+    console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
     console.log("UTXOs available as input:", utxosAvailableAsInput);
 
     // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
@@ -211,28 +211,120 @@ export class Sponsorship {
     }
 
     if (selectedUtxo) {
-      const body: SponsorshipTxParserPostRequestBody = {
-        txHex,
-        address: sponsorshipWalletAddress,
-        utxos: JSON.stringify(sponsorshipWalletUtxos),
-        sponsorUtxo: JSON.stringify(selectedUtxo),
-        network: this.sdk.network,
-      };
-      console.log("sponsorship body", body);
+      let _rebuiltTxHex: string | undefined = undefined;
 
-      const { data, status } = await this.sdk.axiosInstance.post(
-        `api/sponsorship/tx-parser`,
-        body,
-      );
+      // try build transaction with the selected UTXO
+      try {
+        const body: SponsorshipTxParserPostRequestBody = {
+          txHex,
+          address: sponsorshipWalletAddress,
+          utxos: JSON.stringify(sponsorshipWalletUtxos),
+          sponsorUtxo: JSON.stringify(selectedUtxo),
+          network: this.sdk.network,
+        };
 
-      if (status !== 200) {
-        throw new Error("Failed to parse Tx on server!");
+        console.log("Rebuilding transaction with selected UTXO:", body);
+
+        const { data, status } = await this.sdk.axiosInstance.post(
+          `api/sponsorship/tx-parser`,
+          body,
+        );
+        if (status !== 200) {
+          throw new Error("Failed to parse Tx on server!");
+        }
+
+        const { rebuiltTxHex } = data;
+        _rebuiltTxHex = rebuiltTxHex;
+      } catch (error) {
+        // if this fails, it means the UTXO could be used, so we pull from `refreshTxHash` and try again
+        console.log("First attempt failed, trying with refreshTxHash", error);
+
+        const { data: resRefreshTxHash, status: refreshStatus } =
+          await this.sdk.axiosInstance.get(
+            `api/sponsorship/${config.id}/refreshTxHash`,
+          );
+
+        if (refreshStatus !== 200 || !resRefreshTxHash.refreshTxHash) {
+          throw new Error("Failed to get refresh transaction hash");
+        }
+
+        const txHash = resRefreshTxHash.refreshTxHash as string;
+
+        let hasFoundUsableUtxo = false;
+
+        // Try multiple output indices until finding an unused one
+        for (
+          let attempt = 0;
+          attempt < config.numUtxosPrepare && !hasFoundUsableUtxo;
+          attempt++
+        ) {
+          // Select a random output index
+          const selectedIndex = Math.floor(
+            Math.random() * config.numUtxosPrepare,
+          );
+
+          try {
+            // Check if this UTXO is already used
+            const isUtxoUsed = await this.dbGetIfUtxoUsed(
+              config.projectWalletId,
+              txHash,
+              selectedIndex,
+            );
+
+            if (!isUtxoUsed) {
+              await this.dbAppendUtxosUsed(config, txHash, selectedIndex);
+
+              // Create a new UTXO
+              const newSelectedUtxo: UTxO = {
+                input: {
+                  txHash: txHash,
+                  outputIndex: selectedIndex,
+                },
+                output: {
+                  amount: [
+                    {
+                      unit: "lovelace",
+                      quantity: (config.utxoAmount * 1000000).toString(),
+                    },
+                  ],
+                  address: sponsorshipWalletAddress as string,
+                },
+              };
+
+              // Try to rebuild the transaction with this UTXO
+              const body: SponsorshipTxParserPostRequestBody = {
+                txHex,
+                address: sponsorshipWalletAddress,
+                utxos: JSON.stringify(sponsorshipWalletUtxos),
+                sponsorUtxo: JSON.stringify(newSelectedUtxo),
+                network: this.sdk.network,
+              };
+
+              const { data, status } = await this.sdk.axiosInstance.post(
+                `api/sponsorship/tx-parser`,
+                body,
+              );
+
+              if (status === 200) {
+                _rebuiltTxHex = data.rebuiltTxHex;
+                hasFoundUsableUtxo = true;
+                break;
+              }
+            }
+          } catch (innerError) {
+            console.log(`Attempt ${attempt + 1} failed:`, innerError);
+          }
+        }
       }
 
-      const { rebuiltTxHex } = data;
+      if (_rebuiltTxHex == undefined) {
+        throw new Error("Failed to rebuild transaction with selected UTXO.");
+      }
 
-      const signedRebuiltTxHex = await sponsorWallet.signTx(rebuiltTxHex, true);
-
+      const signedRebuiltTxHex = await sponsorWallet.signTx(
+        _rebuiltTxHex,
+        true,
+      );
       return signedRebuiltTxHex;
     }
 
@@ -263,7 +355,7 @@ export class Sponsorship {
     const utxosAsInput = utxos.filter((utxo: any) => {
       return (
         utxo.output.amount[0].unit === "lovelace" &&
-        utxo.output.amount[0].quantity !== config.utxoAmount * 1000000
+        parseInt(utxo.output.amount[0].quantity) !== config.utxoAmount * 1000000
       );
     });
     console.log("UTXOs used as inputs to prepare UTXOs:", utxosAsInput);
@@ -289,7 +381,8 @@ export class Sponsorship {
     const utxosNotSpentAfterDuration = utxos.filter((utxo: any) => {
       return (
         utxo.output.amount[0].unit === "lovelace" &&
-        utxo.output.amount[0].quantity === config.utxoAmount * 1000000 &&
+        parseInt(utxo.output.amount[0].quantity) ===
+          config.utxoAmount * 1000000 &&
         utxosIdsThatAreOld.includes(
           `${utxo.input.txHash}#${utxo.input.outputIndex}`,
         )
@@ -389,10 +482,14 @@ export class Sponsorship {
 
     const unsignedTx = await txBuilder.complete();
     const signedTx = await wallet.signTx(unsignedTx);
-
     const txHash = await this.sdk.providerSubmitter!.submitTx(signedTx);
 
-    console.log("UTXOs after prepareUtxo:", (await wallet.getUtxos()).length);
+    await this.sdk.axiosInstance.post(
+      `api/sponsorship/${config.id}/refreshTxHash`,
+      {
+        txHash: txHash,
+      },
+    );
 
     return txHash;
   }
