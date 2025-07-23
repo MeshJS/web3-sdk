@@ -1,5 +1,5 @@
 {
-  "name": "@meshsdk/web3-sdk",
+  "name": "@utxos/web3-sdk",
   "version": "0.0.43",
   "description": "SDK for Mesh Web3 Services",
   "main": "./dist/index.cjs",
