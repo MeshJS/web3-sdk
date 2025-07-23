@@ -1,11 +1,11 @@
-# Mesh Web3 Services SDK
+# UTXOS Web3 Services SDK
 
-This is the SDK for the Mesh Web3 Services. It provides a simple way to interact with the Mesh Web3 Services.
+This is the SDK for UTXOS. It provides a simple way to interact with the Web3 Services.
 
-Visit the [Mesh Web3 Services](https://utxos.dev/) website for more information.
+Visit [UTXOS](https://utxos.dev/) website for more information.
 
 ## Installation
 
 ```bash
-npm install @meshsdk/web3-sdk
+npm install @utxos/web3-sdk
 ```
