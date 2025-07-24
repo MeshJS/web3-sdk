@@ -17,7 +17,7 @@ const buildWindowFeatures = () => {
     height: 546,
   };
 
-  const size = sizeDefault;
+  const size = sizeTight;
 
   const windowWidth = window.innerWidth || 0;
   const windowHeight = window.innerHeight || 0;
@@ -42,7 +42,7 @@ const buildWindowFeatures = () => {
 
 export async function openWindow(
   params: OpenWindowParams,
-  appUrl: string = "https://utxos.dev/"
+  appUrl: string = "https://utxos.dev/",
 ): Promise<any> {
   const p = new URLSearchParams(params);
   const _url = `${appUrl}/client/wallet?${p.toString()}`;
