@@ -89,6 +89,8 @@ export class Web3Wallet {
 
     let address: string;
 
+    console.log("res.data", res.data)
+
     if (options.chain === "bitcoin" && res.data.bitcoinPubKeyHash) {
       const { address: _bitcoinAddress } = resolveAddress(
         res.data.bitcoinPubKeyHash,
