@@ -2,17 +2,14 @@ import { OpenWindowParams } from "../../types/window";
 
 const buildWindowFeatures = () => {
   const sizeDefault = {
-    //  large
     width: 512,
     height: 768,
   };
   const sizeTight = {
-    //  medium
     width: 448,
     height: 668,
   };
   const sizeSmall = {
-    //  if jungles wants top use this
     width: 340,
     height: 546,
   };
@@ -36,7 +33,7 @@ const buildWindowFeatures = () => {
   const height = shouldDisplayFullScreen ? windowHeight : size.height;
   const name = "_blank";
 
-  const windowFeatures = `width=${width},height=${height},scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no`;
+  const windowFeatures = `left=${(windowWidth - width) / 2},top=${(windowHeight - height) / 2},width=${width},height=${height},scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no`;
   return windowFeatures;
 };
 

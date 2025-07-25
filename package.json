@@ -1,6 +1,6 @@
 {
-  "name": "@utxos/web3-sdk",
-  "version": "0.0.44",
+  "name": "@meshsdk/web3-sdk",
+  "version": "0.0.45",
   "description": "UTXOS SDK - Web3 Services",
   "main": "./dist/index.cjs",
   "browser": "./dist/index.js",
