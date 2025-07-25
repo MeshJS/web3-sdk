@@ -2,22 +2,19 @@ import { OpenWindowParams } from "../../types/window";
 
 const buildWindowFeatures = () => {
   const sizeDefault = {
-    //  large
     width: 512,
     height: 768,
   };
   const sizeTight = {
-    //  medium
     width: 448,
     height: 668,
   };
   const sizeSmall = {
-    //  if jungles wants top use this
     width: 340,
     height: 546,
   };
 
-  const size = sizeDefault;
+  const size = sizeTight;
 
   const windowWidth = window.innerWidth || 0;
   const windowHeight = window.innerHeight || 0;
@@ -36,13 +33,13 @@ const buildWindowFeatures = () => {
   const height = shouldDisplayFullScreen ? windowHeight : size.height;
   const name = "_blank";
 
-  const windowFeatures = `width=${width},height=${height},scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no`;
+  const windowFeatures = `left=${(windowWidth - width) / 2},top=${(windowHeight - height) / 2},width=${width},height=${height},scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no`;
   return windowFeatures;
 };
 
 export async function openWindow(
   params: OpenWindowParams,
-  appUrl: string = "https://utxos.dev/"
+  appUrl: string = "https://utxos.dev/",
 ): Promise<any> {
   const p = new URLSearchParams(params);
   const _url = `${appUrl}/client/wallet?${p.toString()}`;
