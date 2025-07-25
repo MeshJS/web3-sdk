@@ -29,9 +29,10 @@ export type OpenWindowParams = {
 export type OpenWindowResult = {
     success: true
     data: {
-        method: "enable"    
-        pubKeyHash: string;
-        stakeCredentialHash: string;
+        method: "enable"
+        cardanoPubKeyHash: string;
+        cardanoStakeCredentialHash: string;
+        bitcoinPubKeyHash: string;
         user: UserSocialData
     } | {
         method: "sign-data"

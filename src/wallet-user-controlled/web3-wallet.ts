@@ -73,7 +73,6 @@ export class Web3Wallet {
       },
       options.appUrl,
     );
-    console.log("enable res", res);
 
     if (res.success === false)
       throw new ApiError({
@@ -92,14 +91,14 @@ export class Web3Wallet {
 
     if (options.chain === "bitcoin" && res.data.bitcoinPubKeyHash) {
       const { address: _bitcoinAddress } = resolveAddress(
-        bitcoinPubKeyHash,
-        options.networkId === 0 ? "mainnet" : "testnet",
+        res.data.bitcoinPubKeyHash,
+        options.networkId === 1 ? "mainnet" : "testnet",
       );
       address = _bitcoinAddress;
     } else if (options.chain === "cardano") {
       address = getAddressFromHashes(
-        res.data.pubKeyHash,
-        res.data.stakeCredentialHash,
+        res.data.cardanoPubKeyHash,
+        res.data.cardanoStakeCredentialHash,
         options.networkId,
       );
     }
