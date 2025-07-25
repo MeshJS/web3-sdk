@@ -1,16 +1,8 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
-import { DataSignature, IFetcher, ISubmitter, option } from "@meshsdk/common";
+import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import { EmbeddedWallet, resolveAddress } from "@meshsdk/bitcoin";
-import {
-  OpenWindowResult,
-  UserControlledWalletDirectTo,
-  UserSocialData,
-  WindowSignDataReq,
-  WindowSignDataRes,
-  WindowSignTxReq,
-  WindowSignTxRes,
-} from "../types";
-import { WindowWalletReq, WindowWalletRes, Web3AuthProvider } from "../types";
+import { OpenWindowResult, UserSocialData } from "../types";
+import { Web3AuthProvider } from "../types";
 import { getAddressFromHashes, openWindow } from "../functions";
 
 export type EnableWeb3WalletOptions = {
@@ -89,20 +81,18 @@ export class Web3Wallet {
 
     let address: string;
 
-    console.log("res.data", res.data)
-
-    if (options.chain === "bitcoin" && res.data.bitcoinPubKeyHash) {
-      const { address: _bitcoinAddress } = resolveAddress(
-        res.data.bitcoinPubKeyHash,
-        options.networkId === 1 ? "mainnet" : "testnet",
-      );
-      address = _bitcoinAddress;
-    } else if (options.chain === "cardano") {
+    if (options.chain === "cardano" || options.chain === undefined) {
       address = getAddressFromHashes(
         res.data.cardanoPubKeyHash,
         res.data.cardanoStakeCredentialHash,
         options.networkId,
       );
+    } else if (options.chain === "bitcoin" && res.data.bitcoinPubKeyHash) {
+      const { address: _bitcoinAddress } = resolveAddress(
+        res.data.bitcoinPubKeyHash,
+        options.networkId === 1 ? "mainnet" : "testnet",
+      );
+      address = _bitcoinAddress;
     }
 
     const wallet = await Web3Wallet.initWallet({
@@ -121,12 +111,6 @@ export class Web3Wallet {
 
   getUser() {
     return this.user;
-  }
-
-  // Initialize wallet based on chain
-  async init() {
-    // Any initialization logic common to all wallet types
-    // This method is called from initWallet
   }
 
   /**
@@ -199,12 +183,6 @@ export class Web3Wallet {
     payload: string,
     address?: string,
   ): Promise<DataSignature | string> {
-    // if (this.chain === "bitcoin" && this.bitcoin) {
-    //   return this.bitcoin.signData(payload);
-    // } else if (this.cardano) {
-    //   return this.cardano.signData(payload, address);
-    // }
-
     if (address === undefined) {
       address = await this.getChangeAddress()!;
     }
@@ -298,22 +276,16 @@ export class Web3Wallet {
       await cardanoWallet.init();
       wallet.cardano = cardanoWallet;
     } else if (chain === "bitcoin") {
-      try {
-        const bitcoinWallet = new EmbeddedWallet({
-          testnet: networkId === 0,
-          key: {
-            type: "address",
-            address: address,
-          },
-        });
-        wallet.bitcoin = bitcoinWallet;
-      } catch (error) {
-        console.error("Failed to initialize Bitcoin wallet:", error);
-        // Handle error or provide fallback
-      }
+      const bitcoinWallet = new EmbeddedWallet({
+        testnet: networkId === 0,
+        key: {
+          type: "address",
+          address: address,
+        },
+      });
+      wallet.bitcoin = bitcoinWallet;
     }
 
-    await wallet.init();
     return wallet;
   }
 }
