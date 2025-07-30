@@ -1,6 +1,10 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import { EmbeddedWallet, resolveAddress } from "@meshsdk/bitcoin";
+import {
+  EmbeddedWallet,
+  resolveAddress,
+  TransactionPayload,
+} from "@meshsdk/bitcoin";
 import { OpenWindowResult, UserSocialData } from "../types";
 import { Web3AuthProvider } from "../types";
 import { getAddressFromHashes, openWindow } from "../functions";
@@ -278,6 +282,18 @@ export class Web3Wallet {
         submitter: submitter,
       });
       await cardanoWallet.init();
+
+      cardanoWallet.signTx = async (
+        unsignedTx: string,
+        partialSign = false,
+      ) => {
+        return wallet.signTx(unsignedTx, partialSign);
+      };
+
+      cardanoWallet.signData = async (payload: string, address?: string) => {
+        return wallet.signData(payload, address) as Promise<DataSignature>;
+      };
+
       wallet.cardano = cardanoWallet;
     } else if (chain === "bitcoin") {
       const bitcoinWallet = new EmbeddedWallet({
@@ -287,6 +303,15 @@ export class Web3Wallet {
           address: address,
         },
       });
+
+      bitcoinWallet.signTx = async (payload: TransactionPayload) => {
+        return wallet.signTx(JSON.stringify(payload)) as Promise<string>;
+      };
+
+      bitcoinWallet.signData = async (payload: string, address?: string) => {
+        return wallet.signData(payload) as Promise<string>;
+      };
+
       wallet.bitcoin = bitcoinWallet;
     }
 
