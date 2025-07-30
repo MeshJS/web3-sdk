@@ -13,6 +13,10 @@ export type EnableWeb3WalletOptions = {
   appUrl?: string;
   directTo?: Web3AuthProvider;
   chain?: string;
+  thirdPartyAuthentication?: {
+    provider: Web3AuthProvider;
+    refreshToken: string;
+  }
 };
 
 type InitWeb3WalletOptions = CreateMeshWalletOptions & {
