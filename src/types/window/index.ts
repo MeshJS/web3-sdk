@@ -9,6 +9,7 @@ export type OpenWindowParams = {
     projectId: string;
     directTo?: Web3AuthProvider
     chain?: string;
+    refreshToken?: string;
   } | {
     method: "sign-tx"
     projectId: string;
