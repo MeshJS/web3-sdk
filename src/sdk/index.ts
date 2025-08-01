@@ -133,3 +133,5 @@ export class Web3Sdk {
     throw new Error("Failed to get project");
   }
 }
+
+export * from "./sponsorship";

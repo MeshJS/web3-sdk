@@ -24,6 +24,10 @@ type SponsorshipOutput = {
 
 const CONFIG_DURATION_CONSUME_UTXOS = 1000 * 60; // 1 minute
 
+export type SponsorTxResponse =
+  | { success: true; data: string }
+  | { success: false; error: string };
+
 /**
  * The `Sponsorship` class provides methods to process transaction sponsorships
  */
@@ -71,9 +75,7 @@ export class Sponsorship {
   }: {
     sponsorshipId: string;
     tx: string;
-  }): Promise<
-    { success: true; data: string } | { success: false; error: string }
-  > {
+  }): Promise<SponsorTxResponse> {
     /**
      * get sponsorship config
      */
@@ -94,7 +96,7 @@ export class Sponsorship {
     }
 
     const sponsorshipConfig = data as SponsorshipConfig;
-    console.log("sponsorshipConfig", sponsorshipConfig);
+    // console.log("sponsorshipConfig", sponsorshipConfig);
 
     const signedRebuiltTxHex = await this.sponsorTxAndSign({
       txHex: tx,
@@ -123,7 +125,6 @@ export class Sponsorship {
     const sponsorWallet = await this.getSponsorWallet(config.projectWalletId);
     const sponsorshipWalletUtxos = await sponsorWallet.getUtxos();
     const sponsorshipWalletAddress = await sponsorWallet.getChangeAddress();
-
     if (sponsorshipWalletUtxos.length === 0) {
       throw new Error(
         "No UTXOs available in the sponsorship wallet. Please fund the wallet.",
@@ -148,8 +149,8 @@ export class Sponsorship {
       );
     });
 
-    console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
-    console.log("UTXOs available as input:", utxosAvailableAsInput);
+    // console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
+    // console.log("UTXOs available as input:", utxosAvailableAsInput);
 
     let prepareUtxo = false;
     let sponsorshipTxHash: string | undefined = undefined;
@@ -157,7 +158,7 @@ export class Sponsorship {
 
     // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
     if (utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare) {
-      console.log("Preparing more UTXOs");
+      // console.log("Preparing more UTXOs");
       prepareUtxo = true;
     }
 
@@ -168,7 +169,7 @@ export class Sponsorship {
           config: config,
         });
         sponsorshipIndex = 0;
-        console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
+        // console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
       } catch (error) {
         // if fail, attempt to use refreshTxHash
         console.error("Failed to prepare sponsor UTXOs:", error);
@@ -247,7 +248,7 @@ export class Sponsorship {
           network: this.sdk.network,
         };
 
-        console.log("Rebuilding transaction with selected UTXO:", body);
+        // console.log("Rebuilding transaction with selected UTXO:", body);
 
         const { data, status } = await this.sdk.axiosInstance.post(
           `api/sponsorship/tx-parser`,
@@ -261,7 +262,7 @@ export class Sponsorship {
         _rebuiltTxHex = rebuiltTxHex;
       } catch (error) {
         // if this fails, it means the UTXO could be used, so we pull from `refreshTxHash` and try again
-        console.log("First attempt failed, trying with refreshTxHash", error);
+        // console.log("First attempt failed, trying with refreshTxHash", error);
 
         const { data: resRefreshTxHash, status: refreshStatus } =
           await this.sdk.axiosInstance.get(
@@ -336,7 +337,7 @@ export class Sponsorship {
               }
             }
           } catch (innerError) {
-            console.log(`Attempt ${attempt + 1} failed:`, innerError);
+            // console.log(`Attempt ${attempt + 1} failed:`, innerError);
           }
         }
       }
@@ -382,7 +383,7 @@ export class Sponsorship {
         parseInt(utxo.output.amount[0].quantity) !== config.utxoAmount * 1000000
       );
     });
-    console.log("UTXOs used as inputs to prepare UTXOs:", utxosAsInput);
+    // console.log("UTXOs used as inputs to prepare UTXOs:", utxosAsInput);
 
     // Get any UTXOs that is the sponsor amount, but has been in pending state for longer than duration_consume_utxos
     const dbPendingUtxos = await this.dbGetIsPendingUtxo(
@@ -412,7 +413,7 @@ export class Sponsorship {
         )
       );
     });
-    console.log("UTXOs pending for too long:", utxosNotSpentAfterDuration);
+    // console.log("UTXOs pending for too long:", utxosNotSpentAfterDuration);
 
     // Create transactions to make more UTXOs
     const txBuilder = new MeshTxBuilder({
@@ -489,10 +490,10 @@ export class Sponsorship {
       maxUtxosWeCanCreate,
     );
 
-    console.log(`Total balance: ${totalBalance} lovelace`);
-    console.log(`UTXO amount: ${utxoAmountLovelace} lovelace`);
-    console.log(`Max UTXOs we can create: ${maxUtxosWeCanCreate}`);
-    console.log(`UTXOs to create: ${numUtxosToCreate}`);
+    // console.log(`Total balance: ${totalBalance} lovelace`);
+    // console.log(`UTXO amount: ${utxoAmountLovelace} lovelace`);
+    // console.log(`Max UTXOs we can create: ${maxUtxosWeCanCreate}`);
+    // console.log(`UTXOs to create: ${numUtxosToCreate}`);
 
     // Create UTXO outputs
     for (let i = 0; i < numUtxosToCreate; i++) {
