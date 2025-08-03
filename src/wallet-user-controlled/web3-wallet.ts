@@ -222,6 +222,37 @@ export class Web3Wallet {
     return res.data.signature;
   }
 
+  async exportWallet(): Promise<{
+    success: boolean;
+    data: { method: "export-wallet" };
+  }> {
+    const networkId = await this.getNetworkId();
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "export-wallet",
+        projectId: this.projectId!,
+        chain: this.chain,
+        networkId: String(networkId),
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false)
+      throw new ApiError({
+        code: 2,
+        info: "UserDeclined - User declined to export the wallet.",
+      });
+
+    if (res.data.method !== "export-wallet") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
+
+    return { success: true, data: { method: "export-wallet" } };
+  }
+
   /**
    * Initializes a new instance of a Web3 wallet with the specified options.
    *
