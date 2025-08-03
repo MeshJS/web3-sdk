@@ -17,6 +17,7 @@ export type EnableWeb3WalletOptions = {
   appUrl?: string;
   directTo?: Web3AuthProvider;
   chain?: string;
+  refreshToken?: string;
 };
 
 type InitWeb3WalletOptions = CreateMeshWalletOptions & {
@@ -66,6 +67,7 @@ export class Web3Wallet {
         projectId: options.projectId!,
         directTo: options.directTo,
         chain: options.chain,
+        refreshToken: options.refreshToken
       },
       options.appUrl,
     );
