@@ -1,6 +1,6 @@
 {
   "name": "@meshsdk/web3-sdk",
-  "version": "0.0.53",
+  "version": "0.0.54",
   "description": "UTXOS SDK - Web3 Services",
   "main": "./dist/index.cjs",
   "browser": "./dist/index.js",
@@ -41,11 +41,11 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@meshsdk/bitcoin": "1.9.0-beta.68",
-    "@meshsdk/common": "1.9.0-beta.68",
-    "@meshsdk/core": "1.9.0-beta.68",
-    "@meshsdk/core-cst": "1.9.0-beta.68",
-    "@meshsdk/wallet": "1.9.0-beta.68",
+    "@meshsdk/bitcoin": "1.9.0-beta.72",
+    "@meshsdk/common": "1.9.0-beta.72",
+    "@meshsdk/core": "1.9.0-beta.72",
+    "@meshsdk/core-cst": "1.9.0-beta.72",
+    "@meshsdk/wallet": "1.9.0-beta.72",
     "@peculiar/webcrypto": "^1.5.0",
     "axios": "^1.8.3",
     "base32-encoding": "^1.0.0",
