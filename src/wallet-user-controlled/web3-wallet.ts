@@ -29,7 +29,6 @@ type InitWeb3WalletOptions = CreateMeshWalletOptions & {
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
-  // chain?: string;
 };
 
 /**
