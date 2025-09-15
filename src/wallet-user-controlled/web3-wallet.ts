@@ -5,9 +5,14 @@ import {
   resolveAddress,
   TransactionPayload,
 } from "@meshsdk/bitcoin";
-import { OpenWindowResult, UserSocialData } from "../types";
+import {
+  OpenWindowResult,
+  UserSocialData,
+  Web3WalletKeyHashes,
+} from "../types";
 import { Web3AuthProvider } from "../types";
 import { getAddressFromHashes, openWindow } from "../functions";
+import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -16,15 +21,15 @@ export type EnableWeb3WalletOptions = {
   projectId?: string;
   appUrl?: string;
   directTo?: Web3AuthProvider;
-  chain?: string;
   refreshToken?: string;
+  keepWindowOpen?: boolean;
 };
 
 type InitWeb3WalletOptions = CreateMeshWalletOptions & {
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
-  chain?: string;
+  // chain?: string;
 };
 
 /**
@@ -36,7 +41,6 @@ export class Web3Wallet {
   appUrl?: string;
   user?: UserSocialData;
   chain?: string;
-
   cardano?: MeshWallet;
   bitcoin?: EmbeddedWallet;
 
@@ -44,7 +48,6 @@ export class Web3Wallet {
     this.projectId = options.projectId;
     this.appUrl = options.appUrl;
     this.user = options.user;
-    this.chain = options.chain;
   }
 
   /**
@@ -66,8 +69,9 @@ export class Web3Wallet {
         method: "enable",
         projectId: options.projectId!,
         directTo: options.directTo,
-        chain: options.chain,
-        refreshToken: options.refreshToken
+        refreshToken: options.refreshToken,
+        networkId: String(options.networkId),
+        keepWindowOpen: options.keepWindowOpen ? "true" : "false",
       },
       options.appUrl,
     );
@@ -85,31 +89,18 @@ export class Web3Wallet {
       });
     }
 
-    let address: string;
-
-    if (options.chain === "cardano" || options.chain === undefined) {
-      address = getAddressFromHashes(
-        res.data.cardanoPubKeyHash,
-        res.data.cardanoStakeCredentialHash,
-        options.networkId,
-      );
-    } else if (options.chain === "bitcoin" && res.data.bitcoinPubKeyHash) {
-      const { address: _bitcoinAddress } = resolveAddress(
-        res.data.bitcoinPubKeyHash,
-        options.networkId === 1 ? "mainnet" : "testnet",
-      );
-      address = _bitcoinAddress;
-    }
-
     const wallet = await Web3Wallet.initWallet({
       networkId: options.networkId,
-      address: address!,
       fetcher: options.fetcher,
       submitter: options.submitter,
       projectId: options.projectId,
       appUrl: options.appUrl,
       user: res.data.user,
-      chain: options.chain,
+      keyHashes: {
+        cardanoPubKeyHash: res.data.cardanoPubKeyHash,
+        cardanoStakeCredentialHash: res.data.cardanoStakeCredentialHash,
+        bitcoinPubKeyHash: res.data.bitcoinPubKeyHash,
+      },
     });
 
     return wallet;
@@ -126,14 +117,21 @@ export class Web3Wallet {
    * @param partialSign - if the transaction is partially signed (default: false)
    * @returns a signed transaction in CBOR
    */
-  async signTx(unsignedTx: string, partialSign = false): Promise<string> {
+  async signTx(
+    unsignedTx: string,
+    partialSign = false,
+    chain?: string,
+  ): Promise<string> {
+    chain = chain ?? "cardano";
+    const networkId = await this.getNetworkId(chain);
     const res: OpenWindowResult = await openWindow(
       {
         method: "sign-tx",
         projectId: this.projectId!,
         unsignedTx,
         partialSign: partialSign === true ? "true" : "false",
-        chain: this.chain,
+        chain: chain,
+        networkId: String(networkId),
       },
       this.appUrl,
     );
@@ -161,8 +159,8 @@ export class Web3Wallet {
    * @param address - the address to use for signing (optional)
    * @returns a signature
    */
-  async getChangeAddress(): Promise<string | undefined> {
-    if (this.chain === "bitcoin" && this.bitcoin) {
+  async getChangeAddress(chain?: string): Promise<string | undefined> {
+    if (chain === "bitcoin" && this.bitcoin) {
       return this.bitcoin.getAddress().address;
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
@@ -173,8 +171,8 @@ export class Web3Wallet {
     });
   }
 
-  async getNetworkId(): Promise<number> {
-    if (this.chain === "bitcoin" && this.bitcoin) {
+  async getNetworkId(chain?: string): Promise<number> {
+    if (chain === "bitcoin" && this.bitcoin) {
       return this.bitcoin.getNetworkId();
     } else if (this.cardano) {
       return this.cardano.getNetworkId();
@@ -188,11 +186,13 @@ export class Web3Wallet {
   async signData(
     payload: string,
     address?: string,
+    chain?: string,
   ): Promise<DataSignature | string> {
+    chain = chain ?? "cardano";
     if (address === undefined) {
-      address = await this.getChangeAddress()!;
+      address = await this.getChangeAddress(chain)!;
     }
-    const networkId = await this.getNetworkId();
+    const networkId = await this.getNetworkId(chain);
 
     const res: OpenWindowResult = await openWindow(
       {
@@ -201,7 +201,7 @@ export class Web3Wallet {
         payload,
         address,
         networkId: String(networkId),
-        chain: this.chain,
+        chain: chain,
       },
       this.appUrl,
     );
@@ -222,16 +222,17 @@ export class Web3Wallet {
     return res.data.signature;
   }
 
-  async exportWallet(): Promise<{
+  async exportWallet(chain?: string): Promise<{
     success: boolean;
     data: { method: "export-wallet" };
   }> {
-    const networkId = await this.getNetworkId();
+    chain = chain ?? "cardano";
+    const networkId = await this.getNetworkId(chain);
     const res: OpenWindowResult = await openWindow(
       {
         method: "export-wallet",
         projectId: this.projectId!,
-        chain: this.chain,
+        chain: chain,
         networkId: String(networkId),
       },
       this.appUrl,
@@ -253,6 +254,23 @@ export class Web3Wallet {
     return { success: true, data: { method: "export-wallet" } };
   }
 
+  async disable() {
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "disable",
+        projectId: this.projectId!,
+      },
+      this.appUrl,
+    );
+    if (res.success === false) {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
+    return { success: true, data: { method: "disable" } };
+  }
+
   /**
    * Initializes a new instance of a Web3 wallet with the specified options.
    *
@@ -268,81 +286,72 @@ export class Web3Wallet {
    */
   static async initWallet({
     networkId,
-    address,
     fetcher,
     submitter,
     projectId,
     appUrl,
     user,
-    chain,
+    keyHashes,
   }: {
     networkId: 0 | 1;
-    address: string;
     fetcher?: IFetcher;
     submitter?: ISubmitter;
     projectId?: string;
     appUrl?: string;
     user?: UserSocialData;
-    chain?: string;
+    keyHashes: Web3WalletKeyHashes;
   }) {
     const _options: InitWeb3WalletOptions = {
       networkId: networkId,
-      key: {
-        type: "address",
-        address: address,
-      },
+      key: resolveWalletAddress("cardano", keyHashes, networkId),
       fetcher: fetcher,
       submitter: submitter,
       projectId: projectId,
       appUrl: appUrl,
       user: user,
-      chain: chain,
     };
     const wallet = new Web3Wallet(_options);
 
-    if (!chain || chain === "cardano") {
-      const cardanoWallet = new MeshWallet({
-        networkId: networkId,
-        key: {
-          type: "address",
-          address: address,
-        },
-        fetcher: fetcher,
-        submitter: submitter,
-      });
-      await cardanoWallet.init();
+    const cardanoWallet = new MeshWallet({
+      networkId: networkId,
+      key: resolveWalletAddress("cardano", keyHashes, networkId),
+      fetcher: fetcher,
+      submitter: submitter,
+    });
+    await cardanoWallet.init();
 
-      cardanoWallet.signTx = async (
-        unsignedTx: string,
-        partialSign = false,
-      ) => {
-        return wallet.signTx(unsignedTx, partialSign);
-      };
+    cardanoWallet.signTx = async (unsignedTx: string, partialSign = false) => {
+      return wallet.signTx(unsignedTx, partialSign, "cardano");
+    };
 
-      cardanoWallet.signData = async (payload: string, address?: string) => {
-        return wallet.signData(payload, address) as Promise<DataSignature>;
-      };
+    cardanoWallet.signData = async (payload: string, address?: string) => {
+      return wallet.signData(
+        payload,
+        address,
+        "cardano",
+      ) as Promise<DataSignature>;
+    };
 
-      wallet.cardano = cardanoWallet;
-    } else if (chain === "bitcoin") {
-      const bitcoinWallet = new EmbeddedWallet({
-        testnet: networkId === 0,
-        key: {
-          type: "address",
-          address: address,
-        },
-      });
+    wallet.cardano = cardanoWallet;
 
-      bitcoinWallet.signTx = async (payload: TransactionPayload) => {
-        return wallet.signTx(JSON.stringify(payload)) as Promise<string>;
-      };
+    const bitcoinWallet = new EmbeddedWallet({
+      testnet: networkId === 0,
+      key: resolveWalletAddress("bitcoin", keyHashes, networkId),
+    });
 
-      bitcoinWallet.signData = async (payload: string, address?: string) => {
-        return wallet.signData(payload) as Promise<string>;
-      };
+    bitcoinWallet.signTx = async (payload: TransactionPayload) => {
+      return wallet.signTx(
+        JSON.stringify(payload),
+        false,
+        "bitcoin",
+      ) as Promise<string>;
+    };
 
-      wallet.bitcoin = bitcoinWallet;
-    }
+    bitcoinWallet.signData = async (payload: string, address?: string) => {
+      return wallet.signData(payload, address, "bitcoin") as Promise<string>;
+    };
+
+    wallet.bitcoin = bitcoinWallet;
 
     return wallet;
   }
