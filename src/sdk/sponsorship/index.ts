@@ -48,9 +48,9 @@ export class Sponsorship {
    */
   getStaticInfo(amount: "5" | "99" = "5") {
     return {
-      changeAddress: meshUniversalStaticUtxo.testnet["5"].output.address,
-      utxo: meshUniversalStaticUtxo.testnet[amount],
-      collateral: meshUniversalStaticUtxo.testnet["5"],
+      changeAddress: meshUniversalStaticUtxo[this.sdk.network]["5"].output.address,
+      utxo: meshUniversalStaticUtxo[this.sdk.network][amount],
+      collateral: meshUniversalStaticUtxo[this.sdk.network]["5"],
     };
   }
 
