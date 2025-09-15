@@ -32,7 +32,7 @@ export const meshUniversalStaticUtxo = {
       },
       output: {
         address:
-          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
+          "addr1q8sj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457qh5366a",
         amount: [
           {
             unit: "lovelace",
