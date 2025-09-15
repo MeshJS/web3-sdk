@@ -6,7 +6,6 @@ import { Sponsorship } from "./sponsorship";
 
 export const meshUniversalStaticUtxo = {
   mainnet: {
-    // todo replace with mainnet
     "5": {
       input: {
         outputIndex: 0,
