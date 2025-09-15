@@ -23,3 +23,9 @@ export type Web3WalletRecovery = {
   recoveryShard: string;
   recoveryShardQuestion: string;
 };
+
+export type Web3WalletKeyHashes = {
+  cardanoPubKeyHash: string;
+  cardanoStakeCredentialHash: string;
+  bitcoinPubKeyHash: string;
+};
