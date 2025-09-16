@@ -11,6 +11,8 @@ export type OpenWindowParams =
       directTo?: Web3AuthProvider;
       chain?: string;
       refreshToken?: string;
+      keepWindowOpen?: "true" | "false";
+      networkId?: string;
     }
   | {
       method: "sign-tx";
@@ -19,6 +21,7 @@ export type OpenWindowParams =
       unsignedTx: string;
       partialSign: "true" | "false";
       chain?: string;
+      networkId?: string;
     }
   | {
       method: "sign-data";
@@ -34,6 +37,10 @@ export type OpenWindowParams =
       projectId: string;
       chain?: string;
       networkId?: string;
+    }
+  | {
+      method: "disable";
+      projectId: string;
     };
 
 export type OpenWindowResult =
@@ -60,6 +67,9 @@ export type OpenWindowResult =
           }
         | {
             method: "export-wallet";
+          }
+        | {
+            method: "disable";
           };
     }
   | {
