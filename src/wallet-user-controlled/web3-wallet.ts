@@ -1,17 +1,13 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import {
-  EmbeddedWallet,
-  resolveAddress,
-  TransactionPayload,
-} from "@meshsdk/bitcoin";
+import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
   Web3WalletKeyHashes,
 } from "../types";
 import { Web3AuthProvider } from "../types";
-import { getAddressFromHashes, openWindow } from "../functions";
+import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
 
 export type EnableWeb3WalletOptions = {
