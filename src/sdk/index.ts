@@ -6,20 +6,36 @@ import { Sponsorship } from "./sponsorship";
 
 export const meshUniversalStaticUtxo = {
   mainnet: {
-    // todo replace with mainnet
     "5": {
       input: {
         outputIndex: 0,
         txHash:
-          "5a1edf7da58eff2059030abd456947a96cb2d16b9d8c3822ffff58d167ed8bfc",
+          "89e9888acc50ec7cc840f3e44ea06d8db1461dd1ba37218e914fcd171d83e4b8",
       },
       output: {
         address:
-          "addr_test1qrsj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457q5zv6kz",
+          "addr1q8sj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457qh5366a",
         amount: [
           {
             unit: "lovelace",
             quantity: "5000000",
+          },
+        ],
+      },
+    },
+    "99": {
+      input: {
+        outputIndex: 0,
+        txHash:
+          "cb058a1402fcbcd98be15de8c44ea1a44211119050e8028d3c81878158a5d29d",
+      },
+      output: {
+        address:
+          "addr1q8sj3xj6q99m4g9tu9mm2lzzdafy04035eya7hjhpus55r204nlu6dmhgpruq7df228h9gpujt0mtnfcnkcaj3wj457qh5366a",
+        amount: [
+          {
+            unit: "lovelace",
+            quantity: "99000000",
           },
         ],
       },

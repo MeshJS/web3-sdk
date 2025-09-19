@@ -47,14 +47,10 @@ export class Sponsorship {
    * @returns An object containing the change address and the static UTXO.
    */
   getStaticInfo(amount: "5" | "99" = "5") {
-    if (this.sdk.network === "mainnet") {
-      throw new Error("Sponsorship is not available on mainnet yet.");
-    }
-
     return {
-      changeAddress: meshUniversalStaticUtxo.testnet["5"].output.address,
-      utxo: meshUniversalStaticUtxo.testnet[amount],
-      collateral: meshUniversalStaticUtxo.testnet["5"],
+      changeAddress: meshUniversalStaticUtxo[this.sdk.network]["5"].output.address,
+      utxo: meshUniversalStaticUtxo[this.sdk.network][amount],
+      collateral: meshUniversalStaticUtxo[this.sdk.network]["5"],
     };
   }
 
