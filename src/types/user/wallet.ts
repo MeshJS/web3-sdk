@@ -29,3 +29,5 @@ export type Web3WalletKeyHashes = {
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
 };
+
+export type Web3WalletChains = "cardano" | "bitcoin";
