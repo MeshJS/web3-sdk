@@ -41,11 +41,11 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@meshsdk/bitcoin": "1.9.0-beta.75",
-    "@meshsdk/common": "1.9.0-beta.75",
-    "@meshsdk/core": "1.9.0-beta.75",
-    "@meshsdk/core-cst": "1.9.0-beta.75",
-    "@meshsdk/wallet": "1.9.0-beta.75",
+    "@meshsdk/bitcoin": "1.9.0-beta.76",
+    "@meshsdk/common": "1.9.0-beta.76",
+    "@meshsdk/core": "1.9.0-beta.76",
+    "@meshsdk/core-cst": "1.9.0-beta.76",
+    "@meshsdk/wallet": "1.9.0-beta.76",
     "@peculiar/webcrypto": "^1.5.0",
     "axios": "^1.8.3",
     "base32-encoding": "^1.0.0",
