@@ -48,7 +48,8 @@ export class Sponsorship {
    */
   getStaticInfo(amount: "5" | "99" = "5") {
     return {
-      changeAddress: meshUniversalStaticUtxo[this.sdk.network]["5"].output.address,
+      changeAddress:
+        meshUniversalStaticUtxo[this.sdk.network]["5"].output.address,
       utxo: meshUniversalStaticUtxo[this.sdk.network][amount],
       collateral: meshUniversalStaticUtxo[this.sdk.network]["5"],
     };
@@ -75,14 +76,8 @@ export class Sponsorship {
     /**
      * get sponsorship config
      */
-    const { data, status } = await this.sdk.axiosInstance.post(
+    const { data, status } = await this.sdk.axiosInstance.get(
       `api/sponsorship/${sponsorshipId}`,
-      {
-        sponsorshipId,
-        txHex: tx,
-        projectId: this.sdk.projectId,
-        network: this.sdk.network,
-      },
     );
 
     if (status !== 200) {
@@ -92,7 +87,6 @@ export class Sponsorship {
     }
 
     const sponsorshipConfig = data as SponsorshipConfig;
-    // console.log("sponsorshipConfig", sponsorshipConfig);
 
     const signedRebuiltTxHex = await this.sponsorTxAndSign({
       txHex: tx,
@@ -145,16 +139,12 @@ export class Sponsorship {
       );
     });
 
-    // console.log("sponsorshipWalletUtxos", sponsorshipWalletUtxos);
-    // console.log("UTXOs available as input:", utxosAvailableAsInput);
-
     let prepareUtxo = false;
     let sponsorshipTxHash: string | undefined = undefined;
     let sponsorshipIndex: number | undefined = undefined;
 
     // If sponsor wallet's UTXOs set has less than num_utxos_trigger_prepare, trigger to create more UTXOs
     if (utxosAvailableAsInput.length <= config.numUtxosTriggerPrepare) {
-      // console.log("Preparing more UTXOs");
       prepareUtxo = true;
     }
 
@@ -165,7 +155,6 @@ export class Sponsorship {
           config: config,
         });
         sponsorshipIndex = 0;
-        // console.log("prepareSponsorUtxosTx txHash:", sponsorshipTxHash);
       } catch (error) {
         // if fail, attempt to use refreshTxHash
         console.error("Failed to prepare sponsor UTXOs:", error);
@@ -244,8 +233,6 @@ export class Sponsorship {
           network: this.sdk.network,
         };
 
-        // console.log("Rebuilding transaction with selected UTXO:", body);
-
         const { data, status } = await this.sdk.axiosInstance.post(
           `api/sponsorship/tx-parser`,
           body,
@@ -258,7 +245,6 @@ export class Sponsorship {
         _rebuiltTxHex = rebuiltTxHex;
       } catch (error) {
         // if this fails, it means the UTXO could be used, so we pull from `refreshTxHash` and try again
-        // console.log("First attempt failed, trying with refreshTxHash", error);
 
         const { data: resRefreshTxHash, status: refreshStatus } =
           await this.sdk.axiosInstance.get(
@@ -332,9 +318,7 @@ export class Sponsorship {
                 break;
               }
             }
-          } catch (innerError) {
-            // console.log(`Attempt ${attempt + 1} failed:`, innerError);
-          }
+          } catch (innerError) {}
         }
       }
 
@@ -379,7 +363,6 @@ export class Sponsorship {
         parseInt(utxo.output.amount[0].quantity) !== config.utxoAmount * 1000000
       );
     });
-    // console.log("UTXOs used as inputs to prepare UTXOs:", utxosAsInput);
 
     // Get any UTXOs that is the sponsor amount, but has been in pending state for longer than duration_consume_utxos
     const dbPendingUtxos = await this.dbGetIsPendingUtxo(
@@ -409,7 +392,6 @@ export class Sponsorship {
         )
       );
     });
-    // console.log("UTXOs pending for too long:", utxosNotSpentAfterDuration);
 
     // Create transactions to make more UTXOs
     const txBuilder = new MeshTxBuilder({
@@ -485,11 +467,6 @@ export class Sponsorship {
       config.numUtxosPrepare,
       maxUtxosWeCanCreate,
     );
-
-    // console.log(`Total balance: ${totalBalance} lovelace`);
-    // console.log(`UTXO amount: ${utxoAmountLovelace} lovelace`);
-    // console.log(`Max UTXOs we can create: ${maxUtxosWeCanCreate}`);
-    // console.log(`UTXOs to create: ${numUtxosToCreate}`);
 
     // Create UTXO outputs
     for (let i = 0; i < numUtxosToCreate; i++) {
