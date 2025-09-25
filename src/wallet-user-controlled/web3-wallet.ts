@@ -1,17 +1,13 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import {
-  EmbeddedWallet,
-  resolveAddress,
-  TransactionPayload,
-} from "@meshsdk/bitcoin";
+import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
   Web3WalletKeyHashes,
 } from "../types";
 import { Web3AuthProvider } from "../types";
-import { getAddressFromHashes, openWindow } from "../functions";
+import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
 
 export type EnableWeb3WalletOptions = {
@@ -34,19 +30,34 @@ type InitWeb3WalletOptions = CreateMeshWalletOptions & {
 /**
  * Mesh wallet-as-a-service are designed to be strictly non-custodial,
  * meaning neither the developer nor Mesh can access the user's private key.
+ *
+ * @param options - The options to initialize the wallet.
+ * @param options.projectId - Project ID
+ * @param options.appUrl - An optional backend URL, only used for development.
+ * @param options.user - User social data
  */
 export class Web3Wallet {
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
-  chain?: string;
-  cardano?: MeshWallet;
-  bitcoin?: EmbeddedWallet;
+  cardano: MeshWallet;
+  bitcoin: EmbeddedWallet;
 
   constructor(options: InitWeb3WalletOptions) {
     this.projectId = options.projectId;
     this.appUrl = options.appUrl;
     this.user = options.user;
+
+    // Initialize with placeholder instances that will be properly set in initWallet
+    this.cardano = new MeshWallet({
+      networkId: options.networkId || 0,
+      key: { type: "address", address: "" },
+    });
+
+    this.bitcoin = new EmbeddedWallet({
+      testnet: options.networkId !== 1,
+      key: { type: "address", address: "" },
+    });
   }
 
   /**
@@ -107,118 +118,6 @@ export class Web3Wallet {
 
   getUser() {
     return this.user;
-  }
-
-  /**
-   * Requests user to sign the provided transaction (tx). The wallet should ask the user for permission, and if given, try to sign the supplied body and return a signed transaction. partialSign should be true if the transaction provided requires multiple signatures.
-   *
-   * @param unsignedTx - a transaction in CBOR
-   * @param partialSign - if the transaction is partially signed (default: false)
-   * @returns a signed transaction in CBOR
-   */
-  async signTx(
-    unsignedTx: string,
-    partialSign = false,
-    chain?: string,
-  ): Promise<string> {
-    chain = chain ?? "cardano";
-    const networkId = await this.getNetworkId(chain);
-    const res: OpenWindowResult = await openWindow(
-      {
-        method: "sign-tx",
-        projectId: this.projectId!,
-        unsignedTx,
-        partialSign: partialSign === true ? "true" : "false",
-        chain: chain,
-        networkId: String(networkId),
-      },
-      this.appUrl,
-    );
-
-    if (res.success === false)
-      throw new ApiError({
-        code: 2,
-        info: "UserDeclined - User declined to sign the transaction.",
-      });
-
-    if (res.data.method !== "sign-tx") {
-      throw new ApiError({
-        code: 2,
-        info: "Received the wrong response from the iframe.",
-      });
-    }
-
-    return res.data.tx;
-  }
-
-  /**
-   * This endpoint utilizes the [CIP-8 - Message Signing](https://cips.cardano.org/cips/cip8/) to sign arbitrary data, to verify the data was signed by the owner of the private key.
-   *
-   * @param payload - the payload to sign
-   * @param address - the address to use for signing (optional)
-   * @returns a signature
-   */
-  async getChangeAddress(chain?: string): Promise<string | undefined> {
-    if (chain === "bitcoin" && this.bitcoin) {
-      return this.bitcoin.getAddress().address;
-    } else if (this.cardano) {
-      return await this.cardano.getChangeAddress();
-    }
-    throw new ApiError({
-      code: 5,
-      info: "No wallet initialized",
-    });
-  }
-
-  async getNetworkId(chain?: string): Promise<number> {
-    if (chain === "bitcoin" && this.bitcoin) {
-      return this.bitcoin.getNetworkId();
-    } else if (this.cardano) {
-      return this.cardano.getNetworkId();
-    }
-    throw new ApiError({
-      code: 5,
-      info: "No wallet initialized",
-    });
-  }
-
-  async signData(
-    payload: string,
-    address?: string,
-    chain?: string,
-  ): Promise<DataSignature | string> {
-    chain = chain ?? "cardano";
-    if (address === undefined) {
-      address = await this.getChangeAddress(chain)!;
-    }
-    const networkId = await this.getNetworkId(chain);
-
-    const res: OpenWindowResult = await openWindow(
-      {
-        method: "sign-data",
-        projectId: this.projectId!,
-        payload,
-        address,
-        networkId: String(networkId),
-        chain: chain,
-      },
-      this.appUrl,
-    );
-
-    if (res.success === false)
-      throw new ApiError({
-        code: 3,
-        info: "UserDeclined - User declined to sign the data.",
-      });
-
-    if (res.data.method !== "sign-data") {
-      throw new ApiError({
-        code: 2,
-        info: "Received the wrong response from the iframe.",
-      });
-    }
-
-    return res.data.signature;
   }
 
   async exportWallet(chain?: string): Promise<{
@@ -353,6 +252,106 @@ export class Web3Wallet {
     wallet.bitcoin = bitcoinWallet;
 
     return wallet;
+  }
+
+  /* PRIVATE FUNCTIONS */
+
+  private async signTx(
+    unsignedTx: string,
+    partialSign = false,
+    chain?: string,
+  ): Promise<string> {
+    chain = chain ?? "cardano";
+    const networkId = await this.getNetworkId(chain);
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "sign-tx",
+        projectId: this.projectId!,
+        unsignedTx,
+        partialSign: partialSign === true ? "true" : "false",
+        chain: chain,
+        networkId: String(networkId),
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false)
+      throw new ApiError({
+        code: 2,
+        info: "UserDeclined - User declined to sign the transaction.",
+      });
+
+    if (res.data.method !== "sign-tx") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
+
+    return res.data.tx;
+  }
+
+  private async getChangeAddress(chain?: string): Promise<string | undefined> {
+    if (chain === "bitcoin" && this.bitcoin) {
+      return this.bitcoin.getAddress().address;
+    } else if (this.cardano) {
+      return await this.cardano.getChangeAddress();
+    }
+    throw new ApiError({
+      code: 5,
+      info: "No wallet initialized",
+    });
+  }
+
+  private async getNetworkId(chain?: string): Promise<number> {
+    if (chain === "bitcoin" && this.bitcoin) {
+      return this.bitcoin.getNetworkId();
+    } else if (this.cardano) {
+      return this.cardano.getNetworkId();
+    }
+    throw new ApiError({
+      code: 5,
+      info: "No wallet initialized",
+    });
+  }
+
+  private async signData(
+    payload: string,
+    address?: string,
+    chain?: string,
+  ): Promise<DataSignature | string> {
+    chain = chain ?? "cardano";
+    if (address === undefined) {
+      address = await this.getChangeAddress(chain)!;
+    }
+    const networkId = await this.getNetworkId(chain);
+
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "sign-data",
+        projectId: this.projectId!,
+        payload,
+        address,
+        networkId: String(networkId),
+        chain: chain,
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false)
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined to sign the data.",
+      });
+
+    if (res.data.method !== "sign-data") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
+
+    return res.data.signature;
   }
 }
 
