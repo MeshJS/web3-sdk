@@ -51,12 +51,19 @@ export class Web3Wallet {
     // Initialize with placeholder instances that will be properly set in initWallet
     this.cardano = new MeshWallet({
       networkId: options.networkId || 0,
-      key: { type: "address", address: "" },
+      key: {
+        type: "address",
+        address:
+          "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9",
+      },
     });
 
     this.bitcoin = new EmbeddedWallet({
       testnet: options.networkId !== 1,
-      key: { type: "address", address: "" },
+      key: {
+        type: "address",
+        address: "bcrt1qssadlsnjxkp2hf93yxge2kukh4m87743jfqx5k",
+      },
     });
   }
 
