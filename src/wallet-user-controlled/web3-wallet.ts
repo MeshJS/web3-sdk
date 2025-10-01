@@ -2,7 +2,6 @@ import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import {
   EmbeddedWallet,
-  resolveAddress,
   TransactionPayload,
 } from "@meshsdk/bitcoin";
 import {
@@ -11,8 +10,9 @@ import {
   Web3WalletKeyHashes,
 } from "../types";
 import { Web3AuthProvider } from "../types";
-import { getAddressFromHashes, openWindow } from "../functions";
+import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
+import { SparkTransactionPayload, Web3SparkWallet } from "../spark/web3-spark-wallet";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -43,6 +43,7 @@ export class Web3Wallet {
   chain?: string;
   cardano?: MeshWallet;
   bitcoin?: EmbeddedWallet;
+  spark?: Web3SparkWallet;
 
   constructor(options: InitWeb3WalletOptions) {
     this.projectId = options.projectId;
@@ -100,6 +101,7 @@ export class Web3Wallet {
         cardanoPubKeyHash: res.data.cardanoPubKeyHash,
         cardanoStakeCredentialHash: res.data.cardanoStakeCredentialHash,
         bitcoinPubKeyHash: res.data.bitcoinPubKeyHash,
+        sparkPubKeyHash: res.data.sparkPubKeyHash,
       },
     });
 
@@ -164,6 +166,8 @@ export class Web3Wallet {
       return this.bitcoin.getAddress().address;
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
+    } else if (this.spark) {
+      return (await this.spark.getWalletInfo()).sparkAddress;
     }
     throw new ApiError({
       code: 5,
@@ -252,6 +256,42 @@ export class Web3Wallet {
     }
 
     return { success: true, data: { method: "export-wallet" } };
+  }
+
+  async getWalletInfo(chain?: string) {
+    chain = chain ?? "spark";
+    const networkId = await this.getNetworkId(chain);
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "get-wallet-info",
+        projectId: this.projectId!,
+        chain: chain,
+        networkId: String(networkId),
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false)
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined to get wallet info.",
+      });
+
+    if (res.data.method !== "get-wallet-info") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
+
+    return {
+      sparkAddress: res.data.sparkAddress,
+      staticDepositAddress: res.data.staticDepositAddress,
+      balance: BigInt(res.data.balance),
+      tokenBalances: res.data.tokenBalances,
+      identityPublicKey: res.data.identityPublicKey,
+      depositTxIds: res.data.depositTxIds,
+    };
   }
 
   async disable() {
@@ -352,6 +392,31 @@ export class Web3Wallet {
     };
 
     wallet.bitcoin = bitcoinWallet;
+
+    // Create minimal Spark interface for basic operations
+    // Full SparkWallet functionality is available during signing flow via combineShardsBuildWallet
+    if (keyHashes.sparkPubKeyHash) {
+      const sparkWalletAddress = resolveWalletAddress("spark", keyHashes, networkId);
+      
+      const sparkWallet = new Web3SparkWallet({
+        network: networkId === 1 ? "MAINNET" : "REGTEST",
+        key: {
+          type: "address",
+          address: sparkWalletAddress.address,
+          identityPublicKey: keyHashes.sparkPubKeyHash
+        }
+      });
+
+      sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
+        return wallet.signTx(JSON.stringify(payload), false, "spark");
+      };
+
+      sparkWallet.signData = async (payload: string, address?: string) => {
+        return wallet.signData(payload, address, "spark") as Promise<string>;
+      };
+
+      wallet.spark = sparkWallet;
+    }
 
     return wallet;
   }

@@ -41,6 +41,19 @@ export type OpenWindowParams =
   | {
       method: "disable";
       projectId: string;
+    }
+  | {
+      method: "get-wallet-info";
+      projectId: string;
+      chain?: string;
+      networkId?: string;
+    }
+  | {
+      method: "claim-deposit";
+      projectId: string;
+      payload: string;
+      chain?: string;
+      networkId?: string;
     };
 
 export type OpenWindowResult =
@@ -52,6 +65,7 @@ export type OpenWindowResult =
             cardanoPubKeyHash: string;
             cardanoStakeCredentialHash: string;
             bitcoinPubKeyHash: string;
+            sparkPubKeyHash: string;
             user: UserSocialData;
           }
         | {
@@ -70,6 +84,19 @@ export type OpenWindowResult =
           }
         | {
             method: "disable";
+          }
+        | {
+            method: "get-wallet-info";
+            sparkAddress: string;
+            staticDepositAddress: string;
+            balance: string;
+            tokenBalances: any;
+            identityPublicKey: string;
+            depositTxIds: string[];
+          }
+        | {
+            method: "claim-deposit";
+            txId: string; // Transaction ID from claim operation
           };
     }
   | {
