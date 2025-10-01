@@ -2,8 +2,10 @@ import { MeshWallet } from "@meshsdk/wallet";
 import { generateMnemonic } from "@meshsdk/common";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
 import { EmbeddedWallet } from "@meshsdk/bitcoin";
+import { SparkWallet } from "@buildonspark/spark-sdk";
 import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
+import { Web3SparkWallet } from "../../spark";
 
 export async function clientGenerateWallet(
   spendingPassword: string,
@@ -49,6 +51,18 @@ export async function clientGenerateWallet(
 
   const bitcoinPubKeyHash = bitcoinWallet.getPublicKey();
 
+  /* spark */
+  const sparkWallet = new Web3SparkWallet({
+    network: "MAINNET",
+    key: {
+      type: "mnemonic",
+      words: mnemonic.split(" ")
+    }
+  });
+
+  await sparkWallet.init();
+  const sparkPubKeyHash = await sparkWallet.getIdentityPublicKey();
+
   return {
     pubKeyHash: keyHashes.pubKeyHash,
     stakeCredentialHash: keyHashes.stakeCredentialHash,
@@ -56,5 +70,6 @@ export async function clientGenerateWallet(
     authShard: keyShare2!,
     encryptedRecoveryShard,
     bitcoinPubKeyHash: bitcoinPubKeyHash,
+    sparkPubKeyHash: sparkPubKeyHash,
   };
 }
