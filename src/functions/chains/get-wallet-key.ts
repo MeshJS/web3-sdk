@@ -17,18 +17,6 @@ export function resolveWalletAddress(
           networkId === 1 ? "mainnet" : "testnet",
         ).address,
       };
-    case "spark":
-      const sparkIdentityKey = networkId === 1
-        ? data.sparkMainnetPubKeyHash
-        : data.sparkRegtestPubKeyHash;
-      const sparkAddress = encodeSparkAddress({
-        identityPublicKey: sparkIdentityKey,
-        network: networkId === 1 ? "MAINNET" : "REGTEST",
-      });
-      return {
-        type: "address",
-        address: sparkAddress,
-      };
     default: // cardano
       return {
         type: "address",
