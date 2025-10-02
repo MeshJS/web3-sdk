@@ -28,6 +28,7 @@
   "scripts": {
     "build:sdk": "tsup src/index.ts --format esm,cjs --dts",
     "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
+    "dev:local": "npm run dev",
     "test": "jest"
   },
   "devDependencies": {
