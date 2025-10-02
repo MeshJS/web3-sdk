@@ -26,6 +26,8 @@ export type CreateWalletBody = {
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
+  sparkMainnetPubKeyHash: string;
+  sparkRegtestPubKeyHash: string;
   projectId: string;
 };
 
@@ -48,6 +50,8 @@ export type GetWalletBody = {
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
+  sparkMainnetPubKeyHash?: string;
+  sparkRegtestPubKeyHash?: string;
   projectId: string;
   authShard: string;
 };
@@ -288,6 +292,8 @@ export class Web3NonCustodialProvider {
       encryptedRecoveryShard,
       authShard,
       bitcoinPubKeyHash,
+      sparkMainnetPubKeyHash,
+      sparkRegtestPubKeyHash,
     } = await clientGenerateWallet(spendingPassword, recoveryAnswer);
 
     const body: CreateWalletBody = {
@@ -298,6 +304,8 @@ export class Web3NonCustodialProvider {
       bitcoinPubKeyHash,
       cardanoPubKeyHash: pubKeyHash,
       cardanoStakeCredentialHash: stakeCredentialHash,
+      sparkMainnetPubKeyHash,
+      sparkRegtestPubKeyHash,
       recoveryShardQuestion: recoveryQuestion,
     };
     const res = await fetch(this.appOrigin + "/api/wallet", {

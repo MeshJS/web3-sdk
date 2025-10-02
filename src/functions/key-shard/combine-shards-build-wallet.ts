@@ -2,6 +2,7 @@ import { MeshWallet } from "@meshsdk/wallet";
 import { shamirCombine } from "./shamir-secret-sharing";
 import { bytesToString, hexToBytes } from "../convertors";
 import { EmbeddedWallet } from "@meshsdk/bitcoin";
+import { Web3SparkWallet } from "../../spark/web3-spark-wallet";
 
 export async function combineShardsBuildWallet(
   networkId: 0 | 1,
@@ -32,5 +33,20 @@ export async function combineShardsBuildWallet(
 
   await cardanoWallet.init();
 
-  return { key, bitcoinWallet, cardanoWallet };
+  const sparkWallet = new Web3SparkWallet({
+    network: networkId === 1 ? "MAINNET" : "REGTEST",
+    key: {
+      type: "mnemonic",
+      words: key.split(" ")
+    }
+  });
+
+  await sparkWallet.init();
+
+  return {
+    key,
+    bitcoinWallet,
+    cardanoWallet,
+    sparkWallet
+  };
 }
