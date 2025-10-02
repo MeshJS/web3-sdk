@@ -96,7 +96,7 @@ export type OpenWindowResult =
           }
         | {
             method: "claim-deposit";
-            txId: string; // Transaction ID from claim operation
+            txId: string;
           };
     }
   | {

@@ -1,9 +1,6 @@
 import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import {
-  EmbeddedWallet,
-  TransactionPayload,
-} from "@meshsdk/bitcoin";
+import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
@@ -29,26 +26,55 @@ type InitWeb3WalletOptions = CreateMeshWalletOptions & {
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
-  // chain?: string;
 };
 
 /**
  * Mesh wallet-as-a-service are designed to be strictly non-custodial,
  * meaning neither the developer nor Mesh can access the user's private key.
+ *
+ * @param options - The options to initialize the wallet.
+ * @param options.projectId - Project ID
+ * @param options.appUrl - An optional backend URL, only used for development.
+ * @param options.user - User social data
  */
 export class Web3Wallet {
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
-  chain?: string;
-  cardano?: MeshWallet;
-  bitcoin?: EmbeddedWallet;
-  spark?: Web3SparkWallet;
+  cardano: MeshWallet;
+  bitcoin: EmbeddedWallet;
+  spark: Web3SparkWallet;
 
   constructor(options: InitWeb3WalletOptions) {
     this.projectId = options.projectId;
     this.appUrl = options.appUrl;
     this.user = options.user;
+
+    // Initialize with placeholder instances that will be properly set in initWallet
+    this.cardano = new MeshWallet({
+      networkId: options.networkId || 0,
+      key: {
+        type: "address",
+        address:
+          "addr_test1qpvx0sacufuypa2k4sngk7q40zc5c4npl337uusdh64kv0uafhxhu32dys6pvn6wlw8dav6cmp4pmtv7cc3yel9uu0nq93swx9",
+      },
+    });
+
+    this.bitcoin = new EmbeddedWallet({
+      testnet: options.networkId !== 1,
+      key: {
+        type: "address",
+        address: "bcrt1qssadlsnjxkp2hf93yxge2kukh4m87743jfqx5k",
+      },
+    });
+
+    this.spark = new Web3SparkWallet({
+      network: options.networkId === 1 ? "MAINNET" : "REGTEST",
+      key: {
+        type: "address",
+        address: "sprt1pgssx7zt9eduf4jwvhqyw730qgdnj77g0q0u47fwtp05vwkagz6wd8mkmd4yeu",
+      },
+    });
   }
 
   /**
@@ -113,13 +139,111 @@ export class Web3Wallet {
   }
 
   /**
-   * Requests user to sign the provided transaction (tx). The wallet should ask the user for permission, and if given, try to sign the supplied body and return a signed transaction. partialSign should be true if the transaction provided requires multiple signatures.
+   * Initializes a new instance of a Web3 wallet with the specified options.
    *
-   * @param unsignedTx - a transaction in CBOR
-   * @param partialSign - if the transaction is partially signed (default: false)
-   * @returns a signed transaction in CBOR
+   * @param params - The parameters required to initialize the wallet.
+   * @param params.networkId - The network ID to connect to. Must be either `0` (testnet) or `1` (mainnet).
+   * @param params.address - The wallet address to associate with the wallet instance.
+   * @param params.fetcher - (Optional) An implementation of the `IFetcher` interface for fetching data.
+   * @param params.submitter - (Optional) An implementation of the `ISubmitter` interface for submitting transactions.
+   * @param params.projectId - (Optional) The project ID for analytics or tracking purposes.
+   * @param params.appUrl - (Optional) The application URL for associating the wallet with a specific app.
+   *
+   * @returns A promise that resolves to an initialized instance of `Web3Wallet`.
    */
-  async signTx(
+  static async initWallet({
+    networkId,
+    fetcher,
+    submitter,
+    projectId,
+    appUrl,
+    user,
+    keyHashes,
+  }: {
+    networkId: 0 | 1;
+    fetcher?: IFetcher;
+    submitter?: ISubmitter;
+    projectId?: string;
+    appUrl?: string;
+    user?: UserSocialData;
+    keyHashes: Web3WalletKeyHashes;
+  }) {
+    const _options: InitWeb3WalletOptions = {
+      networkId: networkId,
+      key: resolveWalletAddress("cardano", keyHashes, networkId),
+      fetcher: fetcher,
+      submitter: submitter,
+      projectId: projectId,
+      appUrl: appUrl,
+      user: user,
+    };
+    const wallet = new Web3Wallet(_options);
+
+    // Cardano
+    const cardanoWallet = new MeshWallet({
+      networkId: networkId,
+      key: resolveWalletAddress("cardano", keyHashes, networkId),
+      fetcher: fetcher,
+      submitter: submitter,
+    });
+    await cardanoWallet.init();
+
+    cardanoWallet.signTx = async (unsignedTx: string, partialSign = false) => {
+      return wallet.signTx(unsignedTx, partialSign, "cardano");
+    };
+
+    cardanoWallet.signData = async (payload: string, address?: string) => {
+      return wallet.signData(
+        payload,
+        address,
+        "cardano",
+      ) as Promise<DataSignature>;
+    };
+
+    wallet.cardano = cardanoWallet;
+
+    // Bitcoin
+    const bitcoinWallet = new EmbeddedWallet({
+      testnet: networkId === 0,
+      key: resolveWalletAddress("bitcoin", keyHashes, networkId),
+    });
+
+    bitcoinWallet.signTx = async (payload: TransactionPayload) => {
+      return wallet.signTx(
+        JSON.stringify(payload),
+        false,
+        "bitcoin",
+      ) as Promise<string>;
+    };
+
+    bitcoinWallet.signData = async (payload: string, address?: string) => {
+      return wallet.signData(payload, address, "bitcoin") as Promise<string>;
+    };
+
+    wallet.bitcoin = bitcoinWallet;
+
+    // Spark
+    const sparkWallet = new Web3SparkWallet({
+      network: networkId === 1 ? "MAINNET" : "REGTEST",
+      key: resolveWalletAddress("spark", keyHashes, networkId)
+    });
+
+    sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
+      return wallet.signTx(JSON.stringify(payload), false, "spark");
+    };
+
+    sparkWallet.signData = async (payload: string, address?: string) => {
+      return wallet.signData(payload, address, "spark") as Promise<string>;
+    };
+
+    wallet.spark = sparkWallet;
+
+    return wallet;
+  }
+
+  /* PRIVATE FUNCTIONS */
+
+  private async signTx(
     unsignedTx: string,
     partialSign = false,
     chain?: string,
@@ -154,6 +278,7 @@ export class Web3Wallet {
     return res.data.tx;
   }
 
+  
   /**
    * This endpoint utilizes the [CIP-8 - Message Signing](https://cips.cardano.org/cips/cip8/) to sign arbitrary data, to verify the data was signed by the owner of the private key.
    *
@@ -161,7 +286,7 @@ export class Web3Wallet {
    * @param address - the address to use for signing (optional)
    * @returns a signature
    */
-  async getChangeAddress(chain?: string): Promise<string | undefined> {
+  private async getChangeAddress(chain?: string): Promise<string | undefined> {
     if (chain === "bitcoin" && this.bitcoin) {
       return this.bitcoin.getAddress().address;
     } else if (this.cardano) {
@@ -175,11 +300,13 @@ export class Web3Wallet {
     });
   }
 
-  async getNetworkId(chain?: string): Promise<number> {
+  private async getNetworkId(chain?: string): Promise<number> {
     if (chain === "bitcoin" && this.bitcoin) {
       return this.bitcoin.getNetworkId();
     } else if (this.cardano) {
       return this.cardano.getNetworkId();
+    } else if (this.spark) {
+      return this.spark.getNetworkId();
     }
     throw new ApiError({
       code: 5,
@@ -187,7 +314,7 @@ export class Web3Wallet {
     });
   }
 
-  async signData(
+  private async signData(
     payload: string,
     address?: string,
     chain?: string,
@@ -309,116 +436,6 @@ export class Web3Wallet {
       });
     }
     return { success: true, data: { method: "disable" } };
-  }
-
-  /**
-   * Initializes a new instance of a Web3 wallet with the specified options.
-   *
-   * @param params - The parameters required to initialize the wallet.
-   * @param params.networkId - The network ID to connect to. Must be either `0` (testnet) or `1` (mainnet).
-   * @param params.address - The wallet address to associate with the wallet instance.
-   * @param params.fetcher - (Optional) An implementation of the `IFetcher` interface for fetching data.
-   * @param params.submitter - (Optional) An implementation of the `ISubmitter` interface for submitting transactions.
-   * @param params.projectId - (Optional) The project ID for analytics or tracking purposes.
-   * @param params.appUrl - (Optional) The application URL for associating the wallet with a specific app.
-   *
-   * @returns A promise that resolves to an initialized instance of `Web3Wallet`.
-   */
-  static async initWallet({
-    networkId,
-    fetcher,
-    submitter,
-    projectId,
-    appUrl,
-    user,
-    keyHashes,
-  }: {
-    networkId: 0 | 1;
-    fetcher?: IFetcher;
-    submitter?: ISubmitter;
-    projectId?: string;
-    appUrl?: string;
-    user?: UserSocialData;
-    keyHashes: Web3WalletKeyHashes;
-  }) {
-    const _options: InitWeb3WalletOptions = {
-      networkId: networkId,
-      key: resolveWalletAddress("cardano", keyHashes, networkId),
-      fetcher: fetcher,
-      submitter: submitter,
-      projectId: projectId,
-      appUrl: appUrl,
-      user: user,
-    };
-    const wallet = new Web3Wallet(_options);
-
-    const cardanoWallet = new MeshWallet({
-      networkId: networkId,
-      key: resolveWalletAddress("cardano", keyHashes, networkId),
-      fetcher: fetcher,
-      submitter: submitter,
-    });
-    await cardanoWallet.init();
-
-    cardanoWallet.signTx = async (unsignedTx: string, partialSign = false) => {
-      return wallet.signTx(unsignedTx, partialSign, "cardano");
-    };
-
-    cardanoWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(
-        payload,
-        address,
-        "cardano",
-      ) as Promise<DataSignature>;
-    };
-
-    wallet.cardano = cardanoWallet;
-
-    const bitcoinWallet = new EmbeddedWallet({
-      testnet: networkId === 0,
-      key: resolveWalletAddress("bitcoin", keyHashes, networkId),
-    });
-
-    bitcoinWallet.signTx = async (payload: TransactionPayload) => {
-      return wallet.signTx(
-        JSON.stringify(payload),
-        false,
-        "bitcoin",
-      ) as Promise<string>;
-    };
-
-    bitcoinWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(payload, address, "bitcoin") as Promise<string>;
-    };
-
-    wallet.bitcoin = bitcoinWallet;
-
-    // Create minimal Spark interface for basic operations
-    // Full SparkWallet functionality is available during signing flow via combineShardsBuildWallet
-    if (keyHashes.sparkPubKeyHash) {
-      const sparkWalletAddress = resolveWalletAddress("spark", keyHashes, networkId);
-      
-      const sparkWallet = new Web3SparkWallet({
-        network: networkId === 1 ? "MAINNET" : "REGTEST",
-        key: {
-          type: "address",
-          address: sparkWalletAddress.address,
-          identityPublicKey: keyHashes.sparkPubKeyHash
-        }
-      });
-
-      sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
-        return wallet.signTx(JSON.stringify(payload), false, "spark");
-      };
-
-      sparkWallet.signData = async (payload: string, address?: string) => {
-        return wallet.signData(payload, address, "spark") as Promise<string>;
-      };
-
-      wallet.spark = sparkWallet;
-    }
-
-    return wallet;
   }
 }
 

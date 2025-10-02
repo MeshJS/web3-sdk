@@ -1,5 +1,5 @@
 export type UserSocialData = {
-  avatar_url: string | null;
+  avatarUrl: string | null;
   created_at: string;
   email: string | null;
   id: string;

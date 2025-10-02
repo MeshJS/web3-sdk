@@ -12,7 +12,7 @@ export type CreateSparkWalletOptions = {
   | {
     type: "address";
     address: string;
-    identityPublicKey: string;
+    identityPublicKey?: string;
     depositAddress?: string;
   };
 };
@@ -128,6 +128,14 @@ export class Web3SparkWallet {
   }
 
   /**
+   * Get network ID for the current network
+   * @returns 0 for REGTEST, 1 for MAINNET
+   */
+  getNetworkId(): number {
+    return this._network === "MAINNET" ? 1 : 0;
+  }
+
+  /**
    * Get wallet information for current network only
    */
   async getWalletInfo(): Promise<SparkWalletData> {
@@ -139,9 +147,10 @@ export class Web3SparkWallet {
       throw new Error("Wallet not initialized properly.");
     }
 
-    const [sparkAddress, staticDepositAddress, balanceData, transactionHistory] = await Promise.all([
+    const [sparkAddress, staticDepositAddress, identityPublicKey, balanceData, transactionHistory] = await Promise.all([
       this._sparkWallet.getSparkAddress(),
       this._sparkWallet.getStaticDepositAddress(),
+      this._sparkWallet.getIdentityPublicKey(),
       this._sparkWallet.getBalance(),
       this._sparkWallet.getTransfers?.() || Promise.resolve([])
     ]);
@@ -197,7 +206,6 @@ export class Web3SparkWallet {
       throw new Error("Cannot get multi-network wallet info with a read-only wallet.");
     }
 
-    // Query both networks in parallel if we have mnemonic
     if (this._mnemonic) {
       try {
         const [mainnetData, regtestData] = await Promise.all([
