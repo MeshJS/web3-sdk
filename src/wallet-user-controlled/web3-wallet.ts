@@ -127,7 +127,8 @@ export class Web3Wallet {
         cardanoPubKeyHash: res.data.cardanoPubKeyHash,
         cardanoStakeCredentialHash: res.data.cardanoStakeCredentialHash,
         bitcoinPubKeyHash: res.data.bitcoinPubKeyHash,
-        sparkPubKeyHash: res.data.sparkPubKeyHash,
+        sparkMainnetPubKeyHash: res.data.sparkMainnetPubKeyHash,
+        sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
     });
 
@@ -179,7 +180,6 @@ export class Web3Wallet {
     };
     const wallet = new Web3Wallet(_options);
 
-    // Cardano
     const cardanoWallet = new MeshWallet({
       networkId: networkId,
       key: resolveWalletAddress("cardano", keyHashes, networkId),
@@ -202,7 +202,6 @@ export class Web3Wallet {
 
     wallet.cardano = cardanoWallet;
 
-    // Bitcoin
     const bitcoinWallet = new EmbeddedWallet({
       testnet: networkId === 0,
       key: resolveWalletAddress("bitcoin", keyHashes, networkId),
@@ -222,7 +221,6 @@ export class Web3Wallet {
 
     wallet.bitcoin = bitcoinWallet;
 
-    // Spark
     const sparkWallet = new Web3SparkWallet({
       network: networkId === 1 ? "MAINNET" : "REGTEST",
       key: resolveWalletAddress("spark", keyHashes, networkId)

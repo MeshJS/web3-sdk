@@ -52,7 +52,12 @@ export async function clientGenerateWallet(
   const bitcoinPubKeyHash = bitcoinWallet.getPublicKey();
 
   /* spark */
-  const sparkWallet = new Web3SparkWallet({
+  // Generate network-specific Spark identity keys
+  // NOTE: Spark uses different identity keys per network (by design)
+  // - MAINNET key for production transactions and addresses
+  // - REGTEST key for development/testing transactions and addresses
+  // This ensures proper network isolation and correct address derivation
+  const sparkMainnetWallet = new Web3SparkWallet({
     network: "MAINNET",
     key: {
       type: "mnemonic",
@@ -60,8 +65,23 @@ export async function clientGenerateWallet(
     }
   });
 
-  await sparkWallet.init();
-  const sparkPubKeyHash = await sparkWallet.getIdentityPublicKey();
+  const sparkRegtestWallet = new Web3SparkWallet({
+    network: "REGTEST",
+    key: {
+      type: "mnemonic",
+      words: mnemonic.split(" ")
+    }
+  });
+
+  await Promise.all([
+    sparkMainnetWallet.init(),
+    sparkRegtestWallet.init()
+  ]);
+
+  const [sparkMainnetPubKeyHash, sparkRegtestPubKeyHash] = await Promise.all([
+    sparkMainnetWallet.getIdentityPublicKey(),
+    sparkRegtestWallet.getIdentityPublicKey()
+  ]);
 
   return {
     pubKeyHash: keyHashes.pubKeyHash,
@@ -70,6 +90,7 @@ export async function clientGenerateWallet(
     authShard: keyShare2!,
     encryptedRecoveryShard,
     bitcoinPubKeyHash: bitcoinPubKeyHash,
-    sparkPubKeyHash: sparkPubKeyHash,
+    sparkMainnetPubKeyHash: sparkMainnetPubKeyHash,
+    sparkRegtestPubKeyHash: sparkRegtestPubKeyHash,
   };
 }

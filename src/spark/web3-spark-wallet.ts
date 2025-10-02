@@ -307,34 +307,11 @@ export class Web3SparkWallet {
         message: `Deposit claimed successfully for ${quote.creditAmountSats} sats`,
         claimResult: {
           creditAmountSats: quote.creditAmountSats,
-          transactionId: claimResult?.transferId || ''
+          transferId: claimResult?.transferId || ''
         }
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-      // Parse Spark GraphQL errors
-      if (errorMessage.includes('UTXO is spent or not found')) {
-        return {
-          success: false,
-          message: `⚠️ This deposit has already been claimed or the UTXO is not found. Transaction ID: ${transactionId}`
-        };
-      }
-
-      if (errorMessage.includes('InvalidInputException')) {
-        return {
-          success: false,
-          message: `❌ Invalid transaction parameters. Check the transaction ID and try again. Transaction ID: ${transactionId}`
-        };
-      }
-
-      if (errorMessage.toLowerCase().includes('confirmation')) {
-        return {
-          success: false,
-          message: `⏳ Deposit not ready for claiming. Bitcoin transaction needs 3+ confirmations. Transaction ID: ${transactionId}`
-        };
-      }
-
       return {
         success: false,
         message: `❌ Claim failed: ${errorMessage}. Transaction ID: ${transactionId}`
@@ -446,7 +423,6 @@ export class Web3SparkWallet {
 
     const MIN_REFUND_FEE_SATS = 300;
 
-    // Early return for validation - best practice for SDK APIs
     if (params.satsPerVbyteFee < MIN_REFUND_FEE_SATS) {
       return {
         success: false,
@@ -473,47 +449,5 @@ export class Web3SparkWallet {
         message: `Refund failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
-  }
-
-  /**
-   * Add event listener for wallet events
-   * @param event - Event name to listen for
-   * @param listener - Callback function
-   * @returns This instance for chaining
-   */
-  on(event: keyof SparkWalletEvents, listener: any): this {
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized. Call init() first.");
-    }
-    this._sparkWallet.on(event, listener);
-    return this;
-  }
-
-  /**
-   * Add one-time event listener for wallet events
-   * @param event - Event name to listen for
-   * @param listener - Callback function
-   * @returns This instance for chaining
-   */
-  once(event: keyof SparkWalletEvents, listener: any): this {
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized. Call init() first.");
-    }
-    this._sparkWallet.once(event, listener);
-    return this;
-  }
-
-  /**
-   * Remove event listener for wallet events
-   * @param event - Event name
-   * @param listener - Callback function to remove
-   * @returns This instance for chaining
-   */
-  off(event: keyof SparkWalletEvents, listener: any): this {
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized. Call init() first.");
-    }
-    this._sparkWallet.off(event, listener);
-    return this;
   }
 }

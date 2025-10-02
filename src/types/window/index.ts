@@ -65,7 +65,8 @@ export type OpenWindowResult =
             cardanoPubKeyHash: string;
             cardanoStakeCredentialHash: string;
             bitcoinPubKeyHash: string;
-            sparkPubKeyHash: string;
+            sparkMainnetPubKeyHash: string;
+            sparkRegtestPubKeyHash: string;
             user: UserSocialData;
           }
         | {
