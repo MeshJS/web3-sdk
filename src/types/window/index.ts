@@ -1,6 +1,7 @@
 export * from "./sign-data";
 export * from "./sign-tx";
 export * from "./wallet";
+import { SparkTransaction } from "../../spark";
 import { Web3AuthProvider } from "../core";
 import { UserSocialData } from "../user";
 
@@ -94,6 +95,7 @@ export type OpenWindowResult =
             tokenBalances: any;
             identityPublicKey: string;
             depositTxIds: string[];
+            transactionHistory: SparkTransaction[];
           }
         | {
             method: "claim-deposit";

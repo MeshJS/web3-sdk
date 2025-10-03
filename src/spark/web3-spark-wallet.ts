@@ -28,7 +28,7 @@ export interface SparkTransaction {
   amount: number;
   status: string;
   timestamp?: Date;
-  type?: 'sent' | 'received' | 'claim';
+  type?: 'sent' | 'received';
 }
 
 export interface SparkWalletData {
@@ -198,7 +198,7 @@ export class Web3SparkWallet {
   }
 
   /**
-   * Get comprehensive wallet information for both networks
+   * Get wallet information for both networks
    * Queries MAINNET and REGTEST in parallel for seamless network switching
    */
   async getMultiNetworkWalletInfo(): Promise<SparkWalletInfo> {
