@@ -81,9 +81,10 @@ export class Sponsorship {
     );
 
     if (status !== 200) {
-      throw new Error(
-        "Invalid sponsorship ID or failed to fetch sponsorship config",
-      );
+      return {
+        success: false,
+        error: "Invalid sponsorship ID or failed to fetch sponsorship config",
+      };
     }
 
     const sponsorshipConfig = data as SponsorshipConfig;
