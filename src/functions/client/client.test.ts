@@ -1,8 +1,9 @@
 import { clientDeriveWallet } from "./derive-wallet";
 import { clientGenerateWallet } from "./generate-wallet";
 import { clientRecovery } from "./recovery";
-describe("create a wallet with english words for spending and recovery.", () => {
-  it("should be able to recover the wallet configuration", async () => {
+
+describe("test wallet derive and recovery", () => {
+  it("should be able to recover in english", async () => {
     const wallet = await clientGenerateWallet("hello", "hello");
     const { deviceShard, authShard } = await clientRecovery(
       wallet.authShard,
@@ -11,7 +12,7 @@ describe("create a wallet with english words for spending and recovery.", () => 
       "hello",
     );
 
-    const derivedWallet = clientDeriveWallet(
+    const derivedWallet = await clientDeriveWallet(
       deviceShard,
       "hello",
       authShard,
@@ -20,7 +21,7 @@ describe("create a wallet with english words for spending and recovery.", () => 
     expect(2).toBe(2);
   });
 
-  it("should be able to recover japanese the wallet configuration", async () => {
+  it("should be able to recover in japanese", async () => {
     const wallet = await clientGenerateWallet("こんにちは", "こんにちは");
     const { deviceShard, authShard } = await clientRecovery(
       wallet.authShard,
@@ -29,7 +30,7 @@ describe("create a wallet with english words for spending and recovery.", () => 
       "こんにちは",
     );
 
-    const derivedWallet = clientDeriveWallet(
+    const derivedWallet = await clientDeriveWallet(
       deviceShard,
       "こんにちは",
       authShard,
@@ -38,7 +39,7 @@ describe("create a wallet with english words for spending and recovery.", () => 
     expect(2).toBe(2);
   });
 
-  it("should be able to recover chinese the wallet configuration", async () => {
+  it("should be able to recover in chinese", async () => {
     const wallet = await clientGenerateWallet("你好", "你好");
     const { deviceShard, authShard } = await clientRecovery(
       wallet.authShard,
@@ -47,7 +48,12 @@ describe("create a wallet with english words for spending and recovery.", () => 
       "你好",
     );
 
-    const derivedWallet = clientDeriveWallet(deviceShard, "你好", authShard, 1);
+    const derivedWallet = await clientDeriveWallet(
+      deviceShard,
+      "你好",
+      authShard,
+      1,
+    );
     expect(2).toBe(2);
   });
 });

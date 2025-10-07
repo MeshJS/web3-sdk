@@ -5,16 +5,12 @@ export async function clientRecovery(
   authShard: string,
   recoveryShard: string,
   recoveryAnswer: string,
-  spendingPassword: string
+  spendingPassword: string,
 ) {
   try {
-    const answer = recoveryAnswer
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toLocaleLowerCase();
-
     const recoverKeyShare3 = await decryptWithCipher({
       encryptedDataJSON: recoveryShard,
-      key: answer,
+      key: recoveryAnswer,
     });
 
     const recoverKeyShare2 = authShard;
@@ -22,7 +18,7 @@ export async function clientRecovery(
     const { key } = await combineShardsBuildWallet(
       0, // dont care about network here
       recoverKeyShare2,
-      recoverKeyShare3
+      recoverKeyShare3,
     );
 
     const [keyShare1, keyShare2] = await spiltKeyIntoShards(key);
