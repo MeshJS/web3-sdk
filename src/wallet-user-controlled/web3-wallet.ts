@@ -419,7 +419,7 @@ export class Web3Wallet {
       balance: BigInt(res.data.balance),
       tokenBalances: res.data.tokenBalances,
       identityPublicKey: res.data.identityPublicKey,
-      depositTxIds: res.data.depositTxIds,
+      depositUtxos: res.data.depositUtxos,
       transactionHistory: res.data.transactionHistory,
     };
   }

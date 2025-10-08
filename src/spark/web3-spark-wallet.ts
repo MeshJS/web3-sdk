@@ -1,4 +1,4 @@
-import { SparkWallet, SparkWalletEvents } from "@buildonspark/spark-sdk";
+import { SparkWallet } from "@buildonspark/spark-sdk";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST" | "TESTNET" | "SIGNET";
 
@@ -31,13 +31,18 @@ export interface SparkTransaction {
   type?: 'sent' | 'received';
 }
 
+export interface SparkDepositUtxo {
+  txid: string;
+  vout: number;
+}
+
 export interface SparkWalletData {
   sparkAddress: string;
   staticDepositAddress: string;
   balance: bigint;
   tokenBalances: Map<string, SparkTokenBalance> | SparkTokenBalance[];
   transactionHistory: SparkTransaction[];
-  depositTxIds: string[];
+  depositUtxos: SparkDepositUtxo[];
   identityPublicKey: string;
 }
 
@@ -54,8 +59,19 @@ export interface SparkClaimResult {
   message: string;
   claimResult?: {
     creditAmountSats: number;
-    transactionId: string;
+    transferId: string;
   };
+}
+
+export interface SparkDepositClaimRecord {
+  txHash: string;
+  outputIndex: number;
+  sparkAddress: string;
+  walletId: string;
+  claimedAt: string;
+  sparkTransferId?: string;
+  amountSats?: number;
+  network: string;
 }
 
 export interface SparkTransactionPayload {
@@ -156,7 +172,11 @@ export class Web3SparkWallet {
     ]);
     
     const depositUtxos = await this._sparkWallet.getUtxosForDepositAddress(staticDepositAddress);
-    const depositTxIds = depositUtxos ? depositUtxos.map((utxo: any) => utxo.txid).filter(Boolean) : [];
+    const depositUtxosData: SparkDepositUtxo[] = depositUtxos ? 
+      depositUtxos.map((utxo: any) => ({
+        txid: utxo.txid,
+        vout: utxo.vout
+      })).filter((utxo) => utxo.txid && utxo.vout !== undefined) : [];
 
     // Transform token balances
     const transformedTokenBalances: SparkTokenBalance[] = [];
@@ -192,60 +212,9 @@ export class Web3SparkWallet {
       balance: balanceData.balance,
       tokenBalances: transformedTokenBalances,
       transactionHistory: transformedHistory,
-      depositTxIds,
+      depositUtxos: depositUtxosData,
       identityPublicKey
     };
-  }
-
-  /**
-   * Get wallet information for both networks
-   * Queries MAINNET and REGTEST in parallel for seamless network switching
-   */
-  async getMultiNetworkWalletInfo(): Promise<SparkWalletInfo> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot get multi-network wallet info with a read-only wallet.");
-    }
-
-    if (this._mnemonic) {
-      try {
-        const [mainnetData, regtestData] = await Promise.all([
-          this._queryNetworkData("MAINNET"),
-          this._queryNetworkData("REGTEST")
-        ]);
-
-        return {
-          network: this._network,
-          networks: {
-            mainnet: mainnetData,
-            regtest: regtestData
-          }
-        };
-      } catch (error) {
-        console.warn("Failed to query multi-network data, returning current network only:", error);
-      }
-    }
-
-    // Fallback to current network only
-    const currentData = await this.getWalletInfo();
-    return {
-      network: this._network,
-      networks: {
-        [this._network.toLowerCase()]: currentData
-      }
-    };
-  }
-
-  /**
-   * Helper method to query wallet data for a specific network
-   */
-  private async _queryNetworkData(network: ValidSparkNetwork): Promise<SparkWalletData> {
-    const tempWallet = new Web3SparkWallet({
-      network,
-      key: { type: "mnemonic", words: this._mnemonic || [] }
-    });
-
-    await tempWallet.init();
-    return tempWallet.getWalletInfo();
   }
 
   /**
@@ -277,6 +246,7 @@ export class Web3SparkWallet {
 
     return this._sparkWallet.getStaticDepositAddress();
   }
+
 
   /**
    * Claim Bitcoin deposit
@@ -312,10 +282,22 @@ export class Web3SparkWallet {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        success: false,
-        message: `❌ Claim failed: ${errorMessage}. Transaction ID: ${transactionId}`
-      };
+      
+      // Handle specific Spark SDK errors
+      if (errorMessage.includes('UTXO is already claimed')) {
+        throw new Error('This transaction has already been claimed. Each Bitcoin transaction can only be claimed once.');
+      }
+      
+      if (errorMessage.includes('InvalidOperationException')) {
+        throw new Error('Invalid claim operation. Please check that the transaction ID is correct and has sufficient confirmations.');
+      }
+      
+      if (errorMessage.includes('StaticDepositQuote failed')) {
+        throw new Error('Unable to get deposit quote. The transaction may not be ready for claiming or may already be processed.');
+      }
+      
+      // Re-throw the original error if we don't have a specific handler
+      throw error;
     }
   }
 
@@ -350,21 +332,12 @@ export class Web3SparkWallet {
         throw new Error("transactionId is required for claim-deposit operation");
       }
       return this.claimBitcoinDeposit(payload.transactionId);
-    }
-
-    if (payload.operation === "send") {
+    } else {
       if (!payload.receiverSparkAddress || !payload.amountSats) {
-        throw new Error("receiverSparkAddress and amountSats are required for send operation");
+        throw new Error("receiverSparkAddress and amountSats are required for transaction signing");
       }
       return this.sendToUser(payload.receiverSparkAddress, payload.amountSats);
     }
-
-    // Backwards compatibility - treat as send if no operation specified
-    if (!payload.receiverSparkAddress || !payload.amountSats) {
-      throw new Error("receiverSparkAddress and amountSats are required for transaction signing");
-    }
-
-    return this.sendToUser(payload.receiverSparkAddress, payload.amountSats);
   }
 
   /**
