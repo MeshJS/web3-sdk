@@ -2,8 +2,10 @@ import { MeshWallet } from "@meshsdk/wallet";
 import { generateMnemonic } from "@meshsdk/common";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
 import { EmbeddedWallet } from "@meshsdk/bitcoin";
+import { SparkWallet } from "@buildonspark/spark-sdk";
 import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
+import { Web3SparkWallet } from "../../spark";
 
 export async function clientGenerateWallet(
   spendingPassword: string,
@@ -49,6 +51,38 @@ export async function clientGenerateWallet(
 
   const bitcoinPubKeyHash = bitcoinWallet.getPublicKey();
 
+  /* spark */
+  // Generate network-specific Spark identity keys
+  // NOTE: Spark uses different identity keys per network (by design)
+  // - MAINNET key for production transactions and addresses
+  // - REGTEST key for development/testing transactions and addresses
+  // This ensures proper network isolation and correct address derivation
+  const sparkMainnetWallet = new Web3SparkWallet({
+    network: "MAINNET",
+    key: {
+      type: "mnemonic",
+      words: mnemonic.split(" ")
+    }
+  });
+
+  const sparkRegtestWallet = new Web3SparkWallet({
+    network: "REGTEST",
+    key: {
+      type: "mnemonic",
+      words: mnemonic.split(" ")
+    }
+  });
+
+  await Promise.all([
+    sparkMainnetWallet.init(),
+    sparkRegtestWallet.init()
+  ]);
+
+  const [sparkMainnetPubKeyHash, sparkRegtestPubKeyHash] = await Promise.all([
+    sparkMainnetWallet.getIdentityPublicKey(),
+    sparkRegtestWallet.getIdentityPublicKey()
+  ]);
+
   return {
     pubKeyHash: keyHashes.pubKeyHash,
     stakeCredentialHash: keyHashes.stakeCredentialHash,
@@ -56,5 +90,7 @@ export async function clientGenerateWallet(
     authShard: keyShare2!,
     encryptedRecoveryShard,
     bitcoinPubKeyHash: bitcoinPubKeyHash,
+    sparkMainnetPubKeyHash: sparkMainnetPubKeyHash,
+    sparkRegtestPubKeyHash: sparkRegtestPubKeyHash,
   };
 }

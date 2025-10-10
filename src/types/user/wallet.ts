@@ -16,6 +16,8 @@ export type Web3WalletObject = {
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
+  sparkMainnetPubKeyHash: string;
+  sparkRegtestPubKeyHash: string;
   projectId: string;
 };
 
@@ -28,4 +30,6 @@ export type Web3WalletKeyHashes = {
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
+  sparkMainnetPubKeyHash: string;
+  sparkRegtestPubKeyHash: string;
 };

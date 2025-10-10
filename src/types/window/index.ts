@@ -1,6 +1,7 @@
 export * from "./sign-data";
 export * from "./sign-tx";
 export * from "./wallet";
+import { SparkTransaction, SparkDepositUtxo } from "../../spark";
 import { Web3AuthProvider } from "../core";
 import { UserSocialData } from "../user";
 
@@ -41,6 +42,19 @@ export type OpenWindowParams =
   | {
       method: "disable";
       projectId: string;
+    }
+  | {
+      method: "get-wallet-info";
+      projectId: string;
+      chain?: string;
+      networkId?: string;
+    }
+  | {
+      method: "claim-deposit";
+      projectId: string;
+      payload: string;
+      chain?: string;
+      networkId?: string;
     };
 
 export type OpenWindowResult =
@@ -52,6 +66,8 @@ export type OpenWindowResult =
             cardanoPubKeyHash: string;
             cardanoStakeCredentialHash: string;
             bitcoinPubKeyHash: string;
+            sparkMainnetPubKeyHash: string;
+            sparkRegtestPubKeyHash: string;
             user: UserSocialData;
           }
         | {
@@ -70,6 +86,20 @@ export type OpenWindowResult =
           }
         | {
             method: "disable";
+          }
+        | {
+            method: "get-wallet-info";
+            sparkAddress: string;
+            staticDepositAddress: string;
+            balance: string;
+            tokenBalances: any;
+            identityPublicKey: string;
+            depositUtxos: SparkDepositUtxo[];
+            transactionHistory: SparkTransaction[];
+          }
+        | {
+            method: "claim-deposit";
+            txId: string;
           };
     }
   | {

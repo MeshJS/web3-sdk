@@ -13,11 +13,11 @@ export async function clientDeriveWallet(
   });
   const keyShare2 = custodialShard;
 
-  const { bitcoinWallet, cardanoWallet, key } = await combineShardsBuildWallet(
+  const { bitcoinWallet, cardanoWallet, sparkWallet, key } = await combineShardsBuildWallet(
     networkId,
     keyShare1,
     keyShare2,
   );
 
-  return { bitcoinWallet, cardanoWallet, key };
+  return { bitcoinWallet, cardanoWallet, sparkWallet, key };
 }
