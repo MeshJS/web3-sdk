@@ -30,7 +30,10 @@ export type EnableWeb3WalletOptions = {
   keepWindowOpen?: boolean;
 };
 
-type InitWeb3WalletOptions = CreateMeshWalletOptions & {
+type InitWeb3WalletOptions = {
+  networkId: 0 | 1;
+  fetcher?: IFetcher;
+  submitter?: ISubmitter;
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
@@ -289,14 +292,11 @@ export class Web3Wallet {
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
   }) {
-    const _options: InitWeb3WalletOptions = {
+    const _options: CreateMeshWalletOptions = {
       networkId: networkId,
       key: resolveWalletAddress("cardano", keyHashes, networkId),
       fetcher: fetcher,
       submitter: submitter,
-      projectId: projectId,
-      appUrl: appUrl,
-      user: user,
     };
     const wallet = new Web3Wallet(_options);
 
