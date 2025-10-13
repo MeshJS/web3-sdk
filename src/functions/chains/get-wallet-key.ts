@@ -6,16 +6,13 @@ import { getAddressFromHashes } from "../key-shard";
 export function resolveWalletAddress(
   chain: "cardano" | "bitcoin" | "spark",
   data: Web3WalletKeyHashes,
-  networkId: 0 | 1,
+  network: "mainnet" | "testnet",
 ): { type: "address"; address: string } {
   switch (chain) {
     case "bitcoin":
       return {
         type: "address",
-        address: resolveAddress(
-          data.bitcoinPubKeyHash,
-          networkId === 1 ? "mainnet" : "testnet",
-        ).address,
+        address: resolveAddress(data.bitcoinPubKeyHash, network).address,
       };
     default: // cardano
       return {
@@ -23,7 +20,7 @@ export function resolveWalletAddress(
         address: getAddressFromHashes(
           data.cardanoPubKeyHash,
           data.cardanoStakeCredentialHash,
-          networkId,
+          network === "testnet" ? 0 : 1,
         ),
       };
   }
