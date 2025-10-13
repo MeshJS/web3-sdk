@@ -1,3 +1,4 @@
+import { CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { UserSocialData } from "../user/social-data";
 
 export type WindowWalletReq = {
@@ -19,3 +20,9 @@ export type UserControlledWalletDirectTo =
   | "twitter"
   | "discord"
   | "apple";
+
+export type CreateWalletOptions = CreateMeshWalletOptions & {
+  appUrl?: string;
+  projectId?: string;
+  user?: UserSocialData;
+};
