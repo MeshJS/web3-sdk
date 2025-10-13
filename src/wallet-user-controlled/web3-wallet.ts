@@ -13,6 +13,11 @@ import {
   SparkTransactionPayload,
   Web3SparkWallet,
 } from "../spark/web3-spark-wallet";
+import {
+  TransactionWitnessSet,
+  Serialization,
+  deserializeTx,
+} from "@meshsdk/core-cst";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -303,8 +308,18 @@ export class Web3Wallet {
     });
     await cardanoWallet.init();
 
-    cardanoWallet.signTx = async (unsignedTx: string, partialSign = false) => {
-      return wallet.signTx(unsignedTx, partialSign, "cardano");
+    cardanoWallet.signTx = async (
+      unsignedTx: string,
+      partialSign = false,
+      returnFullTx = true,
+    ) => {
+      const txCbor = await wallet.signTx(unsignedTx, partialSign, "cardano");
+      if (returnFullTx === false) {
+        const tx = deserializeTx(txCbor);
+        return tx.witnessSet().toCbor().toString();
+      } else {
+        return txCbor;
+      }
     };
 
     cardanoWallet.signData = async (payload: string, address?: string) => {
