@@ -1,15 +1,20 @@
-import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
+import { MeshWallet } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
   Web3WalletKeyHashes,
+  CreateWalletOptions,
+  Web3AuthProvider,
 } from "../types";
-import { Web3AuthProvider } from "../types";
 import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
-import { SparkTransactionPayload, Web3SparkWallet } from "../spark/web3-spark-wallet";
+import {
+  SparkTransactionPayload,
+  Web3SparkWallet,
+} from "../spark/web3-spark-wallet";
+import { deserializeTx } from "@meshsdk/core-cst";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -22,7 +27,10 @@ export type EnableWeb3WalletOptions = {
   keepWindowOpen?: boolean;
 };
 
-type InitWeb3WalletOptions = CreateMeshWalletOptions & {
+type InitWeb3WalletOptions = {
+  networkId: 0 | 1;
+  fetcher?: IFetcher;
+  submitter?: ISubmitter;
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
@@ -72,7 +80,8 @@ export class Web3Wallet {
       network: options.networkId === 1 ? "MAINNET" : "REGTEST",
       key: {
         type: "address",
-        address: "sprt1pgssx7zt9eduf4jwvhqyw730qgdnj77g0q0u47fwtp05vwkagz6wd8mkmd4yeu",
+        address:
+          "sprt1pgssx7zt9eduf4jwvhqyw730qgdnj77g0q0u47fwtp05vwkagz6wd8mkmd4yeu",
       },
     });
   }
@@ -176,7 +185,6 @@ export class Web3Wallet {
     return res.data.tx;
   }
 
-  
   /**
    * This endpoint utilizes the [CIP-8 - Message Signing](https://cips.cardano.org/cips/cip8/) to sign arbitrary data, to verify the data was signed by the owner of the private key.
    *
@@ -281,13 +289,12 @@ export class Web3Wallet {
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
   }) {
-    const _options: InitWeb3WalletOptions = {
+    const _options: CreateWalletOptions = {
       networkId: networkId,
-      key: resolveWalletAddress("cardano", keyHashes, networkId),
       fetcher: fetcher,
       submitter: submitter,
-      projectId: projectId,
       appUrl: appUrl,
+      projectId: projectId,
       user: user,
     };
     const wallet = new Web3Wallet(_options);
@@ -300,8 +307,18 @@ export class Web3Wallet {
     });
     await cardanoWallet.init();
 
-    cardanoWallet.signTx = async (unsignedTx: string, partialSign = false) => {
-      return wallet.signTx(unsignedTx, partialSign, "cardano");
+    cardanoWallet.signTx = async (
+      unsignedTx: string,
+      partialSign = false,
+      returnFullTx = true,
+    ) => {
+      const txCbor = await wallet.signTx(unsignedTx, partialSign, "cardano");
+      if (returnFullTx === false) {
+        const tx = deserializeTx(txCbor);
+        return tx.witnessSet().toCbor().toString();
+      } else {
+        return txCbor;
+      }
     };
 
     cardanoWallet.signData = async (payload: string, address?: string) => {
@@ -335,15 +352,11 @@ export class Web3Wallet {
 
     const sparkWallet = new Web3SparkWallet({
       network: networkId === 1 ? "MAINNET" : "REGTEST",
-      key: resolveWalletAddress("spark", keyHashes, networkId)
+      key: resolveWalletAddress("spark", keyHashes, networkId),
     });
 
     sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
-      return wallet.signTx(
-        JSON.stringify(payload),
-        false,
-        "spark"
-      );
+      return wallet.signTx(JSON.stringify(payload), false, "spark");
     };
 
     sparkWallet.signData = async (payload: string, address?: string) => {
