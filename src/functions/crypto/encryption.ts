@@ -12,28 +12,6 @@ export async function encryptWithCipher({
   algorithm?: string;
   initializationVectorSize?: number;
 }) {
-  // Derive a cryptographic key from the input key using SHA-256
-  // const keyMaterial = await crypto.subtle.importKey(
-  //   "raw",
-  //   new TextEncoder().encode(key),
-  //   { name: "PBKDF2" },
-  //   false,
-  //   ["deriveKey"]
-  // );
-
-  // const cryptoKey = await crypto.subtle.deriveKey(
-  //   {
-  //     name: "PBKDF2",
-  //     salt: new Uint8Array(initializationVectorSize), // Use a fixed salt for simplicity
-  //     iterations: 100000,
-  //     hash: "SHA-256",
-  //   },
-  //   keyMaterial,
-  //   { name: algorithm, length: 256 },
-  //   false,
-  //   ["encrypt"]
-  // );
-
   // Create an initialization vector
   const iv = crypto.getRandomValues(new Uint8Array(initializationVectorSize));
 
@@ -63,28 +41,6 @@ export async function decryptWithCipher({
     iv: string;
     ciphertext: string;
   } = JSON.parse(encryptedDataJSON);
-
-  // Derive a cryptographic key from the input key using SHA-256
-  // const keyMaterial = await crypto.subtle.importKey(
-  //   "raw",
-  //   new TextEncoder().encode(key),
-  //   { name: "PBKDF2" },
-  //   false,
-  //   ["deriveKey"],
-  // );
-
-  // const cryptoKey = await crypto.subtle.deriveKey(
-  //   {
-  //     name: "PBKDF2",
-  //     salt: new Uint8Array(Buffer.from(_encryptedData.iv, "base64").length), // Use the same salt size as IV
-  //     iterations: 100000,
-  //     hash: "SHA-256",
-  //   },
-  //   keyMaterial,
-  //   { name: algorithm, length: 256 },
-  //   false,
-  //   ["decrypt"],
-  // );
 
   // Decode the IV and encrypted data from base64
   const decodedIv = Buffer.from(_encryptedData.iv, "base64");

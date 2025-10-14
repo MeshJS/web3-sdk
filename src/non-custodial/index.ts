@@ -18,6 +18,7 @@ type LocalShardWalletObjects = {
 
 export type StorageLocation = "local_storage" | "chrome_local" | "chrome_sync";
 
+// We need to adjust the API to allow for users to create a wallet using the webauthnCredentialId as well!
 export type CreateWalletBody = {
   userAgent: string;
   recoveryShard: string;
