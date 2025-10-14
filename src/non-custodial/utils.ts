@@ -1,7 +1,6 @@
 const IV_LENGTH = 16;
 
 export async function secretToCryptoKey(secret: string, algorithm = "AES-GCM") {
-  // Derive a cryptographic key from the input key using SHA-256
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -20,6 +19,25 @@ export async function secretToCryptoKey(secret: string, algorithm = "AES-GCM") {
     keyMaterial,
     { name: algorithm, length: 256 },
     false,
-    ["encrypt"],
+    ["encrypt", "decrypt"],
+  );
+}
+
+export async function webauthnPublicKeyCredentialToCryptoKey(
+  credential: PublicKeyCredential,
+  algorithm = "AES-GCM",
+) {
+  const extensionResults = credential.getClientExtensionResults();
+  if (!extensionResults.prf?.results?.first) {
+    throw new Error("PRF extension not supported or didn't return results");
+  }
+
+  const prfOutput = extensionResults.prf.results.first;
+  return await crypto.subtle.importKey(
+    "raw",
+    prfOutput,
+    { name: algorithm, length: 256 },
+    false,
+    ["encrypt", "decrypt"],
   );
 }
