@@ -1,5 +1,5 @@
-import { CreateMeshWalletOptions } from "@meshsdk/wallet";
 import { UserSocialData } from "../user/social-data";
+import { IFetcher, ISubmitter } from "@meshsdk/common";
 
 export type WindowWalletReq = {
   networkId: 0 | 1;
@@ -21,7 +21,10 @@ export type UserControlledWalletDirectTo =
   | "discord"
   | "apple";
 
-export type CreateWalletOptions = CreateMeshWalletOptions & {
+export type CreateWalletOptions = {
+  networkId: 0 | 1;
+  fetcher?: IFetcher | undefined;
+  submitter?: ISubmitter;
   appUrl?: string;
   projectId?: string;
   user?: UserSocialData;

@@ -291,7 +291,6 @@ export class Web3Wallet {
   }) {
     const _options: CreateWalletOptions = {
       networkId: networkId,
-      key: resolveWalletAddress("cardano", keyHashes, networkId),
       fetcher: fetcher,
       submitter: submitter,
       appUrl: appUrl,
