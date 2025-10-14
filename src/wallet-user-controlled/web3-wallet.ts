@@ -1,23 +1,20 @@
-import { MeshWallet, CreateMeshWalletOptions } from "@meshsdk/wallet";
+import { MeshWallet } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
 import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
   Web3WalletKeyHashes,
+  CreateWalletOptions,
+  Web3AuthProvider,
 } from "../types";
-import { Web3AuthProvider } from "../types";
 import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
 import {
   SparkTransactionPayload,
   Web3SparkWallet,
 } from "../spark/web3-spark-wallet";
-import {
-  TransactionWitnessSet,
-  Serialization,
-  deserializeTx,
-} from "@meshsdk/core-cst";
+import { deserializeTx } from "@meshsdk/core-cst";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -292,11 +289,13 @@ export class Web3Wallet {
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
   }) {
-    const _options: CreateMeshWalletOptions = {
+    const _options: CreateWalletOptions = {
       networkId: networkId,
-      key: resolveWalletAddress("cardano", keyHashes, networkId),
       fetcher: fetcher,
       submitter: submitter,
+      appUrl: appUrl,
+      projectId: projectId,
+      user: user,
     };
     const wallet = new Web3Wallet(_options);
 
