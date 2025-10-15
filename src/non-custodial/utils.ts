@@ -1,4 +1,9 @@
 const IV_LENGTH = 16;
+const staticSalt = new Uint8Array(new Array(32).fill(1)).buffer;
+const rp = {
+  name: "UTXOS Wallet Custodial Key",
+  id: "utxos.dev",
+};
 
 export async function secretToCryptoKey(secret: string, algorithm = "AES-GCM") {
   const keyMaterial = await crypto.subtle.importKey(
@@ -40,4 +45,83 @@ export async function webauthnPublicKeyCredentialToCryptoKey(
     false,
     ["encrypt", "decrypt"],
   );
+}
+
+export async function getPrfOutputFromCredentialId(credentialId: string) {
+  const opts = {
+    publicKey: {
+      challenge: new Uint8Array(32).fill(2), // Same challenge for consistency
+      rpId: rp.id,
+      allowCredentials: [
+        {
+          id: new TextEncoder().encode(credentialId),
+          type: "public-key",
+        },
+      ],
+      userVerification: "required",
+      extensions: {
+        prf: {
+          eval: {
+            first: staticSalt,
+          },
+        },
+      },
+    },
+  } as CredentialRequestOptions;
+
+  const credential = (await navigator.credentials.get(
+    opts,
+  )) as PublicKeyCredential;
+  const extensionResults = credential.getClientExtensionResults();
+  if (!extensionResults.prf?.results?.first) {
+    throw new Error("PRF extension not supported or didn't return results");
+  }
+
+  return extensionResults.prf.results.first;
+}
+
+export async function createCredential() {
+  const credentialId = crypto.randomUUID();
+  const opts: CredentialCreationOptions = {
+    publicKey: {
+      challenge: new Uint8Array([1, 2, 3, 4]), // Example value
+      rp,
+      user: {
+        id: new TextEncoder().encode(credentialId),
+        name: "web3 testing user",
+        displayName: "Web3 Service",
+      },
+      pubKeyCredParams: [
+        { alg: -8, type: "public-key" }, // Ed25519
+        { alg: -7, type: "public-key" }, // ES256
+        { alg: -257, type: "public-key" }, // RS256
+      ],
+      authenticatorSelection: {
+        userVerification: "required",
+        residentKey: "required",
+        requireResidentKey: true,
+      },
+      extensions: {
+        prf: {
+          eval: {
+            first: staticSalt,
+          },
+        },
+        credProps: true,
+      },
+    },
+  };
+  const credential = (await navigator.credentials.create(
+    opts,
+  )) as PublicKeyCredential;
+  const extensionResults = credential.getClientExtensionResults();
+
+  if (!extensionResults.prf?.results?.first) {
+    throw new Error("PRF extension not supported or didn't return results");
+  }
+
+  return {
+    credentialId: credential.id,
+    prfOutput: extensionResults.prf.results.first,
+  };
 }
