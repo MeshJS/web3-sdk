@@ -212,7 +212,7 @@ export class Web3Wallet {
     } else if (this.cardano) {
       return this.cardano.getNetworkId();
     } else if (this.spark) {
-      return this.spark.network === "MAINNET" ? 1 : 0;
+      return this.spark.getNetworkId();
     }
     throw new ApiError({
       code: 5,
@@ -359,20 +359,33 @@ export class Web3Wallet {
     // Original Error: SparkSDKError: Invalid public key
     // Context: field: "publicKey", value: ""
     // Original Error: bad point: got length 0, expected compressed=33 or uncompressed=65
+    const identityPublicKey = networkId === 1
+      ? keyHashes.sparkMainnetPubKeyHash
+      : keyHashes.sparkRegtestPubKeyHash;
 
-    const sparkWallet = new Web3SparkWallet({
-      network: networkId === 1 ? "MAINNET" : "REGTEST",
-      sparkscanApiKey: sparkscanApiKey || "",
-      key: {
-        type: "address",
-        address: resolveWalletAddress("spark", keyHashes, networkId).address!,
-        identityPublicKey:
-          networkId === 1
-            ? keyHashes.sparkMainnetPubKeyHash
-            : keyHashes.sparkRegtestPubKeyHash,
-      },
-    });
-    wallet.spark = sparkWallet;
+    if (!identityPublicKey || identityPublicKey.trim() === "") {
+      console.warn("Skipping Spark wallet initialization: missing public key hash");
+      wallet.spark = new Web3SparkWallet({ network: networkId === 1 ? "MAINNET" : "REGTEST"});
+      return wallet;
+    } else {
+      try {
+        const sparkWallet = new Web3SparkWallet({
+          network: networkId === 1 ? "MAINNET" : "REGTEST",
+          projectId: _options.projectId,
+          appUrl: _options.appUrl,
+          sparkscanApiKey: sparkscanApiKey || "",
+          key: {
+            type: "address",
+            address: resolveWalletAddress("spark", keyHashes, networkId).address!,
+            identityPublicKey,
+          },
+        });
+        wallet.spark = sparkWallet;
+      } catch (error) {
+        console.warn("Failed to create Spark wallet:", error);
+        wallet.spark = new Web3SparkWallet({ network: networkId === 1 ? "MAINNET" : "REGTEST"});
+      }
+    }
 
     return wallet;
   }
@@ -407,43 +420,6 @@ export class Web3Wallet {
     }
 
     return { success: true, data: { method: "export-wallet" } };
-  }
-
-  async getWalletInfo(chain?: string) {
-    chain = chain ?? "spark";
-    const networkId = await this.getNetworkId(chain);
-    const res: OpenWindowResult = await openWindow(
-      {
-        method: "get-wallet-info",
-        projectId: this.projectId!,
-        chain: chain,
-        networkId: String(networkId),
-      },
-      this.appUrl,
-    );
-
-    if (res.success === false)
-      throw new ApiError({
-        code: 3,
-        info: "UserDeclined - User declined to get wallet info.",
-      });
-
-    if (res.data.method !== "get-wallet-info") {
-      throw new ApiError({
-        code: 2,
-        info: "Received the wrong response from the iframe.",
-      });
-    }
-
-    return {
-      sparkAddress: res.data.sparkAddress,
-      staticDepositAddress: res.data.staticDepositAddress,
-      balance: BigInt(res.data.balance),
-      tokenBalances: res.data.tokenBalances,
-      identityPublicKey: res.data.identityPublicKey,
-      depositUtxos: res.data.depositUtxos,
-      transactionHistory: res.data.transactionHistory,
-    };
   }
 
   async disable() {

@@ -5,7 +5,6 @@ import { EmbeddedWallet } from "@meshsdk/bitcoin";
 import { SparkWallet } from "@buildonspark/spark-sdk";
 import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
-import { Web3SparkWallet } from "../../spark";
 
 export async function clientGenerateWallet(
   spendingPassword: string,
