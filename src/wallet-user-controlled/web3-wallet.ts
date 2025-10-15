@@ -10,10 +10,7 @@ import {
 } from "../types";
 import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
-import {
-  SparkTransactionPayload,
-  Web3SparkWallet,
-} from "../spark/web3-spark-wallet";
+import { Web3SparkWallet } from "../spark/web3-spark-wallet";
 import { deserializeTx } from "@meshsdk/core-cst";
 
 export type EnableWeb3WalletOptions = {
@@ -25,6 +22,7 @@ export type EnableWeb3WalletOptions = {
   directTo?: Web3AuthProvider;
   refreshToken?: string;
   keepWindowOpen?: boolean;
+  sparkscanApiKey?: string;
 };
 
 type InitWeb3WalletOptions = {
@@ -78,10 +76,11 @@ export class Web3Wallet {
 
     this.spark = new Web3SparkWallet({
       network: options.networkId === 1 ? "MAINNET" : "REGTEST",
+      sparkscanApiKey: "",
       key: {
         type: "address",
         address:
-          "sprt1pgssx7zt9eduf4jwvhqyw730qgdnj77g0q0u47fwtp05vwkagz6wd8mkmd4yeu",
+          "sprt1pgssyqmq9av0le9296ew9fssyhsa90zczmmvnl3mwcs3p0k0ls60rnda43drxq",
       },
     });
   }
@@ -139,6 +138,7 @@ export class Web3Wallet {
         sparkMainnetPubKeyHash: res.data.sparkMainnetPubKeyHash,
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
+      sparkscanApiKey: options.sparkscanApiKey,
     });
 
     return wallet;
@@ -198,7 +198,7 @@ export class Web3Wallet {
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
-      return (await this.spark.getWalletInfo()).sparkAddress;
+      return (await this.spark.spark_getAddress()).address;
     }
     throw new ApiError({
       code: 5,
@@ -212,7 +212,7 @@ export class Web3Wallet {
     } else if (this.cardano) {
       return this.cardano.getNetworkId();
     } else if (this.spark) {
-      return this.spark.getNetworkId();
+      return this.spark.network === "MAINNET" ? 1 : 0;
     }
     throw new ApiError({
       code: 5,
@@ -280,6 +280,7 @@ export class Web3Wallet {
     appUrl,
     user,
     keyHashes,
+    sparkscanApiKey,
   }: {
     networkId: 0 | 1;
     fetcher?: IFetcher;
@@ -288,6 +289,7 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
+    sparkscanApiKey?: string;
   }) {
     const _options: CreateWalletOptions = {
       networkId: networkId,
@@ -352,16 +354,24 @@ export class Web3Wallet {
 
     const sparkWallet = new Web3SparkWallet({
       network: networkId === 1 ? "MAINNET" : "REGTEST",
-      key: resolveWalletAddress("spark", keyHashes, networkId),
+      sparkscanApiKey: sparkscanApiKey || "",
+      key: {
+        type: "address",
+        address: resolveWalletAddress("spark", keyHashes, networkId).address!,
+        identityPublicKey:
+          networkId === 1
+            ? keyHashes.sparkMainnetPubKeyHash
+            : keyHashes.sparkRegtestPubKeyHash,
+      },
     });
 
-    sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
-      return wallet.signTx(JSON.stringify(payload), false, "spark");
-    };
+    // sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
+    //   return wallet.signTx(JSON.stringify(payload), false, "spark");
+    // };
 
-    sparkWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(payload, address, "spark") as Promise<string>;
-    };
+    // sparkWallet.signData = async (payload: string, address?: string) => {
+    //   return wallet.signData(payload, address, "spark") as Promise<string>;
+    // };
 
     wallet.spark = sparkWallet;
 

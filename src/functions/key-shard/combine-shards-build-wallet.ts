@@ -7,7 +7,7 @@ import { Web3SparkWallet } from "../../spark/web3-spark-wallet";
 export async function combineShardsBuildWallet(
   networkId: 0 | 1,
   keyShard1: string,
-  keyShard2: string
+  keyShard2: string,
 ) {
   const _share1 = hexToBytes(keyShard1);
   const _share2 = hexToBytes(keyShard2);
@@ -33,20 +33,18 @@ export async function combineShardsBuildWallet(
 
   await cardanoWallet.init();
 
-  const sparkWallet = new Web3SparkWallet({
+  const sparkWallet = await Web3SparkWallet.enable({
     network: networkId === 1 ? "MAINNET" : "REGTEST",
     key: {
       type: "mnemonic",
-      words: key.split(" ")
-    }
+      words: key.split(" "),
+    },
   });
-
-  await sparkWallet.init();
 
   return {
     key,
     bitcoinWallet,
     cardanoWallet,
-    sparkWallet
+    sparkWallet,
   };
 }
