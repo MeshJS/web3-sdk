@@ -9,7 +9,7 @@ import { Web3SparkWallet } from "../../spark";
 
 export async function clientGenerateWallet(
   spendingPassword: string,
-  recoveryAnswer: string
+  recoveryAnswer: string,
 ) {
   const mnemonic = await generateMnemonic(256);
 
@@ -57,30 +57,24 @@ export async function clientGenerateWallet(
   // - MAINNET key for production transactions and addresses
   // - REGTEST key for development/testing transactions and addresses
   // This ensures proper network isolation and correct address derivation
-  const sparkMainnetWallet = new Web3SparkWallet({
-    network: "MAINNET",
-    key: {
-      type: "mnemonic",
-      words: mnemonic.split(" ")
-    }
+
+  const { wallet: sparkMainnetWallet } = await SparkWallet.initialize({
+    mnemonicOrSeed: mnemonic,
+    options: {
+      network: "MAINNET",
+    },
   });
 
-  const sparkRegtestWallet = new Web3SparkWallet({
-    network: "REGTEST",
-    key: {
-      type: "mnemonic",
-      words: mnemonic.split(" ")
-    }
+  const { wallet: sparkRegtestWallet } = await SparkWallet.initialize({
+    mnemonicOrSeed: mnemonic,
+    options: {
+      network: "REGTEST",
+    },
   });
-
-  await Promise.all([
-    sparkMainnetWallet.init(),
-    sparkRegtestWallet.init()
-  ]);
 
   const [sparkMainnetPubKeyHash, sparkRegtestPubKeyHash] = await Promise.all([
     sparkMainnetWallet.getIdentityPublicKey(),
-    sparkRegtestWallet.getIdentityPublicKey()
+    sparkRegtestWallet.getIdentityPublicKey(),
   ]);
 
   return {

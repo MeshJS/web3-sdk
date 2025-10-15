@@ -6,16 +6,11 @@ export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 export type CreateSparkWalletOptions = {
   network: ValidSparkNetwork;
   sparkscanApiKey?: string;
-  key:
-    | {
-        type: "mnemonic";
-        words: string[];
-      }
-    | {
-        type: "address";
-        address: string;
-        identityPublicKey?: string;
-      };
+  key: {
+    type: "address";
+    address: string;
+    identityPublicKey?: string;
+  };
 };
 
 export class Web3SparkWallet {
@@ -44,7 +39,6 @@ export class Web3SparkWallet {
     options: CreateSparkWalletOptions,
   ): Promise<Web3SparkWallet> {
     // todo: default: open iframe, and get wallet info, should return publicKey, this is used for devs integrating spark wallet
-    // todo: if mnemonic, derive spark wallet from mnemonic, this is used at /client page
     // todo: if address, use address and identityPublicKey, is read only.
 
     const publicKey =
