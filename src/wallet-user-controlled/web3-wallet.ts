@@ -351,6 +351,14 @@ export class Web3Wallet {
     };
 
     wallet.bitcoin = bitcoinWallet;
+    console.log("keyHashes", keyHashes);
+
+    // todo: keyHashes.sparkMainnetPubKeyHash and keyHashes.sparkRegtestPubKeyHash can be "" (empty string), and that will cause error
+    // SparkSDKError: Failed to encode Spark address
+    // Context: field: "publicKey", value: ""
+    // Original Error: SparkSDKError: Invalid public key
+    // Context: field: "publicKey", value: ""
+    // Original Error: bad point: got length 0, expected compressed=33 or uncompressed=65
 
     const sparkWallet = new Web3SparkWallet({
       network: networkId === 1 ? "MAINNET" : "REGTEST",
@@ -364,15 +372,6 @@ export class Web3Wallet {
             : keyHashes.sparkRegtestPubKeyHash,
       },
     });
-
-    // sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
-    //   return wallet.signTx(JSON.stringify(payload), false, "spark");
-    // };
-
-    // sparkWallet.signData = async (payload: string, address?: string) => {
-    //   return wallet.signData(payload, address, "spark") as Promise<string>;
-    // };
-
     wallet.spark = sparkWallet;
 
     return wallet;
