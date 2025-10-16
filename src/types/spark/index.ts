@@ -115,3 +115,11 @@ export interface WalletInfo {
     staticDepositAddress: string;
     publicKey: string;
 }
+
+export interface SparkSignMessageResult {
+    signature: Uint8Array;
+}
+
+export interface SparkTransferResult {
+    txid: string;
+}

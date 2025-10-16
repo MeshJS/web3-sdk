@@ -2,8 +2,7 @@ import axios, { AxiosInstance } from "axios";
 import { ApiError } from "../wallet-user-controlled";
 import { OpenWindowResult } from "../types";
 import { openWindow } from "../functions";
-import { Bech32mTokenIdentifier, SparkWallet } from "@buildonspark/spark-sdk";
-import { OutputWithPreviousTransactionData } from "@buildonspark/spark-sdk/dist/proto/spark_token";
+import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
 import * as Spark from "../types/spark";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST";
@@ -32,11 +31,9 @@ export class Web3SparkWallet {
 
     constructor(options: EnableSparkWalletOptions) {
         this._axiosInstance = axios.create({
-            // baseURL: `https://api.sparkscan.io/v1`, // todo, when in SDK, point to sparkscan
-            // baseURL: `/api/sparkscan/`,
-            baseURL: options.baseUrl, // For now let's add baseUrl
+            baseURL: options.baseUrl || "/api/sparkscan/",
             headers: {
-                Authorization: `Bearer ${options.sparkscanApiKey}`,
+                Accept: "application/json",
             },
         });
         this.network = options.network;
@@ -52,9 +49,6 @@ export class Web3SparkWallet {
     static async enable(
         options: EnableSparkWalletOptions,
     ): Promise<Web3SparkWallet> {
-        // todo: default: open iframe, and get wallet info, should return publicKey, this is used for devs integrating spark wallet
-        // todo: if address, use address and identityPublicKey, is read only.
-
         if (options.key?.type === "address") {
             return new Web3SparkWallet(options);
         }
@@ -116,7 +110,7 @@ export class Web3SparkWallet {
     async transfer(
         receiverSparkAddress: string,
         amountSats: number,
-    ): Promise<string> {
+    ): Promise<Spark.SparkTransferResult> {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
                 code: 1,
@@ -156,7 +150,7 @@ export class Web3SparkWallet {
                 });
             }
 
-            return res.data.tx;
+            return { txid: res.data.tx };
         } catch (error) {
             throw new ApiError({
                 code: 4,
@@ -168,10 +162,8 @@ export class Web3SparkWallet {
     async transferTokens(
         receiverSparkAddress: string,
         tokenIdentifier: Bech32mTokenIdentifier,
-        tokenAmount: bigint,
-        outputSelectionStrategy?: "SMALL_FIRST" | "LARGE_FIRST",
-        selectedOutputs?: OutputWithPreviousTransactionData[],
-    ): Promise<string> {
+        tokenAmount: bigint
+    ): Promise<Spark.SparkTransferResult> {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
                 code: 1,
@@ -184,9 +176,7 @@ export class Web3SparkWallet {
             const payload = JSON.stringify({
                 receiverSparkAddress,
                 tokenIdentifier,
-                tokenAmount: tokenAmount.toString(),
-                outputSelectionStrategy,
-                selectedOutputs,
+                tokenAmount: tokenAmount.toString()
             });
 
             const res: OpenWindowResult = await openWindow(
@@ -214,7 +204,7 @@ export class Web3SparkWallet {
                 });
             }
 
-            return res.data.tx;
+            return { txid: res.data.tx };
         } catch (error) {
             throw new ApiError({
                 code: 4,
@@ -223,7 +213,7 @@ export class Web3SparkWallet {
         }
     }
 
-    async signMessage(message: string, compact?: boolean | undefined) {
+    async signMessage(message: string, compact?: boolean): Promise<Spark.SparkSignMessageResult> {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
                 code: 1,
@@ -234,11 +224,12 @@ export class Web3SparkWallet {
         try {
             const networkId = this.network === "MAINNET" ? 1 : 0;
 
+            const payload = JSON.stringify({ message, compact: compact ?? false });
             const res: OpenWindowResult = await openWindow(
                 {
                     method: "sign-data",
                     projectId: this.projectId,
-                    payload: message,
+                    payload: payload,
                     address: this.sparkAddress,
                     chain: "spark",
                     networkId: String(networkId),
@@ -259,7 +250,10 @@ export class Web3SparkWallet {
                 });
             }
 
-            return res.data.signature;
+            const signatureHex = res.data.signature.signature;
+            const signatureBytes = new Uint8Array(Buffer.from(signatureHex, 'hex'));
+            
+            return { signature: signatureBytes };
         } catch (error) {
             throw new ApiError({
                 code: 6,
@@ -321,7 +315,7 @@ export class Web3SparkWallet {
     }> {
         try {
             const response = await this._axiosInstance.get(
-                `/address/${this.sparkAddress}?network=${this.network}`,
+                `address/${this.sparkAddress}?network=${this.network}`,
             );
 
             const balanceData = response.data;
@@ -376,7 +370,7 @@ export class Web3SparkWallet {
             params.append("order", order);
 
             const response = await this._axiosInstance.get(
-                `/address/${this.sparkAddress}/transactions?${params.toString()}`
+                `address/${this.sparkAddress}/transactions?${params.toString()}`
             );
 
             return {
@@ -389,6 +383,75 @@ export class Web3SparkWallet {
                 info: "Failed to fetch address transactions: " + error,
             });
         }
+    }
+
+    async activateWallet(): Promise<{ sparkAddress: string; staticDepositAddress: string; publicKey: string }> {
+        if (!this.projectId || !this.appUrl) {
+            throw new ApiError({
+                code: 1,
+                info: "Activate wallet requires projectId and appUrl",
+            });
+        }
+
+        const networkId = this.network === "MAINNET" ? 1 : 0;
+        const res: OpenWindowResult = await openWindow(
+            {
+                method: "activate-wallet",
+                projectId: this.projectId,
+                chain: "spark",
+                networkId: String(networkId),
+            },
+            this.appUrl,
+        );
+
+        if (res.success === false)
+            throw new ApiError({
+                code: 3,
+                info: "UserDeclined - User declined to activate Spark wallet.",
+            });
+
+        if (res.data.method !== "activate-wallet") {
+            throw new ApiError({
+                code: 2,
+                info: "Received the wrong response from the iframe.",
+            });
+        }
+
+        this.sparkAddress = res.data.address;
+        this.publicKey = res.data.pubKeyHash;
+
+        return {
+            sparkAddress: res.data.address,
+            staticDepositAddress: res.data.staticDepositAddress,
+            publicKey: res.data.pubKeyHash,
+        };
+    }
+
+    // Standardized signing methods for consistent wallet bridge interface
+    // These methods provide the same API as other chains (cardano.signTx, bitcoin.signTx)
+    // allowing the wallet bridge to use uniform method calls across all chains
+    async signTx(payload: string): Promise<string> {
+        const data = JSON.parse(payload);
+
+        if (data.tokenIdentifier) {
+            const result = await this.transferTokens(
+                data.receiverSparkAddress,
+                data.tokenIdentifier,
+                BigInt(data.tokenAmount)
+            );
+            return result.txid;
+        } else {
+            const result = await this.transfer(
+                data.receiverSparkAddress,
+                data.amountSats
+            );
+            return result.txid;
+        }
+    }
+
+    async signData(message: string): Promise<string> {
+        const result = await this.signMessage(message);
+        return Buffer.from(result.signature).toString('hex');
     }
 }
 

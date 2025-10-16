@@ -351,7 +351,6 @@ export class Web3Wallet {
     };
 
     wallet.bitcoin = bitcoinWallet;
-    console.log("keyHashes", keyHashes);
 
     // todo: keyHashes.sparkMainnetPubKeyHash and keyHashes.sparkRegtestPubKeyHash can be "" (empty string), and that will cause error
     // SparkSDKError: Failed to encode Spark address

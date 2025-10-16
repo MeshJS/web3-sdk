@@ -54,6 +54,12 @@ export type OpenWindowParams =
       payload: string;
       chain?: string;
       networkId?: string;
+    }
+  | {
+      method: "activate-wallet";
+      projectId: string;
+      chain?: string;
+      networkId?: string;
     };
 
 export type OpenWindowResult =
@@ -95,6 +101,12 @@ export type OpenWindowResult =
         | {
             method: "claim-deposit";
             txId: string;
+          }
+        | {
+            method: "activate-wallet";
+            address: string;
+            staticDepositAddress: string;
+            pubKeyHash: string;
           };
     }
   | {
