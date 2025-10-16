@@ -100,7 +100,7 @@ export class Web3SparkWallet {
         return this.network === "MAINNET" ? 1 : 0;
     }
 
-    spark_getAddress(): {
+    getAddress(): {
         address: string;
         network: string;
         publicKey: string;
@@ -113,10 +113,10 @@ export class Web3SparkWallet {
     }
 
 
-    async spark_transfer(
+    async transfer(
         receiverSparkAddress: string,
         amountSats: number,
-    ): Promise<{ txid: string }> {
+    ): Promise<string> {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
                 code: 1,
@@ -156,7 +156,7 @@ export class Web3SparkWallet {
                 });
             }
 
-            return { txid: res.data.tx };
+            return res.data.tx;
         } catch (error) {
             throw new ApiError({
                 code: 4,
@@ -165,13 +165,13 @@ export class Web3SparkWallet {
         }
     }
 
-    async spark_transferToken(
+    async transferTokens(
         receiverSparkAddress: string,
         tokenIdentifier: Bech32mTokenIdentifier,
         tokenAmount: bigint,
         outputSelectionStrategy?: "SMALL_FIRST" | "LARGE_FIRST",
         selectedOutputs?: OutputWithPreviousTransactionData[],
-    ): Promise<{ txid: string }> {
+    ): Promise<string> {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
                 code: 1,
@@ -214,7 +214,7 @@ export class Web3SparkWallet {
                 });
             }
 
-            return { txid: res.data.tx };
+            return res.data.tx;
         } catch (error) {
             throw new ApiError({
                 code: 4,
@@ -223,7 +223,7 @@ export class Web3SparkWallet {
         }
     }
 
-    async spark_signMessage(message: string, compact?: boolean | undefined) {
+    async signMessage(message: string, compact?: boolean | undefined) {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
                 code: 1,
@@ -268,7 +268,7 @@ export class Web3SparkWallet {
         }
     }
 
-    async spark_claimStaticDeposit(txId: string): Promise<string | undefined> {
+    async claimStaticDeposit(txId: string): Promise<string | undefined> {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
                 code: 1,
@@ -315,7 +315,7 @@ export class Web3SparkWallet {
         }
     }
 
-    async spark_getBalance(): Promise<{
+    async getBalance(): Promise<{
         balance: bigint;
         tokenBalances: Spark.TokenBalances;
     }> {
@@ -354,7 +354,7 @@ export class Web3SparkWallet {
         }
     }
 
-    async spark_addressTransactions(
+    async getTransfers(
         limit?: number,
         offset?: number,
         asset?: string | null,

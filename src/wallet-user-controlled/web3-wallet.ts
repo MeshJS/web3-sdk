@@ -198,7 +198,7 @@ export class Web3Wallet {
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
-      return (await this.spark.spark_getAddress()).address;
+      return this.spark.getAddress().address;
     }
     throw new ApiError({
       code: 5,
