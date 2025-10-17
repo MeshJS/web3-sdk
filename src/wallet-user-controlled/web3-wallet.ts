@@ -367,8 +367,11 @@ export class Web3Wallet {
 
     if (!identityPublicKey || identityPublicKey.trim() === "") {
       console.warn("Skipping Spark wallet initialization: missing public key hash");
-      wallet.spark = new Web3SparkWallet({ network: networkId === 1 ? "MAINNET" : "REGTEST"});
-      return wallet;
+      wallet.spark = new Web3SparkWallet({
+        network: networkId === 1 ? "MAINNET" : "REGTEST",
+        projectId: _options.projectId,
+        appUrl: _options.appUrl
+      });
     } else {
       try {
         const sparkWallet = new Web3SparkWallet({
@@ -386,7 +389,11 @@ export class Web3Wallet {
         wallet.spark = sparkWallet;
       } catch (error) {
         console.warn("Failed to create Spark wallet:", error);
-        wallet.spark = new Web3SparkWallet({ network: networkId === 1 ? "MAINNET" : "REGTEST"});
+        wallet.spark = new Web3SparkWallet({
+          network: networkId === 1 ? "MAINNET" : "REGTEST",
+          projectId: _options.projectId,
+          appUrl: _options.appUrl
+        });
       }
     }
 
