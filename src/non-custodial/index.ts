@@ -2,6 +2,7 @@ import { clientGenerateWallet, clientRecovery } from "../functions";
 import { Web3JWTBody } from "../types";
 import { Web3WalletObject } from "../types";
 import { Web3AuthProvider } from "../types/core";
+export * from "./utils";
 
 const AUTH_KEY = "mesh-web3-services-auth";
 type AuthJwtLocationObject = {

@@ -2,7 +2,7 @@ const IV_LENGTH = 16;
 const staticSalt = new Uint8Array(new Array(32).fill(1)).buffer;
 const rp = {
   name: "UTXOS Wallet Custodial Key",
-  id: "utxos.dev",
+  id: "localhost",
 };
 
 export async function secretToCryptoKey(secret: string, algorithm = "AES-GCM") {
@@ -33,14 +33,16 @@ export async function webauthnPublicKeyCredentialToCryptoKey(
   algorithm = "AES-GCM",
 ) {
   const extensionResults = credential.getClientExtensionResults();
-  if (!extensionResults.prf?.results?.first) {
+  const first = (extensionResults as any).prf?.results?.first as
+    | BufferSource
+    | undefined;
+  if (first === undefined) {
     throw new Error("PRF extension not supported or didn't return results");
   }
 
-  const prfOutput = extensionResults.prf.results.first;
   return await crypto.subtle.importKey(
     "raw",
-    prfOutput,
+    first,
     { name: algorithm, length: 256 },
     false,
     ["encrypt", "decrypt"],
@@ -67,22 +69,25 @@ export async function getPrfOutputFromCredentialId(credentialId: string) {
         },
       },
     },
-  } as CredentialRequestOptions;
+  } as any;
 
   const credential = (await navigator.credentials.get(
     opts,
   )) as PublicKeyCredential;
   const extensionResults = credential.getClientExtensionResults();
-  if (!extensionResults.prf?.results?.first) {
+  const first = (extensionResults as any).prf?.results?.first as
+    | BufferSource
+    | undefined;
+  if (first === undefined) {
     throw new Error("PRF extension not supported or didn't return results");
   }
 
-  return extensionResults.prf.results.first;
+  return first;
 }
 
 export async function createCredential() {
   const credentialId = crypto.randomUUID();
-  const opts: CredentialCreationOptions = {
+  const opts = {
     publicKey: {
       challenge: new Uint8Array([1, 2, 3, 4]), // Example value
       rp,
@@ -112,16 +117,22 @@ export async function createCredential() {
     },
   };
   const credential = (await navigator.credentials.create(
-    opts,
+    opts as any,
   )) as PublicKeyCredential;
-  const extensionResults = credential.getClientExtensionResults();
 
-  if (!extensionResults.prf?.results?.first) {
+  const extensionResults = credential.getClientExtensionResults();
+  console.log(extensionResults);
+
+  const first = (extensionResults as any).prf?.results?.first as
+    | BufferSource
+    | undefined;
+
+  if (first === undefined) {
     throw new Error("PRF extension not supported or didn't return results");
   }
 
   return {
-    credentialId: credential.id,
-    prfOutput: extensionResults.prf.results.first,
+    credential: credential,
+    prfOutput: first,
   };
 }
