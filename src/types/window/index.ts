@@ -60,6 +60,12 @@ export type OpenWindowParams =
       projectId: string;
       chain?: string;
       networkId?: string;
+    }
+  | {
+      method: "get-deposit-address";
+      projectId: string;
+      chain?: string;
+      networkId?: string;
     };
 
 export type OpenWindowResult =
@@ -107,6 +113,10 @@ export type OpenWindowResult =
             address: string;
             staticDepositAddress: string;
             pubKeyHash: string;
+          }
+        | {
+            method: "get-deposit-address";
+            staticDepositAddress: string;
           };
     }
   | {

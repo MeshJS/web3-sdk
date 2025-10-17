@@ -123,3 +123,34 @@ export interface SparkSignMessageResult {
 export interface SparkTransferResult {
     txid: string;
 }
+
+export interface AddressSummary {
+    sparkAddress: string;
+    publicKey: string;
+    balance: {
+        btcSoftBalanceSats: bigint;
+        btcHardBalanceSats: bigint;
+        btcValueUsdHard: number;
+        btcValueUsdSoft: number;
+        totalTokenValueUsd: number;
+    };
+    totalValueUsd: number;
+    transactionCount: number;
+    tokenCount: number;
+    tokens: Array<{
+        tokenIdentifier: string;
+        tokenAddress: string;
+        name: string;
+        ticker: string;
+        decimals: number;
+        balance: bigint;
+        valueUsd: number;
+        issuerPublicKey: string;
+        maxSupply: bigint | null;
+        isFreezable: boolean | null;
+    }>;
+}
+
+export interface LatestTxidResponse {
+    [address: string]: string | null;
+}

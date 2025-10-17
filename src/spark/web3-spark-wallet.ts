@@ -318,7 +318,7 @@ export class Web3SparkWallet {
                 `address/${this.sparkAddress}?network=${this.network}`,
             );
 
-            const balanceData = response.data;
+            const balanceData = response.data as Spark.AddressSummary;
             const tokenBalancesMap = new Map();
 
             if (balanceData.tokens && Array.isArray(balanceData.tokens)) {
@@ -337,7 +337,7 @@ export class Web3SparkWallet {
             }
 
             return {
-                balance: BigInt(balanceData.balance.btcSoftBalanceSats || 0),
+                balance: BigInt(balanceData.balance.btcHardBalanceSats || 0),
                 tokenBalances: tokenBalancesMap,
             };
         } catch (error) {
@@ -385,6 +385,36 @@ export class Web3SparkWallet {
         }
     }
 
+    async getLatestTxid(addresses: string[]): Promise<Spark.LatestTxidResponse> {
+        try {
+            if (addresses.length === 0) {
+                throw new ApiError({
+                    code: 1,
+                    info: "At least one address is required",
+                });
+            }
+
+            if (addresses.length > 100) {
+                throw new ApiError({
+                    code: 1,
+                    info: "Maximum 100 addresses allowed",
+                });
+            }
+
+            const response = await this._axiosInstance.post(
+                `bitcoin/addresses/latest-txid?network=${this.network}`,
+                addresses
+            );
+
+            return response.data as Spark.LatestTxidResponse;
+        } catch (error) {
+            throw new ApiError({
+                code: 5,
+                info: "Failed to fetch latest transaction IDs: " + error,
+            });
+        }
+    }
+
     async activateWallet(): Promise<{ sparkAddress: string; staticDepositAddress: string; publicKey: string }> {
         if (!this.projectId || !this.appUrl) {
             throw new ApiError({
@@ -425,6 +455,41 @@ export class Web3SparkWallet {
             staticDepositAddress: res.data.staticDepositAddress,
             publicKey: res.data.pubKeyHash,
         };
+    }
+
+    async getDepositAddress(): Promise<string> {
+        if (!this.projectId || !this.appUrl) {
+            throw new ApiError({
+                code: 1,
+                info: "Get deposit address requires projectId and appUrl",
+            });
+        }
+
+        const networkId = this.network === "MAINNET" ? 1 : 0;
+        const res: OpenWindowResult = await openWindow(
+            {
+                method: "get-deposit-address",
+                projectId: this.projectId,
+                chain: "spark",
+                networkId: String(networkId),
+            },
+            this.appUrl,
+        );
+
+        if (res.success === false)
+            throw new ApiError({
+                code: 3,
+                info: "UserDeclined - User declined to get deposit address.",
+            });
+
+        if (res.data.method !== "get-deposit-address") {
+            throw new ApiError({
+                code: 2,
+                info: "Received the wrong response from the iframe.",
+            });
+        }
+
+        return res.data.staticDepositAddress;
     }
 
     // Standardized signing methods for consistent wallet bridge interface

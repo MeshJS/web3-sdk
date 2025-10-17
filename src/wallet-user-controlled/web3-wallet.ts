@@ -22,6 +22,7 @@ export type EnableWeb3WalletOptions = {
   directTo?: Web3AuthProvider;
   refreshToken?: string;
   keepWindowOpen?: boolean;
+  baseUrl?: string;
   sparkscanApiKey?: string;
 };
 
@@ -280,6 +281,7 @@ export class Web3Wallet {
     appUrl,
     user,
     keyHashes,
+    baseUrl,
     sparkscanApiKey,
   }: {
     networkId: 0 | 1;
@@ -289,6 +291,7 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
+    baseUrl?: string,
     sparkscanApiKey?: string;
   }) {
     const _options: CreateWalletOptions = {
@@ -373,6 +376,7 @@ export class Web3Wallet {
           projectId: _options.projectId,
           appUrl: _options.appUrl,
           sparkscanApiKey: sparkscanApiKey || "",
+          baseUrl: baseUrl,
           key: {
             type: "address",
             address: resolveWalletAddress("spark", keyHashes, networkId).address!,
