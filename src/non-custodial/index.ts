@@ -49,13 +49,13 @@ export type GetWalletBody = {
   userId: string;
   recoveryShard: string;
   createdAt: string;
-  recoveryShardQuestion?: string; // This becomes optional
-  webauthnCredentialId?: string; // if using webauthn, this credential is the passkey
+  recoveryShardQuestion: string | null;
+  webauthnCredentialId: string | null;
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
-  sparkMainnetPubKeyHash?: string;
-  sparkRegtestPubKeyHash?: string;
+  sparkMainnetPubKeyHash: string | null;
+  sparkRegtestPubKeyHash: string | null;
   projectId: string;
   authShard: string;
 };

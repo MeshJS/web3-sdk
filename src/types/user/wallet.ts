@@ -12,12 +12,14 @@ export type Web3WalletObject = {
   createdAt: string;
   userId: string;
   authShard: string;
-  recovery: Web3WalletRecovery;
+  recoveryShardQuestion: string | null;
+  recoveryShard: string;
+  webauthnCredentialId: string | null;
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
-  sparkMainnetPubKeyHash: string;
-  sparkRegtestPubKeyHash: string;
+  sparkMainnetPubKeyHash: string | null;
+  sparkRegtestPubKeyHash: string | null;
   projectId: string;
 };
 
