@@ -270,7 +270,7 @@ export class Web3NonCustodialProvider {
   }
 
   async createWallet(
-    deviceShardEncryptionKey: CryptoKey, // turn these into crypto keys
+    deviceShardEncryptionKey: CryptoKey,
     recoveryShardEncryptionKey: CryptoKey,
     recoveryQuestion?: string,
     webauthnCredentialId?: string,
