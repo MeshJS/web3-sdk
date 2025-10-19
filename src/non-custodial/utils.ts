@@ -49,7 +49,7 @@ export async function webauthnPublicKeyCredentialToCryptoKey(
   );
 }
 
-export async function getPrfOutputFromCredentialId(credentialId: string) {
+export async function getCredentialFromCredentialId(credentialId: string) {
   const opts = {
     publicKey: {
       challenge: new Uint8Array(32).fill(2), // Same challenge for consistency
@@ -82,7 +82,7 @@ export async function getPrfOutputFromCredentialId(credentialId: string) {
     throw new Error("PRF extension not supported or didn't return results");
   }
 
-  return first;
+  return credential;
 }
 
 export async function createCredential() {
