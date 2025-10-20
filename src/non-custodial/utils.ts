@@ -56,11 +56,15 @@ export async function getCredentialFromCredentialId(credentialId: string) {
       rpId: rp.id,
       allowCredentials: [
         {
-          id: new TextEncoder().encode(credentialId),
+          id: base64urlToUint8Array(credentialId),
           type: "public-key",
         },
       ],
-      userVerification: "required",
+      authenticatorSelection: {
+        userVerification: "required",
+        residentKey: "required",
+        requireResidentKey: true,
+      },
       extensions: {
         prf: {
           eval: {
@@ -86,13 +90,13 @@ export async function getCredentialFromCredentialId(credentialId: string) {
 }
 
 export async function createCredential() {
-  const credentialId = crypto.randomUUID();
+  const buf = crypto.getRandomValues(new Uint8Array(32)).buffer;
   const opts = {
     publicKey: {
       challenge: new Uint8Array([1, 2, 3, 4]), // Example value
       rp,
       user: {
-        id: new TextEncoder().encode(credentialId),
+        id: buf,
         name: "web3 testing user",
         displayName: "Web3 Service",
       },
@@ -135,4 +139,26 @@ export async function createCredential() {
     credential: credential,
     prfOutput: first,
   };
+}
+
+function base64urlToUint8Array(base64url: string) {
+  // remove whitespace/newlines if any
+  const s = base64url.replace(/\s+/g, "");
+  const base64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+  const binary = atob(base64 + pad);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function arrayBufferToBase64url(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++)
+    binary += String.fromCharCode(bytes[i]!);
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }

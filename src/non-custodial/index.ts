@@ -81,6 +81,7 @@ export type GetDevicesResponse = {
   walletId: string;
   authShard: string;
   userAgent: string | null;
+  webauthnCredentialId: string | null;
 }[];
 
 export type Web3NonCustodialProviderParams = {
@@ -110,6 +111,7 @@ export type Web3NonCustodialWallet = {
   authShard: string;
   localShard: string;
   userAgent: string | null;
+  webauthnCredentialId: string | null;
 };
 
 export class NotAuthenticatedError extends Error {
@@ -259,6 +261,7 @@ export class Web3NonCustodialProvider {
         authShard: device.authShard,
         userAgent: device.userAgent,
         localShard: localShard!.keyShard,
+        webauthnCredentialId: device.webauthnCredentialId,
       };
       return i;
     });
