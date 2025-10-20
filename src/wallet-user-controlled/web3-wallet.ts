@@ -96,6 +96,9 @@ export class Web3Wallet {
    * @param options.projectId - An optional project ID for analytics or tracking.
    * @param options.appUrl - An optional application URL for the wallet.
    * @param options.directTo - An optional parameter to specify the user-controlled wallet direct-to option.
+   * @param options.refreshToken - An optional refresh token for authentication.
+   * @param options.keepWindowOpen - An optional flag to keep the wallet window open after operations.
+   * @param options.sparkscanApiKey - An optional API key for Sparkscan integration.
    *
    * @returns A promise that resolves to an instance of Web3Wallet.
    */
@@ -199,7 +202,7 @@ export class Web3Wallet {
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
-      return this.spark.getAddress().address;
+      return await this.spark.getSparkAddress();
     }
     throw new ApiError({
       code: 5,

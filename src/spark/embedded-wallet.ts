@@ -1,5 +1,6 @@
 import { SparkWallet } from "@buildonspark/spark-sdk";
 import * as Spark from "../types/spark";
+import { WalletTransfer } from "../types/spark";
 
 // Wrapper around SparkWallet for iframe operations,
 // similar to how EmbeddedWallet works for Bitcoin
@@ -41,7 +42,7 @@ export class EmbeddedSparkWallet {
         return result;
     }
 
-    async signTx(payload: string): Promise<string> {
+    async signTx(payload: string): Promise<string | WalletTransfer> {
         const transferData = JSON.parse(payload);
         
         if (transferData.tokenIdentifier) {
@@ -58,7 +59,7 @@ export class EmbeddedSparkWallet {
                 receiverSparkAddress: transferData.receiverSparkAddress,
                 amountSats: transferData.amountSats,
             });
-            return result?.id;
+            return result;
         }
     }
 
