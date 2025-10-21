@@ -97,8 +97,8 @@ export async function createCredential() {
       rp,
       user: {
         id: buf,
-        name: "web3 testing user",
-        displayName: "Web3 Service",
+        name: "UTXOS Wallet Key",
+        displayName: "UTXOS Wallet Key",
       },
       pubKeyCredParams: [
         { alg: -8, type: "public-key" }, // Ed25519
