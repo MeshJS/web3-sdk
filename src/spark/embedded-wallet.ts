@@ -2,6 +2,7 @@ import { SparkWallet } from "@buildonspark/spark-sdk";
 import * as Spark from "../types/spark";
 import { WalletTransfer } from "../types/spark";
 
+// TODO: improve this
 // Wrapper around SparkWallet for iframe operations,
 // similar to how EmbeddedWallet works for Bitcoin
 // Handles payload parsing and extracts responses
