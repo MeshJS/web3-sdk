@@ -32,17 +32,9 @@ export class EmbeddedSparkWallet {
     }
 
     async signData(payload: string): Promise<string> {
-        let message: string;
-        let compact: boolean | undefined;
-
-        try {
-            const parsed = JSON.parse(payload);
-            message = parsed.message;
-            compact = parsed.compact;
-        } catch {
-            message = payload;
-            compact = undefined;
-        }
+        const parsed = JSON.parse(payload);
+        const message = parsed.message;
+        const compact = parsed.compact;
 
         const result = await this.sparkWallet.signMessageWithIdentityKey(message, compact);
         return result;

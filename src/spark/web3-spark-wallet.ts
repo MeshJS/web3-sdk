@@ -812,7 +812,7 @@ export class Web3SparkWallet {
      * Gets comprehensive wallet information in a single call via iframe
      * Custom convenience method that combines multiple official Spark API calls:
      * - getSparkAddress()
-     * - getIdentityPublicKey() 
+     * - getIdentityPublicKey()
      * - getStaticDepositAddress()
      * @returns Promise resolving to complete wallet info including addresses and network
      * @throws ApiError if wallet info retrieval fails or user declines
