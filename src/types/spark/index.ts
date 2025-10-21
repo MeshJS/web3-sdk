@@ -109,6 +109,26 @@ export interface WalletInfo {
     sparkAddress: string;
     staticDepositAddress: string;
     publicKey: string;
+    networkId: number;
+}
+
+export interface TokenBalanceWithMetadata {
+    tokenIdentifier: string;
+    balance: bigint;
+    bech32mTokenIdentifier: string;
+    metadata?: {
+        name: string;
+        ticker: string;
+        decimals: number;
+        issuerPublicKey: string;
+        maxSupply: bigint | null;
+        isFreezable: boolean | null;
+    };
+}
+
+export interface BalanceWithMetadata {
+    balance: bigint;
+    tokenBalances: TokenBalanceWithMetadata[];
 }
 
 export interface SparkSignMessageResult {

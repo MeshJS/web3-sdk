@@ -143,6 +143,7 @@ export class Web3Wallet {
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
       sparkscanApiKey: options.sparkscanApiKey,
+      baseUrl: options.baseUrl
     });
 
     return wallet;
@@ -373,7 +374,9 @@ export class Web3Wallet {
       wallet.spark = new Web3SparkWallet({
         network: networkId === 1 ? "MAINNET" : "REGTEST",
         projectId: _options.projectId,
-        appUrl: _options.appUrl
+        appUrl: _options.appUrl,
+        sparkscanApiKey: sparkscanApiKey || "",
+        baseUrl: baseUrl
       });
     } else {
       try {
@@ -395,7 +398,9 @@ export class Web3Wallet {
         wallet.spark = new Web3SparkWallet({
           network: networkId === 1 ? "MAINNET" : "REGTEST",
           projectId: _options.projectId,
-          appUrl: _options.appUrl
+          appUrl: _options.appUrl,
+          sparkscanApiKey: sparkscanApiKey || "",
+          baseUrl: baseUrl
         });
       }
     }
