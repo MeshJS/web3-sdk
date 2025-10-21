@@ -1,426 +1,395 @@
-import { SparkWallet } from "@buildonspark/spark-sdk";
+import axios, { AxiosInstance } from "axios";
+import { ApiError } from "../wallet-user-controlled";
+import { OpenWindowResult } from "../types";
+import { openWindow } from "../functions";
+import { Bech32mTokenIdentifier, SparkWallet } from "@buildonspark/spark-sdk";
+import { OutputWithPreviousTransactionData } from "@buildonspark/spark-sdk/dist/proto/spark_token";
+import * as Spark from "../types/spark";
 
-export type ValidSparkNetwork = "MAINNET" | "REGTEST" | "TESTNET" | "SIGNET";
+export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 
-export type CreateSparkWalletOptions = {
-  network?: ValidSparkNetwork;
-  key:
-  | {
-    type: "mnemonic";
-    words: string[];
-  }
-  | {
-    type: "address";
-    address: string;
-    identityPublicKey?: string;
-    depositAddress?: string;
-  };
+export type EnableSparkWalletOptions = {
+    network: ValidSparkNetwork;
+    sparkscanApiKey?: string;
+    projectId?: string;
+    appUrl?: string;
+    baseUrl?: string;
+    key?:
+    | {
+        type: "address";
+        address: string;
+        identityPublicKey?: string;
+    };
 };
 
-export interface SparkTokenBalance {
-  unit: string;
-  balance: bigint;
-  name?: string;
-}
-
-export interface SparkTransaction {
-  id: string;
-  amount: number;
-  status: string;
-  timestamp?: Date;
-  type?: 'sent' | 'received';
-}
-
-export interface SparkDepositUtxo {
-  txid: string;
-  vout: number;
-}
-
-export interface SparkWalletData {
-  sparkAddress: string;
-  staticDepositAddress: string;
-  balance: bigint;
-  tokenBalances: Map<string, SparkTokenBalance> | SparkTokenBalance[];
-  transactionHistory: SparkTransaction[];
-  depositUtxos: SparkDepositUtxo[];
-  identityPublicKey: string;
-}
-
-export interface SparkWalletInfo {
-  network: ValidSparkNetwork;
-  networks?: {
-    mainnet?: SparkWalletData;
-    regtest?: SparkWalletData;
-  };
-}
-
-export interface SparkClaimResult {
-  success: boolean;
-  message: string;
-  claimResult?: {
-    creditAmountSats: number;
-    transferId: string;
-  };
-}
-
-export interface SparkDepositClaimRecord {
-  txHash: string;
-  outputIndex: number;
-  sparkAddress: string;
-  walletId: string;
-  claimedAt: string;
-  sparkTransferId?: string;
-  amountSats?: number;
-  network: string;
-}
-
-export interface SparkTransactionPayload {
-  receiverSparkAddress?: string;
-  amountSats?: number;
-  operation?: "send" | "claim-deposit";
-  transactionId?: string;
-}
-
-export type SparkOperationResult = string | SparkWalletInfo | SparkClaimResult;
-
-/**
- * Web3SparkWallet provides integration layer for Spark wallet functionality within Web3Wallet.
- * Wraps @buildonspark/spark-sdk with Web3-specific authentication and state management.
- */
 export class Web3SparkWallet {
-  private _sparkWallet?: SparkWallet;
-  private readonly _isReadOnly: boolean;
-  private readonly _address?: string;
-  private readonly _identityPublicKey?: string;
-  private readonly _network: ValidSparkNetwork;
-  private readonly _mnemonic?: string[];
+    private readonly _axiosInstance: AxiosInstance;
+    readonly network: ValidSparkNetwork;
+    private sparkAddress: string = "";
+    private publicKey: string = "";
+    private projectId?: string;
+    private appUrl?: string;
 
-  constructor(options: CreateSparkWalletOptions) {
-    this._network = options.network || "REGTEST";
-
-    if (options.key.type === "mnemonic") {
-      // Store mnemonic for later initialization
-      this._mnemonic = options.key.words;
-      this._isReadOnly = false;
-    } else {
-      // Read-only wallet initialized with just address and identity key
-      this._address = options.key.address;
-      this._identityPublicKey = options.key.identityPublicKey;
-      this._isReadOnly = true;
-    }
-  }
-
-  /**
-   * Initialize the SparkWallet (required for mnemonic-based wallets)
-   * Similar to how MeshWallet.init() works
-   */
-  async init(): Promise<void> {
-    if (this._isReadOnly || !this._mnemonic) {
-      return;
-    }
-
-    const sparkWalletResult = await SparkWallet.initialize({
-      mnemonicOrSeed: this._mnemonic.join(" "),
-      options: {
-        network: this._network
-      }
-    });
-
-    this._sparkWallet = sparkWalletResult.wallet;
-  }
-
-  /**
-   * Get Spark wallet address
-   */
-  get sparkAddress(): string | undefined {
-    return this._address;
-  }
-
-  /**
-   * Get Spark wallet for advanced operations
-   */
-  get wallet(): SparkWallet | undefined {
-    return this._sparkWallet;
-  }
-
-  /**
-   * Get network ID for the current network
-   * @returns 0 for REGTEST, 1 for MAINNET
-   */
-  getNetworkId(): number {
-    return this._network === "MAINNET" ? 1 : 0;
-  }
-
-  /**
-   * Get wallet information for current network only
-   */
-  async getWalletInfo(): Promise<SparkWalletData> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot get full wallet info with a read-only wallet. Use authentication-based approach instead.");
-    }
-
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized properly.");
-    }
-
-    const [sparkAddress, staticDepositAddress, identityPublicKey, balanceData, transactionHistory] = await Promise.all([
-      this._sparkWallet.getSparkAddress(),
-      this._sparkWallet.getStaticDepositAddress(),
-      this._sparkWallet.getIdentityPublicKey(),
-      this._sparkWallet.getBalance(),
-      this._sparkWallet.getTransfers?.() || Promise.resolve([])
-    ]);
-    
-    const depositUtxos = await this._sparkWallet.getUtxosForDepositAddress(staticDepositAddress);
-    const depositUtxosData: SparkDepositUtxo[] = depositUtxos ? 
-      depositUtxos.map((utxo: any) => ({
-        txid: utxo.txid,
-        vout: utxo.vout
-      })).filter((utxo) => utxo.txid && utxo.vout !== undefined) : [];
-
-    // Transform token balances
-    const transformedTokenBalances: SparkTokenBalance[] = [];
-    if (balanceData.tokenBalances && balanceData.tokenBalances.size > 0) {
-      for (const [unit, tokenData] of balanceData.tokenBalances) {
-        transformedTokenBalances.push({
-          unit: unit.toString(),
-          balance: tokenData.balance,
-          name: tokenData.tokenMetadata?.tokenName
+    constructor(options: EnableSparkWalletOptions) {
+        this._axiosInstance = axios.create({
+            // baseURL: `https://api.sparkscan.io/v1`, // todo, when in SDK, point to sparkscan
+            // baseURL: `/api/sparkscan/`,
+            baseURL: options.baseUrl, // For now let's add baseUrl
+            headers: {
+                Authorization: `Bearer ${options.sparkscanApiKey}`,
+            },
         });
-      }
-    }
+        this.network = options.network;
+        this.projectId = options.projectId;
+        this.appUrl = options.appUrl;
 
-    // Transform transaction history
-    const transformedHistory: SparkTransaction[] = [];
-    const transferArray: any[] = Array.isArray(transactionHistory)
-      ? transactionHistory
-      : transactionHistory?.transfers || [];
-
-    for (const tx of transferArray) {
-      transformedHistory.push({
-        id: tx.id,
-        amount: tx.totalValue,
-        status: tx.status,
-        timestamp: tx.createdTime ? new Date(tx.createdTime) : undefined,
-        type: tx.transferDirection === 'OUTGOING' ? 'sent' : 'received'
-      });
-    }
-
-    return {
-      sparkAddress,
-      staticDepositAddress,
-      balance: balanceData.balance,
-      tokenBalances: transformedTokenBalances,
-      transactionHistory: transformedHistory,
-      depositUtxos: depositUtxosData,
-      identityPublicKey
-    };
-  }
-
-  /**
-   * Get identity public key
-   */
-  async getIdentityPublicKey(): Promise<string> {
-    if (this._isReadOnly && this._identityPublicKey) {
-      return this._identityPublicKey;
-    }
-
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized properly.");
-    }
-
-    return this._sparkWallet.getIdentityPublicKey();
-  }
-
-  /**
-   * Get static deposit address
-   */
-  async getStaticDepositAddress(): Promise<string> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot get deposit address from a read-only wallet.");
-    }
-
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized properly.");
-    }
-
-    return this._sparkWallet.getStaticDepositAddress();
-  }
-
-
-  /**
-   * Claim Bitcoin deposit
-   */
-  async claimBitcoinDeposit(transactionId: string): Promise<any> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot claim deposits with a read-only wallet.");
-    }
-
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized properly.");
-    }
-
-    try {
-      // Step 1: Get a quote for your deposit (can be called anytime after transaction)
-      const quote = await this._sparkWallet.getClaimStaticDepositQuote(transactionId);
-
-      // Step 2: Claim the deposit using the quote details
-      // Note: This will only succeed after 3 confirmations on the deposit transaction
-      const claimResult = await this._sparkWallet.claimStaticDeposit({
-        transactionId: transactionId,
-        creditAmountSats: quote.creditAmountSats,
-        sspSignature: quote.signature,
-      });
-
-      return {
-        success: true,
-        message: `Deposit claimed successfully for ${quote.creditAmountSats} sats`,
-        claimResult: {
-          creditAmountSats: quote.creditAmountSats,
-          transferId: claimResult?.transferId || ''
+        if (options.key?.type === "address") {
+            this.sparkAddress = options.key.address;
+            this.publicKey = options.key.identityPublicKey || "";
         }
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Handle specific Spark SDK errors
-      if (errorMessage.includes('UTXO is already claimed')) {
-        throw new Error('This transaction has already been claimed. Each Bitcoin transaction can only be claimed once.');
-      }
-      
-      if (errorMessage.includes('InvalidOperationException')) {
-        throw new Error('Invalid claim operation. Please check that the transaction ID is correct and has sufficient confirmations.');
-      }
-      
-      if (errorMessage.includes('StaticDepositQuote failed')) {
-        throw new Error('Unable to get deposit quote. The transaction may not be ready for claiming or may already be processed.');
-      }
-      
-      // Re-throw the original error if we don't have a specific handler
-      throw error;
-    }
-  }
-
-  /**
-   * Send to another Spark wallet user
-   */
-  async sendToUser(receiverAddress: string, amountSats: number): Promise<string> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot send with a read-only wallet.");
     }
 
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized properly.");
+    static async enable(
+        options: EnableSparkWalletOptions,
+    ): Promise<Web3SparkWallet> {
+        // todo: default: open iframe, and get wallet info, should return publicKey, this is used for devs integrating spark wallet
+        // todo: if address, use address and identityPublicKey, is read only.
+
+        if (options.key?.type === "address") {
+            return new Web3SparkWallet(options);
+        }
+
+        const networkId = options.network === "MAINNET" ? 1 : 0;
+        const res: OpenWindowResult = await openWindow(
+            {
+                method: "get-wallet-info",
+                projectId: options.projectId!,
+                chain: "spark",
+                networkId: String(networkId),
+            },
+            options.appUrl,
+        );
+
+        if (res.success === false)
+            throw new ApiError({
+                code: 3,
+                info: "UserDeclined - User declined to get wallet info.",
+            });
+
+        if (res.data.method !== "get-wallet-info") {
+            throw new ApiError({
+                code: 2,
+                info: "Received the wrong response from the iframe.",
+            });
+        }
+
+        return new Web3SparkWallet({
+            network: options.network,
+            sparkscanApiKey: options.sparkscanApiKey,
+            projectId: options.projectId,
+            appUrl: options.appUrl,
+            key: {
+                type: "address",
+                address: res.data.address,
+                identityPublicKey: res.data.pubKeyHash,
+            }
+        });
     }
 
-    const transfer = await this._sparkWallet.transfer({
-      receiverSparkAddress: receiverAddress,
-      amountSats: amountSats,
-    });
-
-    return transfer.id || 'unknown';
-  }
-
-  /**
-   * Sign a Spark transaction or perform operations
-   * @param payload - The transaction payload with operation type
-   * @returns The operation result
-   */
-  async signTx(payload: SparkTransactionPayload): Promise<SparkOperationResult> {
-    if (payload.operation === "claim-deposit") {
-      if (!payload.transactionId) {
-        throw new Error("transactionId is required for claim-deposit operation");
-      }
-      return this.claimBitcoinDeposit(payload.transactionId);
-    } else {
-      if (!payload.receiverSparkAddress || !payload.amountSats) {
-        throw new Error("receiverSparkAddress and amountSats are required for transaction signing");
-      }
-      return this.sendToUser(payload.receiverSparkAddress, payload.amountSats);
-    }
-  }
-
-  /**
-   * Sign a message using the wallet
-   * @param message - The message to be signed
-   * @returns The signature as a string
-   * @throws {Error} If wallet is read-only
-   */
-  async signMessage(message: string): Promise<string> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot sign messages with a read-only wallet.");
+    getNetworkId(): number {
+        return this.network === "MAINNET" ? 1 : 0;
     }
 
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized properly.");
+    spark_getAddress(): {
+        address: string;
+        network: string;
+        publicKey: string;
+    } {
+        return {
+            address: this.sparkAddress,
+            network: this.network,
+            publicKey: this.publicKey,
+        };
     }
 
-    return this._sparkWallet.signMessageWithIdentityKey(message);
-  }
 
-  /**
-   * Sign data (placeholder for interface compatibility)
-   */
-  async signData(message: string): Promise<string> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot sign data with a read-only wallet.");
+    async spark_transfer(
+        receiverSparkAddress: string,
+        amountSats: number,
+    ): Promise<{ txid: string }> {
+        if (!this.projectId || !this.appUrl) {
+            throw new ApiError({
+                code: 1,
+                info: "Transfer requires projectId and appUrl for authentication",
+            });
+        }
+
+        try {
+            const networkId = this.network === "MAINNET" ? 1 : 0;
+            const payload = JSON.stringify({
+                receiverSparkAddress,
+                amountSats,
+            });
+
+            const res: OpenWindowResult = await openWindow(
+                {
+                    method: "sign-tx",
+                    projectId: this.projectId,
+                    unsignedTx: payload,
+                    partialSign: "false",
+                    chain: "spark",
+                    networkId: String(networkId),
+                },
+                this.appUrl,
+            );
+
+            if (res.success === false)
+                throw new ApiError({
+                    code: 3,
+                    info: "UserDeclined - User declined the transfer.",
+                });
+
+            if (res.data.method !== "sign-tx") {
+                throw new ApiError({
+                    code: 2,
+                    info: "Received the wrong response from the iframe.",
+                });
+            }
+
+            return { txid: res.data.tx };
+        } catch (error) {
+            throw new ApiError({
+                code: 4,
+                info: "Failed to transfer: " + error,
+            });
+        }
     }
 
-    return this.signMessage(message);
-  }
+    async spark_transferToken(
+        receiverSparkAddress: string,
+        tokenIdentifier: Bech32mTokenIdentifier,
+        tokenAmount: bigint,
+        outputSelectionStrategy?: "SMALL_FIRST" | "LARGE_FIRST",
+        selectedOutputs?: OutputWithPreviousTransactionData[],
+    ): Promise<{ txid: string }> {
+        if (!this.projectId || !this.appUrl) {
+            throw new ApiError({
+                code: 1,
+                info: "Token transfer requires projectId and appUrl for authentication",
+            });
+        }
 
-  /**
-   * Refund a static deposit with fee validation
-   * Enforces minimum 300 sats fee as per Spark best practices
-   * @param params - Refund parameters
-   * @returns Refund result with transaction hex if successful
-   * @throws {Error} If wallet is read-only or not properly initialized
-   */
-  async refundStaticDeposit(params: {
-    depositTransactionId: string;
-    destinationAddress: string;
-    satsPerVbyteFee: number;
-    outputIndex?: number;
-  }): Promise<{
-    success: boolean;
-    message: string;
-    txHex?: string;
-  }> {
-    if (this._isReadOnly) {
-      throw new Error("Cannot refund deposits with a read-only wallet.");
+        try {
+            const networkId = this.network === "MAINNET" ? 1 : 0;
+            const payload = JSON.stringify({
+                receiverSparkAddress,
+                tokenIdentifier,
+                tokenAmount: tokenAmount.toString(),
+                outputSelectionStrategy,
+                selectedOutputs,
+            });
+
+            const res: OpenWindowResult = await openWindow(
+                {
+                    method: "sign-tx",
+                    projectId: this.projectId,
+                    unsignedTx: payload,
+                    partialSign: "false",
+                    chain: "spark",
+                    networkId: String(networkId),
+                },
+                this.appUrl,
+            );
+
+            if (res.success === false)
+                throw new ApiError({
+                    code: 3,
+                    info: "UserDeclined - User declined the token transfer.",
+                });
+
+            if (res.data.method !== "sign-tx") {
+                throw new ApiError({
+                    code: 2,
+                    info: "Received the wrong response from the iframe.",
+                });
+            }
+
+            return { txid: res.data.tx };
+        } catch (error) {
+            throw new ApiError({
+                code: 4,
+                info: "Failed to transfer token: " + error,
+            });
+        }
     }
 
-    if (!this._sparkWallet) {
-      throw new Error("Wallet not initialized properly.");
+    async spark_signMessage(message: string, compact?: boolean | undefined) {
+        if (!this.projectId || !this.appUrl) {
+            throw new ApiError({
+                code: 1,
+                info: `Sign message requires authentication. Missing: ${!this.projectId ? 'projectId' : ''} ${!this.appUrl ? 'appUrl' : ''}. These must be provided when calling Web3SparkWallet.enable().`,
+            });
+        }
+
+        try {
+            const networkId = this.network === "MAINNET" ? 1 : 0;
+
+            const res: OpenWindowResult = await openWindow(
+                {
+                    method: "sign-data",
+                    projectId: this.projectId,
+                    payload: message,
+                    address: this.sparkAddress,
+                    chain: "spark",
+                    networkId: String(networkId),
+                },
+                this.appUrl,
+            );
+
+            if (res.success === false)
+                throw new ApiError({
+                    code: 3,
+                    info: "UserDeclined - User declined to sign message.",
+                });
+
+            if (res.data.method !== "sign-data") {
+                throw new ApiError({
+                    code: 2,
+                    info: "Received the wrong response from the iframe.",
+                });
+            }
+
+            return res.data.signature;
+        } catch (error) {
+            throw new ApiError({
+                code: 6,
+                info: "Failed to sign message: " + error,
+            });
+        }
     }
 
-    const MIN_REFUND_FEE_SATS = 300;
+    async spark_claimStaticDeposit(txId: string): Promise<string | undefined> {
+        if (!this.projectId || !this.appUrl) {
+            throw new ApiError({
+                code: 1,
+                info: "Claim deposit requires projectId and appUrl for authentication",
+            });
+        }
 
-    if (params.satsPerVbyteFee < MIN_REFUND_FEE_SATS) {
-      return {
-        success: false,
-        message: `Fee must be at least ${MIN_REFUND_FEE_SATS} sats for static deposit refunds`
-      };
+        try {
+            const networkId = this.network === "MAINNET" ? 1 : 0;
+            const payload = JSON.stringify({
+                transactionId: txId,
+            });
+
+            const res: OpenWindowResult = await openWindow(
+                {
+                    method: "claim-deposit",
+                    projectId: this.projectId,
+                    payload: payload,
+                    chain: "spark",
+                    networkId: String(networkId),
+                },
+                this.appUrl,
+            );
+
+            if (res.success === false)
+                throw new ApiError({
+                    code: 3,
+                    info: "UserDeclined - User declined the claim deposit.",
+                });
+
+            if (res.data.method !== "claim-deposit") {
+                throw new ApiError({
+                    code: 2,
+                    info: "Received the wrong response from the iframe.",
+                });
+            }
+
+            return res.data.txId;
+        } catch (error) {
+            throw new ApiError({
+                code: 7,
+                info: "Failed to claim static deposit: " + error,
+            });
+        }
     }
 
-    try {
-      const txHex = await this._sparkWallet.refundStaticDeposit({
-        depositTransactionId: params.depositTransactionId,
-        destinationAddress: params.destinationAddress,
-        satsPerVbyteFee: params.satsPerVbyteFee,
-        outputIndex: params.outputIndex
-      });
+    async spark_getBalance(): Promise<{
+        balance: bigint;
+        tokenBalances: Spark.TokenBalances;
+    }> {
+        try {
+            const response = await this._axiosInstance.get(
+                `/address/${this.sparkAddress}?network=${this.network}`,
+            );
 
-      return {
-        success: true,
-        message: `Refund transaction created with fee ${params.satsPerVbyteFee} sats/vbyte`,
-        txHex
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: `Refund failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
+            const balanceData = response.data;
+            const tokenBalancesMap = new Map();
+
+            if (balanceData.tokens && Array.isArray(balanceData.tokens)) {
+                for (const token of balanceData.tokens) {
+                    tokenBalancesMap.set(token.tokenIdentifier, {
+                        balance: BigInt(token.balance),
+                        tokenInfo: {
+                            tokenPublicKey: token.issuerPublicKey || "",
+                            tokenName: token.name || "",
+                            tokenTicker: token.ticker || "",
+                            decimals: token.decimals || "0",
+                            maxSupply: token.maxSupply || "0",
+                        },
+                    });
+                }
+            }
+
+            return {
+                balance: BigInt(balanceData.balance.btcSoftBalanceSats || 0),
+                tokenBalances: tokenBalancesMap,
+            };
+        } catch (error) {
+            throw new ApiError({
+                code: 5,
+                info: "Failed to fetch balance from API: " + error,
+            });
+        }
     }
-  }
+
+    async spark_addressTransactions(
+        limit?: number,
+        offset?: number,
+        asset?: string | null,
+        from_timestamp?: string | null,
+        to_timestamp?: string | null,
+        sort: "created_at" | "updated_at" = "created_at",
+        order: "asc" | "desc" = "desc"
+    ): Promise<Spark.TransactionsResponse> {
+        try {
+            const params = new URLSearchParams();
+            params.append("network", this.network);
+
+            if (limit !== undefined) params.append("limit", limit.toString());
+            if (offset !== undefined) params.append("offset", offset.toString());
+            if (asset !== null && asset !== undefined) params.append("asset", asset);
+            if (from_timestamp !== null && from_timestamp !== undefined) params.append("from_timestamp", from_timestamp);
+            if (to_timestamp !== null && to_timestamp !== undefined) params.append("to_timestamp", to_timestamp);
+            params.append("sort", sort);
+            params.append("order", order);
+
+            const response = await this._axiosInstance.get(
+                `/address/${this.sparkAddress}/transactions?${params.toString()}`
+            );
+
+            return {
+                transactions: response.data.data || [],
+                meta: response.data.meta || { totalItems: 0, limit: 0, offset: 0 }
+            };
+        } catch (error) {
+            throw new ApiError({
+                code: 5,
+                info: "Failed to fetch address transactions: " + error,
+            });
+        }
+    }
 }
+
+
