@@ -22,6 +22,7 @@ export type EnableWeb3WalletOptions = {
   directTo?: Web3AuthProvider;
   refreshToken?: string;
   keepWindowOpen?: boolean;
+  baseUrl?: string;
   sparkscanApiKey?: string;
 };
 
@@ -95,6 +96,9 @@ export class Web3Wallet {
    * @param options.projectId - An optional project ID for analytics or tracking.
    * @param options.appUrl - An optional application URL for the wallet.
    * @param options.directTo - An optional parameter to specify the user-controlled wallet direct-to option.
+   * @param options.refreshToken - An optional refresh token for authentication.
+   * @param options.keepWindowOpen - An optional flag to keep the wallet window open after operations.
+   * @param options.sparkscanApiKey - An optional API key for Sparkscan integration.
    *
    * @returns A promise that resolves to an instance of Web3Wallet.
    */
@@ -198,7 +202,7 @@ export class Web3Wallet {
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
-      return (await this.spark.spark_getAddress()).address;
+      return await this.spark.getSparkAddress();
     }
     throw new ApiError({
       code: 5,
@@ -280,6 +284,7 @@ export class Web3Wallet {
     appUrl,
     user,
     keyHashes,
+    baseUrl,
     sparkscanApiKey,
   }: {
     networkId: 0 | 1;
@@ -289,6 +294,7 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
+    baseUrl?: string,
     sparkscanApiKey?: string;
   }) {
     const _options: CreateWalletOptions = {
@@ -351,7 +357,6 @@ export class Web3Wallet {
     };
 
     wallet.bitcoin = bitcoinWallet;
-    console.log("keyHashes", keyHashes);
 
     // todo: keyHashes.sparkMainnetPubKeyHash and keyHashes.sparkRegtestPubKeyHash can be "" (empty string), and that will cause error
     // SparkSDKError: Failed to encode Spark address
@@ -365,8 +370,11 @@ export class Web3Wallet {
 
     if (!identityPublicKey || identityPublicKey.trim() === "") {
       console.warn("Skipping Spark wallet initialization: missing public key hash");
-      wallet.spark = new Web3SparkWallet({ network: networkId === 1 ? "MAINNET" : "REGTEST"});
-      return wallet;
+      wallet.spark = new Web3SparkWallet({
+        network: networkId === 1 ? "MAINNET" : "REGTEST",
+        projectId: _options.projectId,
+        appUrl: _options.appUrl
+      });
     } else {
       try {
         const sparkWallet = new Web3SparkWallet({
@@ -374,6 +382,7 @@ export class Web3Wallet {
           projectId: _options.projectId,
           appUrl: _options.appUrl,
           sparkscanApiKey: sparkscanApiKey || "",
+          baseUrl: baseUrl,
           key: {
             type: "address",
             address: resolveWalletAddress("spark", keyHashes, networkId).address!,
@@ -383,7 +392,11 @@ export class Web3Wallet {
         wallet.spark = sparkWallet;
       } catch (error) {
         console.warn("Failed to create Spark wallet:", error);
-        wallet.spark = new Web3SparkWallet({ network: networkId === 1 ? "MAINNET" : "REGTEST"});
+        wallet.spark = new Web3SparkWallet({
+          network: networkId === 1 ? "MAINNET" : "REGTEST",
+          projectId: _options.projectId,
+          appUrl: _options.appUrl
+        });
       }
     }
 

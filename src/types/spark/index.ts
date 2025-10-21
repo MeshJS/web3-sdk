@@ -79,11 +79,6 @@ export interface Transaction {
     multiIoDetails?: MultiIoDetails;
 }
 
-export interface DepositUtxo {
-    txid: string;
-    vout: number;
-}
-
 export interface PaginationMeta {
     totalItems: number;
     limit: number;
@@ -114,4 +109,99 @@ export interface WalletInfo {
     sparkAddress: string;
     staticDepositAddress: string;
     publicKey: string;
+}
+
+export interface SparkSignMessageResult {
+    signature: Uint8Array;
+}
+
+export interface SparkTransferResult {
+    txid: string;
+}
+
+export interface AddressSummary {
+    sparkAddress: string;
+    publicKey: string;
+    balance: {
+        btcSoftBalanceSats: bigint;
+        btcHardBalanceSats: bigint;
+        btcValueUsdHard: number;
+        btcValueUsdSoft: number;
+        totalTokenValueUsd: number;
+    };
+    totalValueUsd: number;
+    transactionCount: number;
+    tokenCount: number;
+    tokens: Array<{
+        tokenIdentifier: string;
+        tokenAddress: string;
+        name: string;
+        ticker: string;
+        decimals: number;
+        balance: bigint;
+        valueUsd: number;
+        issuerPublicKey: string;
+        maxSupply: bigint | null;
+        isFreezable: boolean | null;
+    }>;
+}
+
+export interface LatestTxidResponse {
+    [address: string]: string | null;
+}
+
+// Types copied from @buildonspark/spark-sdk since they are currently private
+// Source: https://github.com/buildonspark/spark-sdk
+export enum TransferDirection {
+    INCOMING = "INCOMING",
+    OUTGOING = "OUTGOING"
+}
+
+export interface WalletTransfer {
+    id: string;
+    senderIdentityPublicKey: string;
+    receiverIdentityPublicKey: string;
+    status: keyof typeof TransferStatus;
+    totalValue: number;
+    expiryTime: Date | undefined;
+    leaves: WalletTransferLeaf[];
+    createdTime: Date | undefined;
+    updatedTime: Date | undefined;
+    type: keyof typeof TransferType;
+    transferDirection: keyof typeof TransferDirection;
+    userRequest: any | undefined;
+}
+
+export interface WalletTransferLeaf {
+    leaf: any | undefined;
+    secretCipher: string;
+    signature: string;
+    intermediateRefundTx: string;
+}
+
+export type SparkAddressFormat = string;
+
+declare enum TransferStatus {
+    TRANSFER_STATUS_SENDER_INITIATED = 0,
+    TRANSFER_STATUS_SENDER_KEY_TWEAK_PENDING = 1,
+    TRANSFER_STATUS_SENDER_KEY_TWEAKED = 2,
+    TRANSFER_STATUS_RECEIVER_KEY_TWEAKED = 3,
+    TRANSFER_STATUS_RECEIVER_REFUND_SIGNED = 4,
+    TRANSFER_STATUS_COMPLETED = 5,
+    TRANSFER_STATUS_EXPIRED = 6,
+    TRANSFER_STATUS_RETURNED = 7,
+    TRANSFER_STATUS_SENDER_INITIATED_COORDINATOR = 8,
+    TRANSFER_STATUS_RECEIVER_KEY_TWEAK_LOCKED = 9,
+    TRANSFER_STATUS_RECEIVER_KEY_TWEAK_APPLIED = 10,
+    UNRECOGNIZED = -1
+}
+
+declare enum TransferType {
+    PREIMAGE_SWAP = 0,
+    COOPERATIVE_EXIT = 1,
+    TRANSFER = 2,
+    UTXO_SWAP = 3,
+    SWAP = 30,
+    COUNTER_SWAP = 40,
+    UNRECOGNIZED = -1
 }
