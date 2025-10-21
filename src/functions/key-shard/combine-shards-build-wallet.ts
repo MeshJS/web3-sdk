@@ -17,7 +17,7 @@ export async function combineShardsBuildWallet(
   const key = bytesToString(reconstructed);
 
   const bitcoinWallet = new EmbeddedWallet({
-    testnet: networkId === 0 ? true : false,
+    testnet: networkId === 0 ? false : true,
     key: {
       type: "mnemonic",
       words: key.split(" "),

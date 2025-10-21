@@ -68,7 +68,7 @@ export class Web3Wallet {
     });
 
     this.bitcoin = new EmbeddedWallet({
-      testnet: options.networkId !== 1,
+      testnet: options.networkId === 0,
       key: {
         type: "address",
         address: "bcrt1qssadlsnjxkp2hf93yxge2kukh4m87743jfqx5k",
