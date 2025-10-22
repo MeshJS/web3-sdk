@@ -1,9 +1,5 @@
 const IV_LENGTH = 16;
 const staticSalt = new Uint8Array(new Array(32).fill(1)).buffer;
-const rp = {
-  name: "UTXOS Wallet Custodial Key",
-  id: "localhost",
-};
 
 export class NoPRFExtensionError extends Error {
   constructor(message = "Credential does not support PRF extension") {
@@ -72,6 +68,7 @@ export async function webauthnPublicKeyCredentialToCryptoKey(
 
 export async function getCredentialFromCredentialId(
   credentialId: string,
+  rp: { id: string; name: string },
 ): Promise<
   | {
       data: { credential: PublicKeyCredential };
@@ -129,7 +126,10 @@ export async function getCredentialFromCredentialId(
   return { data: { credential }, error: null };
 }
 
-export async function createCredential(): Promise<
+export async function createCredential(rp: {
+  name: string;
+  id: string;
+}): Promise<
   | {
       data: { credential: PublicKeyCredential; prfOutput: BufferSource };
       error: null;
@@ -146,8 +146,8 @@ export async function createCredential(): Promise<
       rp,
       user: {
         id: buf,
-        name: "UTXOS Wallet Key",
-        displayName: "UTXOS Wallet Key",
+        name: "UTXOS Private Key",
+        displayName: "UTXOS Private Key",
       },
       pubKeyCredParams: [
         { alg: -8, type: "public-key" }, // Ed25519
@@ -211,15 +211,4 @@ function base64urlToUint8Array(base64url: string) {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
-}
-
-function arrayBufferToBase64url(buffer: ArrayBuffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++)
-    binary += String.fromCharCode(bytes[i]!);
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
 }
