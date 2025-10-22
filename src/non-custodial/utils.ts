@@ -1,7 +1,7 @@
 const IV_LENGTH = 16;
 const staticSalt = new Uint8Array(new Array(32).fill(1)).buffer;
 const rp = {
-  name: "UTXOS Wallet Custodial Key",
+  name: "UTXOS Private Key",
   id: "localhost",
 };
 
@@ -146,8 +146,8 @@ export async function createCredential(): Promise<
       rp,
       user: {
         id: buf,
-        name: "UTXOS Wallet Key",
-        displayName: "UTXOS Wallet Key",
+        name: "UTXOS Private Key",
+        displayName: "UTXOS Private Key",
       },
       pubKeyCredParams: [
         { alg: -8, type: "public-key" }, // Ed25519
