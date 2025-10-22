@@ -1,7 +1,7 @@
 import { resolveAddress } from "@meshsdk/bitcoin";
-import { encodeSparkAddress } from "@buildonspark/spark-sdk";
 import { Web3WalletKeyHashes } from "../../types";
 import { getAddressFromHashes } from "../key-shard";
+import { encodeNewSparkAddress } from "./spark-address-utils";
 
 export function resolveWalletAddress(
   chain: "cardano" | "bitcoin" | "spark",
@@ -20,13 +20,12 @@ export function resolveWalletAddress(
     case "spark":
       return {
         type: "address",
-        address: encodeSparkAddress({
-          identityPublicKey:
-            networkId === 1
-              ? data.sparkMainnetPubKeyHash
-              : data.sparkRegtestPubKeyHash,
-          network: networkId === 1 ? "MAINNET" : "REGTEST",
-        }),
+        address: encodeNewSparkAddress(
+          networkId === 1
+            ? data.sparkMainnetPubKeyHash
+            : data.sparkRegtestPubKeyHash,
+          networkId === 1 ? "MAINNET" : "REGTEST"
+        ),
       };
     default: // cardano
       return {
