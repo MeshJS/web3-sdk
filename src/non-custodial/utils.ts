@@ -1,9 +1,5 @@
 const IV_LENGTH = 16;
 const staticSalt = new Uint8Array(new Array(32).fill(1)).buffer;
-const rp = {
-  name: "UTXOS Private Key",
-  id: "localhost",
-};
 
 export class NoPRFExtensionError extends Error {
   constructor(message = "Credential does not support PRF extension") {
@@ -72,6 +68,7 @@ export async function webauthnPublicKeyCredentialToCryptoKey(
 
 export async function getCredentialFromCredentialId(
   credentialId: string,
+  rp: { id: string; name: string },
 ): Promise<
   | {
       data: { credential: PublicKeyCredential };
@@ -129,7 +126,10 @@ export async function getCredentialFromCredentialId(
   return { data: { credential }, error: null };
 }
 
-export async function createCredential(): Promise<
+export async function createCredential(rp: {
+  name: string;
+  id: string;
+}): Promise<
   | {
       data: { credential: PublicKeyCredential; prfOutput: BufferSource };
       error: null;
