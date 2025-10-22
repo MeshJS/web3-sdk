@@ -4,7 +4,12 @@ import { OpenWindowResult } from "../types";
 import { openWindow } from "../functions";
 import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
 import * as Spark from "../types/spark";
-import { WalletTransfer, SparkAddressFormat, BalanceWithMetadata, TokenBalanceWithMetadata } from "../types/spark";
+import {
+  WalletTransfer,
+  SparkAddressFormat,
+  BalanceWithMetadata,
+  TokenBalanceWithMetadata,
+} from "../types/spark";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 
@@ -863,7 +868,7 @@ export class Web3SparkWallet {
       sparkAddress: res.data.address,
       staticDepositAddress: res.data.staticDepositAddress,
       publicKey: res.data.pubKeyHash,
-      networkId: networkId
+      networkId: networkId,
     };
   }
 
@@ -897,7 +902,7 @@ export class Web3SparkWallet {
               issuerPublicKey: token.issuerPublicKey,
               maxSupply: token.maxSupply ? BigInt(token.maxSupply) : null,
               isFreezable: token.isFreezable,
-            }
+            },
           });
         }
       }
@@ -922,11 +927,14 @@ export class Web3SparkWallet {
    * @throws ApiError if signing fails or user declines
    * @deprecated Private xverse-style method, use signMessageWithIdentityKey for Spark-compliant signing
    */
-  private async signMessage(message: string, compact?: boolean): Promise<Spark.SparkSignMessageResult> {
+  private async signMessage(
+    message: string,
+    compact?: boolean,
+  ): Promise<Spark.SparkSignMessageResult> {
     if (!this.projectId || !this.appUrl) {
       throw new ApiError({
         code: 1,
-        info: `Sign message requires authentication. Missing: ${!this.projectId ? 'projectId' : ''} ${!this.appUrl ? 'appUrl' : ''}. These must be provided when calling Web3SparkWallet.enable().`,
+        info: `Sign message requires authentication. Missing: ${!this.projectId ? "projectId" : ""} ${!this.appUrl ? "appUrl" : ""}. These must be provided when calling Web3SparkWallet.enable().`,
       });
     }
 
@@ -960,7 +968,7 @@ export class Web3SparkWallet {
       }
 
       const signatureHex = res.data.signature.signature;
-      const signatureBytes = new Uint8Array(Buffer.from(signatureHex, 'hex'));
+      const signatureBytes = new Uint8Array(Buffer.from(signatureHex, "hex"));
 
       return { signature: signatureBytes };
     } catch (error) {

@@ -10,7 +10,11 @@ import {
 } from "../types";
 import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
-import { Web3SparkWallet, EnableSparkWalletOptions, ValidSparkNetwork } from "../spark/web3-spark-wallet";
+import {
+  Web3SparkWallet,
+  EnableSparkWalletOptions,
+  ValidSparkNetwork,
+} from "../spark/web3-spark-wallet";
 import { deserializeTx } from "@meshsdk/core-cst";
 
 export type EnableWeb3WalletOptions = {
@@ -143,7 +147,7 @@ export class Web3Wallet {
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
       sparkscanApiKey: options.sparkscanApiKey,
-      baseUrl: options.baseUrl
+      baseUrl: options.baseUrl,
     });
 
     return wallet;
@@ -161,11 +165,12 @@ export class Web3Wallet {
     projectId?: string,
     appUrl?: string,
     sparkscanApiKey?: string,
-    baseUrl?: string
+    baseUrl?: string,
   ): Web3SparkWallet {
-    const identityPublicKey = networkId === 1
-      ? keyHashes.sparkMainnetPubKeyHash
-      : keyHashes.sparkRegtestPubKeyHash;
+    const identityPublicKey =
+      networkId === 1
+        ? keyHashes.sparkMainnetPubKeyHash
+        : keyHashes.sparkRegtestPubKeyHash;
 
     const sparkOptions: EnableSparkWalletOptions = {
       network: (networkId === 1 ? "MAINNET" : "REGTEST") as ValidSparkNetwork,
@@ -178,14 +183,17 @@ export class Web3Wallet {
           type: "address" as const,
           address: resolveWalletAddress("spark", keyHashes, networkId).address!,
           identityPublicKey,
-        }
-      })
+        },
+      }),
     };
 
     try {
       return new Web3SparkWallet(sparkOptions);
     } catch (error) {
-      console.warn("Failed to create Spark wallet with key, using fallback:", error);
+      console.warn(
+        "Failed to create Spark wallet with key, using fallback:",
+        error,
+      );
       const { key, ...fallbackOptions } = sparkOptions;
       return new Web3SparkWallet(fallbackOptions);
     }
@@ -401,7 +409,7 @@ export class Web3Wallet {
       _options.projectId,
       _options.appUrl,
       sparkscanApiKey,
-      baseUrl
+      baseUrl,
     );
 
     return wallet;
