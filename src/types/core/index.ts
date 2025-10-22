@@ -65,4 +65,4 @@ export type SponsorshipTxParserPostRequestBody = {
   address: string;
   sponsorUtxo: string;
   network: "mainnet" | "testnet";
-}
+};

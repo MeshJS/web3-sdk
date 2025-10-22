@@ -294,7 +294,7 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
-    baseUrl?: string,
+    baseUrl?: string;
     sparkscanApiKey?: string;
   }) {
     const _options: CreateWalletOptions = {
@@ -364,16 +364,19 @@ export class Web3Wallet {
     // Original Error: SparkSDKError: Invalid public key
     // Context: field: "publicKey", value: ""
     // Original Error: bad point: got length 0, expected compressed=33 or uncompressed=65
-    const identityPublicKey = networkId === 1
-      ? keyHashes.sparkMainnetPubKeyHash
-      : keyHashes.sparkRegtestPubKeyHash;
+    const identityPublicKey =
+      networkId === 1
+        ? keyHashes.sparkMainnetPubKeyHash
+        : keyHashes.sparkRegtestPubKeyHash;
 
     if (!identityPublicKey || identityPublicKey.trim() === "") {
-      console.warn("Skipping Spark wallet initialization: missing public key hash");
+      console.warn(
+        "Skipping Spark wallet initialization: missing public key hash",
+      );
       wallet.spark = new Web3SparkWallet({
         network: networkId === 1 ? "MAINNET" : "REGTEST",
         projectId: _options.projectId,
-        appUrl: _options.appUrl
+        appUrl: _options.appUrl,
       });
     } else {
       try {
@@ -385,7 +388,8 @@ export class Web3Wallet {
           baseUrl: baseUrl,
           key: {
             type: "address",
-            address: resolveWalletAddress("spark", keyHashes, networkId).address!,
+            address: resolveWalletAddress("spark", keyHashes, networkId)
+              .address!,
             identityPublicKey,
           },
         });
@@ -395,7 +399,7 @@ export class Web3Wallet {
         wallet.spark = new Web3SparkWallet({
           network: networkId === 1 ? "MAINNET" : "REGTEST",
           projectId: _options.projectId,
-          appUrl: _options.appUrl
+          appUrl: _options.appUrl,
         });
       }
     }
