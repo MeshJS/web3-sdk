@@ -5,11 +5,10 @@ import { EmbeddedWallet } from "@meshsdk/bitcoin";
 import { SparkWallet } from "@buildonspark/spark-sdk";
 import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
-import { Web3SparkWallet } from "../../spark";
 
 export async function clientGenerateWallet(
-  spendingPassword: string,
-  recoveryAnswer: string
+  deviceShardEncryptionKey: CryptoKey,
+  recoveryShardEncryptionKey: CryptoKey,
 ) {
   const mnemonic = await generateMnemonic(256);
 
@@ -31,13 +30,13 @@ export async function clientGenerateWallet(
 
   const encryptedDeviceShard = await encryptWithCipher({
     data: keyShare1!,
-    key: spendingPassword,
+    key: deviceShardEncryptionKey,
   });
 
   /* recovery */
   const encryptedRecoveryShard = await encryptWithCipher({
     data: keyShare3!,
-    key: recoveryAnswer,
+    key: recoveryShardEncryptionKey,
   });
 
   /* bitcoin */
@@ -57,30 +56,24 @@ export async function clientGenerateWallet(
   // - MAINNET key for production transactions and addresses
   // - REGTEST key for development/testing transactions and addresses
   // This ensures proper network isolation and correct address derivation
-  const sparkMainnetWallet = new Web3SparkWallet({
-    network: "MAINNET",
-    key: {
-      type: "mnemonic",
-      words: mnemonic.split(" ")
-    }
+
+  const { wallet: sparkMainnetWallet } = await SparkWallet.initialize({
+    mnemonicOrSeed: mnemonic,
+    options: {
+      network: "MAINNET",
+    },
   });
 
-  const sparkRegtestWallet = new Web3SparkWallet({
-    network: "REGTEST",
-    key: {
-      type: "mnemonic",
-      words: mnemonic.split(" ")
-    }
+  const { wallet: sparkRegtestWallet } = await SparkWallet.initialize({
+    mnemonicOrSeed: mnemonic,
+    options: {
+      network: "REGTEST",
+    },
   });
-
-  await Promise.all([
-    sparkMainnetWallet.init(),
-    sparkRegtestWallet.init()
-  ]);
 
   const [sparkMainnetPubKeyHash, sparkRegtestPubKeyHash] = await Promise.all([
     sparkMainnetWallet.getIdentityPublicKey(),
-    sparkRegtestWallet.getIdentityPublicKey()
+    sparkRegtestWallet.getIdentityPublicKey(),
   ]);
 
   return {

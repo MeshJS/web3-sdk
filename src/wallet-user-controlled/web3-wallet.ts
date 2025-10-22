@@ -10,10 +10,7 @@ import {
 } from "../types";
 import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
-import {
-  SparkTransactionPayload,
-  Web3SparkWallet,
-} from "../spark/web3-spark-wallet";
+import { Web3SparkWallet } from "../spark/web3-spark-wallet";
 import { deserializeTx } from "@meshsdk/core-cst";
 
 export type EnableWeb3WalletOptions = {
@@ -25,6 +22,8 @@ export type EnableWeb3WalletOptions = {
   directTo?: Web3AuthProvider;
   refreshToken?: string;
   keepWindowOpen?: boolean;
+  baseUrl?: string;
+  sparkscanApiKey?: string;
 };
 
 type InitWeb3WalletOptions = {
@@ -78,10 +77,11 @@ export class Web3Wallet {
 
     this.spark = new Web3SparkWallet({
       network: options.networkId === 1 ? "MAINNET" : "REGTEST",
+      sparkscanApiKey: "",
       key: {
         type: "address",
         address:
-          "sprt1pgssx7zt9eduf4jwvhqyw730qgdnj77g0q0u47fwtp05vwkagz6wd8mkmd4yeu",
+          "sprt1pgssyqmq9av0le9296ew9fssyhsa90zczmmvnl3mwcs3p0k0ls60rnda43drxq",
       },
     });
   }
@@ -96,6 +96,9 @@ export class Web3Wallet {
    * @param options.projectId - An optional project ID for analytics or tracking.
    * @param options.appUrl - An optional application URL for the wallet.
    * @param options.directTo - An optional parameter to specify the user-controlled wallet direct-to option.
+   * @param options.refreshToken - An optional refresh token for authentication.
+   * @param options.keepWindowOpen - An optional flag to keep the wallet window open after operations.
+   * @param options.sparkscanApiKey - An optional API key for Sparkscan integration.
    *
    * @returns A promise that resolves to an instance of Web3Wallet.
    */
@@ -139,6 +142,7 @@ export class Web3Wallet {
         sparkMainnetPubKeyHash: res.data.sparkMainnetPubKeyHash,
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
+      sparkscanApiKey: options.sparkscanApiKey,
     });
 
     return wallet;
@@ -198,7 +202,7 @@ export class Web3Wallet {
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
-      return (await this.spark.getWalletInfo()).sparkAddress;
+      return await this.spark.getSparkAddress();
     }
     throw new ApiError({
       code: 5,
@@ -280,6 +284,8 @@ export class Web3Wallet {
     appUrl,
     user,
     keyHashes,
+    baseUrl,
+    sparkscanApiKey,
   }: {
     networkId: 0 | 1;
     fetcher?: IFetcher;
@@ -288,6 +294,8 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
+    baseUrl?: string,
+    sparkscanApiKey?: string;
   }) {
     const _options: CreateWalletOptions = {
       networkId: networkId,
@@ -350,20 +358,47 @@ export class Web3Wallet {
 
     wallet.bitcoin = bitcoinWallet;
 
-    const sparkWallet = new Web3SparkWallet({
-      network: networkId === 1 ? "MAINNET" : "REGTEST",
-      key: resolveWalletAddress("spark", keyHashes, networkId),
-    });
+    // todo: keyHashes.sparkMainnetPubKeyHash and keyHashes.sparkRegtestPubKeyHash can be "" (empty string), and that will cause error
+    // SparkSDKError: Failed to encode Spark address
+    // Context: field: "publicKey", value: ""
+    // Original Error: SparkSDKError: Invalid public key
+    // Context: field: "publicKey", value: ""
+    // Original Error: bad point: got length 0, expected compressed=33 or uncompressed=65
+    const identityPublicKey = networkId === 1
+      ? keyHashes.sparkMainnetPubKeyHash
+      : keyHashes.sparkRegtestPubKeyHash;
 
-    sparkWallet.signTx = async (payload: SparkTransactionPayload) => {
-      return wallet.signTx(JSON.stringify(payload), false, "spark");
-    };
-
-    sparkWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(payload, address, "spark") as Promise<string>;
-    };
-
-    wallet.spark = sparkWallet;
+    if (!identityPublicKey || identityPublicKey.trim() === "") {
+      console.warn("Skipping Spark wallet initialization: missing public key hash");
+      wallet.spark = new Web3SparkWallet({
+        network: networkId === 1 ? "MAINNET" : "REGTEST",
+        projectId: _options.projectId,
+        appUrl: _options.appUrl
+      });
+    } else {
+      try {
+        const sparkWallet = new Web3SparkWallet({
+          network: networkId === 1 ? "MAINNET" : "REGTEST",
+          projectId: _options.projectId,
+          appUrl: _options.appUrl,
+          sparkscanApiKey: sparkscanApiKey || "",
+          baseUrl: baseUrl,
+          key: {
+            type: "address",
+            address: resolveWalletAddress("spark", keyHashes, networkId).address!,
+            identityPublicKey,
+          },
+        });
+        wallet.spark = sparkWallet;
+      } catch (error) {
+        console.warn("Failed to create Spark wallet:", error);
+        wallet.spark = new Web3SparkWallet({
+          network: networkId === 1 ? "MAINNET" : "REGTEST",
+          projectId: _options.projectId,
+          appUrl: _options.appUrl
+        });
+      }
+    }
 
     return wallet;
   }
@@ -398,43 +433,6 @@ export class Web3Wallet {
     }
 
     return { success: true, data: { method: "export-wallet" } };
-  }
-
-  async getWalletInfo(chain?: string) {
-    chain = chain ?? "spark";
-    const networkId = await this.getNetworkId(chain);
-    const res: OpenWindowResult = await openWindow(
-      {
-        method: "get-wallet-info",
-        projectId: this.projectId!,
-        chain: chain,
-        networkId: String(networkId),
-      },
-      this.appUrl,
-    );
-
-    if (res.success === false)
-      throw new ApiError({
-        code: 3,
-        info: "UserDeclined - User declined to get wallet info.",
-      });
-
-    if (res.data.method !== "get-wallet-info") {
-      throw new ApiError({
-        code: 2,
-        info: "Received the wrong response from the iframe.",
-      });
-    }
-
-    return {
-      sparkAddress: res.data.sparkAddress,
-      staticDepositAddress: res.data.staticDepositAddress,
-      balance: BigInt(res.data.balance),
-      tokenBalances: res.data.tokenBalances,
-      identityPublicKey: res.data.identityPublicKey,
-      depositUtxos: res.data.depositUtxos,
-      transactionHistory: res.data.transactionHistory,
-    };
   }
 
   async disable() {
