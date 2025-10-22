@@ -43,7 +43,7 @@ export class Web3WalletProvider {
   createWallet(
     spendingPassword: string,
     recoveryQuestion: string,
-    recoveryAnswer: string
+    recoveryAnswer: string,
   ) {
     /**
      * params needed:
@@ -63,7 +63,7 @@ export class Web3WalletProvider {
     currentRecoveryAnswer: string,
     newSpendingPassword: string,
     newRecoveryQuestion: string,
-    newRecoveryAnswer: string
+    newRecoveryAnswer: string,
   ) {
     /**
      * params needed:

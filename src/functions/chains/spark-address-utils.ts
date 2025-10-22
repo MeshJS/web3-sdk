@@ -1,8 +1,13 @@
-import { decodeSparkAddress, getNetworkFromSparkAddress, encodeSparkAddress, bech32mDecode } from '@buildonspark/spark-sdk';
-import { bech32m } from '@scure/base';
+import {
+  decodeSparkAddress,
+  getNetworkFromSparkAddress,
+  encodeSparkAddress,
+  bech32mDecode,
+} from "@buildonspark/spark-sdk";
+import { bech32m } from "@scure/base";
 import { BinaryWriter } from "@bufbuild/protobuf/wire";
 import { hexToBytes } from "@noble/curves/utils";
-import type { ValidSparkNetwork } from '../../spark/web3-spark-wallet';
+import type { ValidSparkNetwork } from "../../spark/web3-spark-wallet";
 
 /**
  * Extracts identity public key from a Spark address
@@ -14,28 +19,36 @@ import type { ValidSparkNetwork } from '../../spark/web3-spark-wallet';
  */
 export function extractIdentityPublicKey(sparkAddress: string): string | null {
   try {
-    const network = getNetworkFromSparkAddress(sparkAddress) as ValidSparkNetwork;
+    const network = getNetworkFromSparkAddress(
+      sparkAddress,
+    ) as ValidSparkNetwork;
     const decoded = decodeSparkAddress(sparkAddress, network);
 
     return decoded.identityPublicKey || null;
   } catch (error) {
-    console.error('[extractIdentityPublicKey] Failed to decode Spark address:', {
-      address: sparkAddress,
-      error: error instanceof Error ? error.message : String(error)
-    });
+    console.error(
+      "[extractIdentityPublicKey] Failed to decode Spark address:",
+      {
+        address: sparkAddress,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     return null;
   }
 }
 
 const NEW_PREFIXES = {
-  MAINNET: 'spark',
-  REGTEST: 'sparkrt'
+  MAINNET: "spark",
+  REGTEST: "sparkrt",
 } as const;
 
 /**
  * Encode Spark address in NEW format directly from identity public key
  */
-export function encodeNewSparkAddress(identityPublicKey: string, network: ValidSparkNetwork): string {
+export function encodeNewSparkAddress(
+  identityPublicKey: string,
+  network: ValidSparkNetwork,
+): string {
   const identityPublicKeyBytes = hexToBytes(identityPublicKey);
 
   const w = new BinaryWriter();
@@ -51,12 +64,19 @@ export function encodeNewSparkAddress(identityPublicKey: string, network: ValidS
  * Convert legacy to new format (sprt1... -> sparkrt1...)
  */
 export function convertLegacyToNewFormat(legacyAddress: string): string {
-  if (legacyAddress.startsWith('sparkrt1') || legacyAddress.startsWith('spark1')) {
-    console.warn(`Address ${legacyAddress} is already in new format, skipping conversion`);
+  if (
+    legacyAddress.startsWith("sparkrt1") ||
+    legacyAddress.startsWith("spark1")
+  ) {
+    console.warn(
+      `Address ${legacyAddress} is already in new format, skipping conversion`,
+    );
     return legacyAddress;
   }
 
-  const network = getNetworkFromSparkAddress(legacyAddress) as ValidSparkNetwork;
+  const network = getNetworkFromSparkAddress(
+    legacyAddress,
+  ) as ValidSparkNetwork;
   const { words } = bech32mDecode(legacyAddress);
   return bech32m.encode(NEW_PREFIXES[network], words, 1024);
 }
