@@ -53,7 +53,7 @@ export default function Home() {
           {wallet !== null && (
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <button
-                className="rounded-md px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-indigo-600 hover:bg-indigo-700"
+                className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 onClick={async () => {
                   const address = await wallet.getChangeAddress();
                   alert(address);
@@ -62,7 +62,7 @@ export default function Home() {
                 Get Address
               </button>
               <button
-                className="rounded-md px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-indigo-600 hover:bg-indigo-700"
+                className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 onClick={async () => {
                   const signature = await wallet.signData("mesh");
                   alert(JSON.stringify(signature));

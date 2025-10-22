@@ -15,7 +15,7 @@ This demo application demonstrates how to implement third-party authentication (
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Google OAuth Client ID and Secret
 - Discord OAuth Client ID and Secret

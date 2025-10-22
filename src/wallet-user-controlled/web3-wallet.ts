@@ -331,7 +331,7 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
-    baseUrl?: string,
+    baseUrl?: string;
     sparkscanApiKey?: string;
   }) {
     const _options: CreateWalletOptions = {

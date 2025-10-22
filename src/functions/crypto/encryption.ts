@@ -8,40 +8,18 @@ export async function encryptWithCipher({
   initializationVectorSize = IV_LENGTH,
 }: {
   data: string;
-  key: string;
+  key: CryptoKey;
   algorithm?: string;
   initializationVectorSize?: number;
 }) {
-  // Derive a cryptographic key from the input key using SHA-256
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(key),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  );
-
-  const cryptoKey = await crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: new Uint8Array(initializationVectorSize), // Use a fixed salt for simplicity
-      iterations: 100000,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    { name: algorithm, length: 256 },
-    false,
-    ["encrypt"]
-  );
-
   // Create an initialization vector
   const iv = crypto.getRandomValues(new Uint8Array(initializationVectorSize));
 
   // Encrypt the data
   const encrypted = await crypto.subtle.encrypt(
     { name: algorithm, iv },
-    cryptoKey,
-    new TextEncoder().encode(data)
+    key,
+    new TextEncoder().encode(data),
   );
 
   // Return the encrypted data as a base64 string
@@ -56,35 +34,13 @@ export async function decryptWithCipher({
   algorithm = "AES-GCM",
 }: {
   encryptedDataJSON: string;
-  key: string;
+  key: CryptoKey;
   algorithm?: string;
 }) {
   const _encryptedData: {
     iv: string;
     ciphertext: string;
   } = JSON.parse(encryptedDataJSON);
-
-  // Derive a cryptographic key from the input key using SHA-256
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(key),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  );
-
-  const cryptoKey = await crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: new Uint8Array(Buffer.from(_encryptedData.iv, "base64").length), // Use the same salt size as IV
-      iterations: 100000,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    { name: algorithm, length: 256 },
-    false,
-    ["decrypt"]
-  );
 
   // Decode the IV and encrypted data from base64
   const decodedIv = Buffer.from(_encryptedData.iv, "base64");
@@ -93,8 +49,8 @@ export async function decryptWithCipher({
   // Decrypt the data
   const decrypted = await crypto.subtle.decrypt(
     { name: algorithm, iv: decodedIv },
-    cryptoKey,
-    decodedEncryptedData
+    key,
+    decodedEncryptedData,
   );
 
   // Return the decrypted data as a string
@@ -108,7 +64,7 @@ export async function generateKeyPair() {
       namedCurve: "P-256",
     },
     true,
-    ["deriveKey"]
+    ["deriveKey"],
   );
 
   const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
@@ -136,14 +92,14 @@ export async function encryptWithPublicKey({
     publicKeyBuffer,
     { name: "ECDH", namedCurve: "P-256" },
     false,
-    []
+    [],
   );
 
   // Generate an ephemeral key pair
   const ephemeralKeyPair = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" },
     true,
-    ["deriveKey"]
+    ["deriveKey"],
   );
 
   // Derive a shared secret
@@ -152,7 +108,7 @@ export async function encryptWithPublicKey({
     ephemeralKeyPair.privateKey,
     { name: "AES-GCM", length: 256 },
     false,
-    ["encrypt"]
+    ["encrypt"],
   );
 
   // Encrypt the message using AES-GCM
@@ -160,13 +116,13 @@ export async function encryptWithPublicKey({
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     sharedSecret,
-    new TextEncoder().encode(data)
+    new TextEncoder().encode(data),
   );
 
   const encryptedData = {
     ephemeralPublicKey: await crypto.subtle.exportKey(
       "spki",
-      ephemeralKeyPair.publicKey
+      ephemeralKeyPair.publicKey,
     ),
     iv,
     ciphertext: encrypted,
@@ -174,7 +130,7 @@ export async function encryptWithPublicKey({
 
   return JSON.stringify({
     ephemeralPublicKey: Buffer.from(encryptedData.ephemeralPublicKey).toString(
-      "base64"
+      "base64",
     ),
     iv: Buffer.from(encryptedData.iv).toString("base64"),
     ciphertext: Buffer.from(encryptedData.ciphertext).toString("base64"),
@@ -199,7 +155,7 @@ export async function decryptWithPrivateKey({
   const encryptedData = {
     ephemeralPublicKey: Buffer.from(
       _encryptedData.ephemeralPublicKey,
-      "base64"
+      "base64",
     ),
     iv: Buffer.from(_encryptedData.iv, "base64"),
     ciphertext: Buffer.from(_encryptedData.ciphertext, "base64"),
@@ -210,7 +166,7 @@ export async function decryptWithPrivateKey({
     privateKeyBuffer,
     { name: "ECDH", namedCurve: "P-256" },
     false,
-    ["deriveKey"]
+    ["deriveKey"],
   );
 
   const ephemeralPublicKey = await crypto.subtle.importKey(
@@ -218,7 +174,7 @@ export async function decryptWithPrivateKey({
     encryptedData.ephemeralPublicKey,
     { name: "ECDH", namedCurve: "P-256" },
     false,
-    []
+    [],
   );
 
   // Derive the shared secret
@@ -227,14 +183,14 @@ export async function decryptWithPrivateKey({
     _privateKey,
     { name: "AES-GCM", length: 256 },
     false,
-    ["decrypt"]
+    ["decrypt"],
   );
 
   // Decrypt the message
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: encryptedData.iv },
     sharedSecret,
-    encryptedData.ciphertext
+    encryptedData.ciphertext,
   );
 
   return new TextDecoder().decode(decrypted);

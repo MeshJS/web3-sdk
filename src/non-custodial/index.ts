@@ -2,6 +2,7 @@ import { clientGenerateWallet, clientRecovery } from "../functions";
 import { Web3JWTBody } from "../types";
 import { Web3WalletObject } from "../types";
 import { Web3AuthProvider } from "../types/core";
+export * from "./utils";
 
 const AUTH_KEY = "mesh-web3-services-auth";
 type AuthJwtLocationObject = {
@@ -18,11 +19,13 @@ type LocalShardWalletObjects = {
 
 export type StorageLocation = "local_storage" | "chrome_local" | "chrome_sync";
 
+// We need to adjust the API to allow for users to create a wallet using the webauthnCredentialId as well!
 export type CreateWalletBody = {
   userAgent: string;
   recoveryShard: string;
   authShard: string;
-  recoveryShardQuestion: string;
+  recoveryShardQuestion?: string; // This becomes optional
+  webauthnCredentialId?: string; // if using webauthn, this credential is the passkey
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
@@ -46,12 +49,13 @@ export type GetWalletBody = {
   userId: string;
   recoveryShard: string;
   createdAt: string;
-  recoveryShardQuestion: string;
+  recoveryShardQuestion: string | null;
+  webauthnCredentialId: string | null;
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
   bitcoinPubKeyHash: string;
-  sparkMainnetPubKeyHash?: string;
-  sparkRegtestPubKeyHash?: string;
+  sparkMainnetPubKeyHash: string | null;
+  sparkRegtestPubKeyHash: string | null;
   projectId: string;
   authShard: string;
 };
@@ -77,6 +81,7 @@ export type GetDevicesResponse = {
   walletId: string;
   authShard: string;
   userAgent: string | null;
+  webauthnCredentialId: string | null;
 }[];
 
 export type Web3NonCustodialProviderParams = {
@@ -106,6 +111,7 @@ export type Web3NonCustodialWallet = {
   authShard: string;
   localShard: string;
   userAgent: string | null;
+  webauthnCredentialId: string | null;
 };
 
 export class NotAuthenticatedError extends Error {
@@ -164,7 +170,7 @@ export class Web3NonCustodialProvider {
   googleOauth2ClientId: string;
   twitterOauth2ClientId: string;
   discordOauth2ClientId: string;
-  appleOauth2ClientId: string
+  appleOauth2ClientId: string;
 
   constructor(params: Web3NonCustodialProviderParams) {
     this.projectId = params.projectId;
@@ -255,6 +261,7 @@ export class Web3NonCustodialProvider {
         authShard: device.authShard,
         userAgent: device.userAgent,
         localShard: localShard!.keyShard,
+        webauthnCredentialId: device.webauthnCredentialId,
       };
       return i;
     });
@@ -266,9 +273,10 @@ export class Web3NonCustodialProvider {
   }
 
   async createWallet(
-    spendingPassword: string,
-    recoveryQuestion: string,
-    recoveryAnswer: string,
+    deviceShardEncryptionKey: CryptoKey,
+    recoveryShardEncryptionKey: CryptoKey,
+    recoveryQuestion?: string,
+    webauthnCredentialId?: string,
   ): Promise<
     | {
         data: null;
@@ -294,7 +302,10 @@ export class Web3NonCustodialProvider {
       bitcoinPubKeyHash,
       sparkMainnetPubKeyHash,
       sparkRegtestPubKeyHash,
-    } = await clientGenerateWallet(spendingPassword, recoveryAnswer);
+    } = await clientGenerateWallet(
+      deviceShardEncryptionKey,
+      recoveryShardEncryptionKey,
+    );
 
     const body: CreateWalletBody = {
       userAgent,
@@ -306,6 +317,7 @@ export class Web3NonCustodialProvider {
       cardanoStakeCredentialHash: stakeCredentialHash,
       sparkMainnetPubKeyHash,
       sparkRegtestPubKeyHash,
+      webauthnCredentialId: webauthnCredentialId,
       recoveryShardQuestion: recoveryQuestion,
     };
     const res = await fetch(this.appOrigin + "/api/wallet", {
@@ -375,9 +387,9 @@ export class Web3NonCustodialProvider {
   }
 
   async performRecovery(
-    recoveryAnswer: string,
     walletId: string,
-    spendingPassword: string,
+    recoveryShardEncryptionKey: CryptoKey,
+    newDeviceShardEncryptionKey: CryptoKey,
   ) {
     const { data: user, error: userError } = await this.getUser();
     if (userError) {
@@ -401,8 +413,8 @@ export class Web3NonCustodialProvider {
     const { authShard, deviceShard } = await clientRecovery(
       wallet.authShard,
       wallet.recoveryShard,
-      recoveryAnswer,
-      spendingPassword,
+      recoveryShardEncryptionKey,
+      newDeviceShardEncryptionKey,
     );
 
     const userAgent = navigator.userAgent;
@@ -515,8 +527,10 @@ export class Web3NonCustodialProvider {
         scope: "name email",
         state: btoa(appleState),
       });
-      const appleAuthorizeUrl = "https://appleid.apple.com/auth/authorize?" + appleSearchParams.toString();
-      callback(appleAuthorizeUrl)
+      const appleAuthorizeUrl =
+        "https://appleid.apple.com/auth/authorize?" +
+        appleSearchParams.toString();
+      callback(appleAuthorizeUrl);
       return;
     }
   }

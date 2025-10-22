@@ -74,7 +74,7 @@ export function decryptString(privateKey: string, payload: string) {
       key: privateKey,
       passphrase: "",
     },
-    Buffer.from(payload, "base64")
+    Buffer.from(payload, "base64"),
   );
   return decrypted.toString("utf8");
 }
@@ -88,7 +88,7 @@ export async function generateKeyPairWindow() {
       hash: "SHA-256",
     },
     true,
-    ["encrypt", "decrypt"]
+    ["encrypt", "decrypt"],
   );
 
   const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
@@ -102,7 +102,7 @@ export async function generateKeyPairWindow() {
 
 export async function encryptStringWindow(
   publicKey: string,
-  data: string
+  data: string,
 ): Promise<string> {
   try {
     const key = await crypto.subtle.importKey(
@@ -113,7 +113,7 @@ export async function encryptStringWindow(
         hash: "SHA-256",
       },
       true,
-      ["encrypt"]
+      ["encrypt"],
     );
 
     const encrypted = await crypto.subtle.encrypt(
@@ -121,7 +121,7 @@ export async function encryptStringWindow(
         name: "RSA-OAEP",
       },
       key,
-      new TextEncoder().encode(data)
+      new TextEncoder().encode(data),
     );
 
     return Buffer.from(encrypted).toString("base64");
@@ -133,7 +133,7 @@ export async function encryptStringWindow(
 
 export async function decryptStringWindow(
   privateKey: string,
-  encryptedData: string
+  encryptedData: string,
 ): Promise<string> {
   const key = await crypto.subtle.importKey(
     "pkcs8",
@@ -143,7 +143,7 @@ export async function decryptStringWindow(
       hash: "SHA-256",
     },
     true,
-    ["decrypt"]
+    ["decrypt"],
   );
 
   const decrypted = await crypto.subtle.decrypt(
@@ -151,7 +151,7 @@ export async function decryptStringWindow(
       name: "RSA-OAEP",
     },
     key,
-    Buffer.from(encryptedData, "base64")
+    Buffer.from(encryptedData, "base64"),
   );
 
   return new TextDecoder().decode(decrypted);

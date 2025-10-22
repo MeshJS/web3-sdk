@@ -7,8 +7,8 @@ import { spiltKeyIntoShards } from "../key-shard";
 import { encryptWithCipher } from "../crypto";
 
 export async function clientGenerateWallet(
-  spendingPassword: string,
-  recoveryAnswer: string,
+  deviceShardEncryptionKey: CryptoKey,
+  recoveryShardEncryptionKey: CryptoKey,
 ) {
   const mnemonic = await generateMnemonic(256);
 
@@ -30,13 +30,13 @@ export async function clientGenerateWallet(
 
   const encryptedDeviceShard = await encryptWithCipher({
     data: keyShare1!,
-    key: spendingPassword,
+    key: deviceShardEncryptionKey,
   });
 
   /* recovery */
   const encryptedRecoveryShard = await encryptWithCipher({
     data: keyShare3!,
-    key: recoveryAnswer,
+    key: recoveryShardEncryptionKey,
   });
 
   /* bitcoin */
