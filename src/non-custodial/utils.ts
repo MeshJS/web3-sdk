@@ -5,6 +5,27 @@ const rp = {
   id: "localhost",
 };
 
+export class NoPRFExtensionError extends Error {
+  constructor(message = "Credential does not support PRF extension") {
+    super(message);
+    this.name = "NoPRFExtensionError";
+  }
+}
+
+export class UserAbortedError extends Error {
+  constructor(message = "User aborted passkey flow") {
+    super(message);
+    this.name = "UserAbortedError";
+  }
+}
+
+export class NotAllowedError extends Error {
+  constructor(message = "Passkey operation was not allowed") {
+    super(message);
+    this.name = "NotAllowedError";
+  }
+}
+
 export async function secretToCryptoKey(secret: string, algorithm = "AES-GCM") {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -49,7 +70,18 @@ export async function webauthnPublicKeyCredentialToCryptoKey(
   );
 }
 
-export async function getCredentialFromCredentialId(credentialId: string) {
+export async function getCredentialFromCredentialId(
+  credentialId: string,
+): Promise<
+  | {
+      data: { credential: PublicKeyCredential };
+      error: null;
+    }
+  | {
+      data: null;
+      error: UserAbortedError | NoPRFExtensionError | NotAllowedError;
+    }
+> {
   const opts = {
     publicKey: {
       challenge: new Uint8Array(32).fill(2), // Same challenge for consistency
@@ -75,9 +107,17 @@ export async function getCredentialFromCredentialId(credentialId: string) {
     },
   } as any;
 
-  const credential = (await navigator.credentials.get(
-    opts,
-  )) as PublicKeyCredential;
+  let credential: PublicKeyCredential;
+  try {
+    credential = (await navigator.credentials.get(opts)) as PublicKeyCredential;
+  } catch (e) {
+    if (e instanceof DOMException) {
+      if (e.name === "AbortError") {
+        return { data: null, error: new UserAbortedError() };
+      }
+    }
+    return { data: null, error: new NotAllowedError() };
+  }
   const extensionResults = credential.getClientExtensionResults();
   const first = (extensionResults as any).prf?.results?.first as
     | BufferSource
@@ -86,10 +126,19 @@ export async function getCredentialFromCredentialId(credentialId: string) {
     throw new Error("PRF extension not supported or didn't return results");
   }
 
-  return credential;
+  return { data: { credential }, error: null };
 }
 
-export async function createCredential() {
+export async function createCredential(): Promise<
+  | {
+      data: { credential: PublicKeyCredential; prfOutput: BufferSource };
+      error: null;
+    }
+  | {
+      data: null;
+      error: UserAbortedError | NoPRFExtensionError | NotAllowedError;
+    }
+> {
   const buf = crypto.getRandomValues(new Uint8Array(32)).buffer;
   const opts = {
     publicKey: {
@@ -120,24 +169,36 @@ export async function createCredential() {
       },
     },
   };
-  const credential = (await navigator.credentials.create(
-    opts as any,
-  )) as PublicKeyCredential;
+  let credential: PublicKeyCredential;
+  try {
+    credential = (await navigator.credentials.create(
+      opts as any,
+    )) as PublicKeyCredential;
+  } catch (e: unknown) {
+    if (e instanceof DOMException) {
+      if (e.name === "AbortError") {
+        return { data: null, error: new UserAbortedError() };
+      }
+    }
+    return { data: null, error: new NotAllowedError() };
+  }
 
   const extensionResults = credential.getClientExtensionResults();
-  console.log(extensionResults);
 
   const first = (extensionResults as any).prf?.results?.first as
     | BufferSource
     | undefined;
 
   if (first === undefined) {
-    throw new Error("PRF extension not supported or didn't return results");
+    return { data: null, error: new NoPRFExtensionError() };
   }
 
   return {
-    credential: credential,
-    prfOutput: first,
+    data: {
+      credential,
+      prfOutput: first,
+    },
+    error: null,
   };
 }
 
