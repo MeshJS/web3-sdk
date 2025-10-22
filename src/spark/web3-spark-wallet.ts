@@ -2,7 +2,6 @@ import axios, { AxiosInstance } from "axios";
 import { ApiError } from "../wallet-user-controlled";
 import { OpenWindowResult } from "../types";
 import { openWindow } from "../functions";
-import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
 import * as Spark from "../types/spark";
 import {
   WalletTransfer,
@@ -866,7 +865,6 @@ export class Web3SparkWallet {
 
     return {
       sparkAddress: res.data.address,
-      staticDepositAddress: res.data.staticDepositAddress,
       publicKey: res.data.pubKeyHash,
       networkId: networkId,
     };

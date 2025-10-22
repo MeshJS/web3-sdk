@@ -103,7 +103,6 @@ export type TokenBalances = Map<string, TokenBalance>;
 
 export interface WalletInfo {
   sparkAddress: string;
-  staticDepositAddress: string;
   publicKey: string;
   networkId: number;
 }

@@ -30,7 +30,6 @@ export class EmbeddedSparkWallet {
 
     return {
       sparkAddress,
-      staticDepositAddress,
       publicKey: identityPublicKey,
       networkId: networkId === "MAINNET" ? 1 : 0,
     };
