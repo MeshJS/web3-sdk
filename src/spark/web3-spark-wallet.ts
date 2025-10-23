@@ -336,7 +336,8 @@ export class Web3SparkWallet {
       const payload = JSON.stringify({
         receiverSparkAddress,
         tokenIdentifier,
-        tokenAmount
+        tokenAmount,
+        selectedOutputs
       });
 
       const res: OpenWindowResult = await openWindow(
