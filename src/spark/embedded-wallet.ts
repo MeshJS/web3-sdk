@@ -19,22 +19,6 @@ export class EmbeddedSparkWallet {
     this.sparkWallet = sparkWallet;
   }
 
-  async getWalletInfo(): Promise<Spark.WalletInfo> {
-    const [sparkAddress, staticDepositAddress, identityPublicKey] =
-      await Promise.all([
-        this.sparkWallet.getSparkAddress(),
-        this.sparkWallet.getStaticDepositAddress(),
-        this.sparkWallet.getIdentityPublicKey(),
-      ]);
-    const networkId = getNetworkFromSparkAddress(sparkAddress);
-
-    return {
-      sparkAddress,
-      publicKey: identityPublicKey,
-      networkId: networkId === "MAINNET" ? 1 : 0,
-    };
-  }
-
   async signData(payload: string): Promise<string> {
     const parsed = JSON.parse(payload);
     const message = parsed.message;

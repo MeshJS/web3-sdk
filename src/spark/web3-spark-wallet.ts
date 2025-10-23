@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { ApiError } from "../wallet-user-controlled";
 import { OpenWindowResult } from "../types";
-import { openWindow } from "../functions";
+import { encodeNewSparkAddress, openWindow } from "../functions";
 import * as Spark from "../types/spark";
 import {
   WalletTransfer,
@@ -9,6 +9,9 @@ import {
   BalanceWithMetadata,
   TokenBalanceWithMetadata,
 } from "../types/spark";
+import {
+  decodeSparkAddress} from "@buildonspark/spark-sdk";
+import { OutputWithPreviousTransactionData } from "@buildonspark/spark-sdk/dist/proto/spark_token";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 
@@ -102,7 +105,7 @@ export class Web3SparkWallet {
     const networkId = options.network === "MAINNET" ? 1 : 0;
     const res: OpenWindowResult = await openWindow(
       {
-        method: "get-wallet-info",
+        method: "enable",
         projectId: options.projectId!,
         chain: "spark",
         networkId: String(networkId),
@@ -113,15 +116,21 @@ export class Web3SparkWallet {
     if (res.success === false)
       throw new ApiError({
         code: 3,
-        info: "UserDeclined - User declined to get wallet info.",
+        info: "UserDeclined - User declined to enable Spark wallet.",
       });
 
-    if (res.data.method !== "get-wallet-info") {
+    if (res.data.method !== "enable") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
       });
     }
+
+    const publicKey = options.network === "MAINNET"
+      ? res.data.sparkMainnetPubKeyHash
+      : res.data.sparkRegtestPubKeyHash;
+
+    const sparkAddress = encodeNewSparkAddress(publicKey, options.network);
 
     return new Web3SparkWallet({
       network: options.network,
@@ -130,8 +139,8 @@ export class Web3SparkWallet {
       appUrl: options.appUrl,
       key: {
         type: "address",
-        address: res.data.address,
-        identityPublicKey: res.data.pubKeyHash,
+        address: sparkAddress,
+        identityPublicKey: publicKey,
       },
     });
   }
@@ -158,7 +167,7 @@ export class Web3SparkWallet {
     const networkId = this.network === "MAINNET" ? 1 : 0;
     const res: OpenWindowResult = await openWindow(
       {
-        method: "get-wallet-info",
+        method: "get-identity-public-key",
         projectId: this.projectId,
         chain: "spark",
         networkId: String(networkId),
@@ -172,7 +181,7 @@ export class Web3SparkWallet {
         info: "UserDeclined - User declined to get identity public key.",
       });
 
-    if (res.data.method !== "get-wallet-info") {
+    if (res.data.method !== "get-identity-public-key") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
@@ -204,7 +213,7 @@ export class Web3SparkWallet {
     const networkId = this.network === "MAINNET" ? 1 : 0;
     const res: OpenWindowResult = await openWindow(
       {
-        method: "get-wallet-info",
+        method: "get-spark-address",
         projectId: this.projectId,
         chain: "spark",
         networkId: String(networkId),
@@ -218,7 +227,7 @@ export class Web3SparkWallet {
         info: "UserDeclined - User declined to get Spark address.",
       });
 
-    if (res.data.method !== "get-wallet-info") {
+    if (res.data.method !== "get-spark-address") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
@@ -313,7 +322,7 @@ export class Web3SparkWallet {
     tokenIdentifier: string;
     tokenAmount: bigint;
     receiverSparkAddress: string;
-    selectedOutputs?: any[];
+    selectedOutputs?: OutputWithPreviousTransactionData[];
   }): Promise<string> {
     if (!this.projectId || !this.appUrl) {
       throw new ApiError({
@@ -327,7 +336,7 @@ export class Web3SparkWallet {
       const payload = JSON.stringify({
         receiverSparkAddress,
         tokenIdentifier,
-        tokenAmount: tokenAmount.toString(),
+        tokenAmount
       });
 
       const res: OpenWindowResult = await openWindow(
@@ -813,8 +822,9 @@ export class Web3SparkWallet {
    * @throws ApiError if signing fails or user declines
    */
   async signData(message: string): Promise<string> {
-    const result = await this.signMessage(message);
-    return Buffer.from(result.signature).toString("hex");
+    const messageData = new Uint8Array(Buffer.from(message));
+    const result = await this.signMessageWithIdentityKey(messageData);
+    return Buffer.from(result).toString("hex");
   }
 
   async getNetworkId(): Promise<number> {
@@ -822,51 +832,42 @@ export class Web3SparkWallet {
   }
 
   /**
-   * Gets comprehensive wallet information in a single call via iframe
-   * Custom convenience method that combines multiple official Spark API calls:
-   * - getSparkAddress()
-   * - getIdentityPublicKey()
-   * - getStaticDepositAddress()
-   * @returns Promise resolving to complete wallet info including addresses and network
-   * @throws ApiError if wallet info retrieval fails or user declines
+   * Gets comprehensive wallet information from cached data
+   * Convenience method that returns sparkAddress, publicKey, and networkId
+   * If data is missing, attempts to derive it from available information
+   * @returns Promise resolving to wallet info object with address, public key, and network ID
+   * @throws ApiError if wallet data cannot be retrieved or derived
    * @note This is a Mesh SDK convenience method, not part of official Spark API
    */
   async getWalletInfo(): Promise<Spark.WalletInfo> {
-    if (!this.projectId || !this.appUrl) {
+    const networkId = this.network === "MAINNET" ? 1 : 0;
+    try {
+      if (!this.sparkAddress && this.publicKey) {
+        this.sparkAddress = encodeNewSparkAddress(this.publicKey, this.network);
+      }
+
+      if (!this.publicKey && this.sparkAddress) {
+        const addressData = decodeSparkAddress(this.sparkAddress, this.network);
+        this.publicKey = addressData.identityPublicKey;
+      }
+    } catch (error) {
       throw new ApiError({
         code: 1,
-        info: "getWalletInfo requires projectId and appUrl for authentication",
+        info: "Failed to derive wallet data: " + error,
       });
     }
 
-    const networkId = this.network === "MAINNET" ? 1 : 0;
-    const res: OpenWindowResult = await openWindow(
-      {
-        method: "get-wallet-info",
-        projectId: this.projectId,
-        chain: "spark",
-        networkId: String(networkId),
-      },
-      this.appUrl,
-    );
-
-    if (res.success === false)
+    if (!this.sparkAddress || !this.publicKey) {
       throw new ApiError({
-        code: 3,
-        info: "UserDeclined - User declined to get wallet info.",
-      });
-
-    if (res.data.method !== "get-wallet-info") {
-      throw new ApiError({
-        code: 2,
-        info: "Received the wrong response from the iframe.",
+        code: 1,
+        info: "Cannot retrieve wallet info - missing address or public key",
       });
     }
 
     return {
-      sparkAddress: res.data.address,
-      publicKey: res.data.pubKeyHash,
-      networkId: networkId,
+      sparkAddress: this.sparkAddress,
+      publicKey: this.publicKey,
+      networkId,
     };
   }
 

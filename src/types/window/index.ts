@@ -43,7 +43,13 @@ export type OpenWindowParams =
       projectId: string;
     }
   | {
-      method: "get-wallet-info";
+      method: "get-identity-public-key";
+      projectId: string;
+      chain?: string;
+      networkId?: string;
+    }
+  | {
+      method: "get-spark-address";
       projectId: string;
       chain?: string;
       networkId?: string;
@@ -99,10 +105,12 @@ export type OpenWindowResult =
             method: "disable";
           }
         | {
-            method: "get-wallet-info";
-            address: string;
-            staticDepositAddress: string;
+            method: "get-identity-public-key";
             pubKeyHash: string;
+          }
+        | {
+            method: "get-spark-address";
+            address: string;
           }
         | {
             method: "claim-deposit";
