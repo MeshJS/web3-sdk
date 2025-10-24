@@ -1,6 +1,6 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
+import { EmbeddedWallet } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
@@ -68,7 +68,7 @@ export class Web3Wallet {
     });
 
     this.bitcoin = new EmbeddedWallet({
-      testnet: options.networkId !== 1,
+      network: options.networkId === 1 ? "Mainnet" : "Testnet",
       key: {
         type: "address",
         address: "bcrt1qssadlsnjxkp2hf93yxge2kukh4m87743jfqx5k",
@@ -198,7 +198,8 @@ export class Web3Wallet {
    */
   private async getChangeAddress(chain?: string): Promise<string | undefined> {
     if (chain === "bitcoin" && this.bitcoin) {
-      return this.bitcoin.getAddress().address;
+      const addresses = await this.bitcoin.getAddresses();
+      return addresses[0]?.address;
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
@@ -340,20 +341,23 @@ export class Web3Wallet {
     wallet.cardano = cardanoWallet;
 
     const bitcoinWallet = new EmbeddedWallet({
-      testnet: networkId === 0,
+      network: networkId === 1 ? "Mainnet" : "Testnet",
       key: resolveWalletAddress("bitcoin", keyHashes, networkId),
     });
 
-    bitcoinWallet.signTx = async (payload: TransactionPayload) => {
-      return wallet.signTx(
-        JSON.stringify(payload),
-        false,
-        "bitcoin",
-      ) as Promise<string>;
+    bitcoinWallet.sendTransfer = async (params) => {
+      const txData = JSON.stringify(params);
+      const signedTx = await wallet.signTx(txData, false, "bitcoin");
+      return { txid: signedTx };
     };
 
-    bitcoinWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(payload, address, "bitcoin") as Promise<string>;
+    bitcoinWallet.signMessage = async (params) => {
+      const signature = await wallet.signData(params.message, params.address, "bitcoin") as string;
+      return {
+        signature,
+        messageHash: "", // Will be computed by the signing process
+        address: params.address,
+      };
     };
 
     wallet.bitcoin = bitcoinWallet;
