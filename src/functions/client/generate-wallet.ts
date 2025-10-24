@@ -41,7 +41,7 @@ export async function clientGenerateWallet(
 
   /* bitcoin */
   const bitcoinWallet = new EmbeddedWallet({
-    testnet: true,
+    network: "Testnet",
     key: {
       type: "mnemonic",
       words: mnemonic.split(" "),

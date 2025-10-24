@@ -1,6 +1,6 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
+import { EmbeddedWallet, IBitcoinProvider } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
@@ -21,6 +21,7 @@ export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
   fetcher?: IFetcher;
   submitter?: ISubmitter;
+  bitcoinProvider?: IBitcoinProvider;
   projectId?: string;
   appUrl?: string;
   directTo?: Web3AuthProvider;
@@ -34,6 +35,7 @@ type InitWeb3WalletOptions = {
   networkId: 0 | 1;
   fetcher?: IFetcher;
   submitter?: ISubmitter;
+  bitcoinProvider?: IBitcoinProvider;
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
@@ -72,7 +74,7 @@ export class Web3Wallet {
     });
 
     this.bitcoin = new EmbeddedWallet({
-      testnet: options.networkId === 0,
+      network: options.networkId === 1 ? "Mainnet" : "Testnet",
       key: {
         type: "address",
         address: "bcrt1qssadlsnjxkp2hf93yxge2kukh4m87743jfqx5k",
@@ -136,6 +138,7 @@ export class Web3Wallet {
       networkId: options.networkId,
       fetcher: options.fetcher,
       submitter: options.submitter,
+      bitcoinProvider: options.bitcoinProvider,
       projectId: options.projectId,
       appUrl: options.appUrl,
       user: res.data.user,
@@ -243,7 +246,8 @@ export class Web3Wallet {
    */
   private async getChangeAddress(chain?: string): Promise<string | undefined> {
     if (chain === "bitcoin" && this.bitcoin) {
-      return this.bitcoin.getAddress().address;
+      const addresses = await this.bitcoin.getAddresses();
+      return addresses[0]?.address;
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
@@ -325,6 +329,7 @@ export class Web3Wallet {
     networkId,
     fetcher,
     submitter,
+    bitcoinProvider,
     projectId,
     appUrl,
     user,
@@ -335,6 +340,7 @@ export class Web3Wallet {
     networkId: 0 | 1;
     fetcher?: IFetcher;
     submitter?: ISubmitter;
+    bitcoinProvider?: IBitcoinProvider;
     projectId?: string;
     appUrl?: string;
     user?: UserSocialData;
@@ -385,20 +391,24 @@ export class Web3Wallet {
     wallet.cardano = cardanoWallet;
 
     const bitcoinWallet = new EmbeddedWallet({
-      testnet: networkId === 0,
+      network: networkId === 1 ? "Mainnet" : "Testnet",
       key: resolveWalletAddress("bitcoin", keyHashes, networkId),
+      provider: bitcoinProvider,
     });
 
-    bitcoinWallet.signTx = async (payload: TransactionPayload) => {
-      return wallet.signTx(
-        JSON.stringify(payload),
-        false,
-        "bitcoin",
-      ) as Promise<string>;
+    bitcoinWallet.signMessage = async (params) => {
+      const signature = await wallet.signData(params.message, params.address, "bitcoin") as string;
+      return {
+        signature,
+        messageHash: "",
+        address: params.address,
+      };
     };
 
-    bitcoinWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(payload, address, "bitcoin") as Promise<string>;
+    bitcoinWallet.signPsbt = async (params) => {
+      const txData = JSON.stringify(params);
+      const signedTx = await wallet.signTx(txData, false, "bitcoin");
+      return { psbt: signedTx };
     };
 
     wallet.bitcoin = bitcoinWallet;
