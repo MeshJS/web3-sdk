@@ -1,6 +1,6 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
-import { EmbeddedWallet, TransactionPayload } from "@meshsdk/bitcoin";
+import { EmbeddedWallet, IBitcoinProvider } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
@@ -10,13 +10,18 @@ import {
 } from "../types";
 import { openWindow } from "../functions";
 import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
-import { Web3SparkWallet } from "../spark/web3-spark-wallet";
+import {
+  Web3SparkWallet,
+  EnableSparkWalletOptions,
+  ValidSparkNetwork,
+} from "../spark/web3-spark-wallet";
 import { deserializeTx } from "@meshsdk/core-cst";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
   fetcher?: IFetcher;
   submitter?: ISubmitter;
+  bitcoinProvider?: IBitcoinProvider;
   projectId?: string;
   appUrl?: string;
   directTo?: Web3AuthProvider;
@@ -30,6 +35,7 @@ type InitWeb3WalletOptions = {
   networkId: 0 | 1;
   fetcher?: IFetcher;
   submitter?: ISubmitter;
+  bitcoinProvider?: IBitcoinProvider;
   projectId?: string;
   appUrl?: string;
   user?: UserSocialData;
@@ -68,7 +74,7 @@ export class Web3Wallet {
     });
 
     this.bitcoin = new EmbeddedWallet({
-      testnet: options.networkId !== 1,
+      network: options.networkId === 1 ? "Mainnet" : "Testnet",
       key: {
         type: "address",
         address: "bcrt1qssadlsnjxkp2hf93yxge2kukh4m87743jfqx5k",
@@ -132,6 +138,7 @@ export class Web3Wallet {
       networkId: options.networkId,
       fetcher: options.fetcher,
       submitter: options.submitter,
+      bitcoinProvider: options.bitcoinProvider,
       projectId: options.projectId,
       appUrl: options.appUrl,
       user: res.data.user,
@@ -143,6 +150,7 @@ export class Web3Wallet {
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
       sparkscanApiKey: options.sparkscanApiKey,
+      baseUrl: options.baseUrl,
     });
 
     return wallet;
@@ -153,6 +161,46 @@ export class Web3Wallet {
   }
 
   /* PRIVATE FUNCTIONS */
+
+  private static initSparkWallet(
+    keyHashes: Web3WalletKeyHashes,
+    networkId: 0 | 1,
+    projectId?: string,
+    appUrl?: string,
+    sparkscanApiKey?: string,
+    baseUrl?: string,
+  ): Web3SparkWallet {
+    const identityPublicKey =
+      networkId === 1
+        ? keyHashes.sparkMainnetPubKeyHash
+        : keyHashes.sparkRegtestPubKeyHash;
+
+    const sparkOptions: EnableSparkWalletOptions = {
+      network: (networkId === 1 ? "MAINNET" : "REGTEST") as ValidSparkNetwork,
+      projectId,
+      appUrl,
+      sparkscanApiKey: sparkscanApiKey || "",
+      baseUrl,
+      ...(identityPublicKey && {
+        key: {
+          type: "address" as const,
+          address: resolveWalletAddress("spark", keyHashes, networkId).address!,
+          identityPublicKey,
+        },
+      }),
+    };
+
+    try {
+      return new Web3SparkWallet(sparkOptions);
+    } catch (error) {
+      console.warn(
+        "Failed to create Spark wallet with key, using fallback:",
+        error,
+      );
+      const { key, ...fallbackOptions } = sparkOptions;
+      return new Web3SparkWallet(fallbackOptions);
+    }
+  }
 
   private async signTx(
     unsignedTx: string,
@@ -198,7 +246,8 @@ export class Web3Wallet {
    */
   private async getChangeAddress(chain?: string): Promise<string | undefined> {
     if (chain === "bitcoin" && this.bitcoin) {
-      return this.bitcoin.getAddress().address;
+      const addresses = await this.bitcoin.getAddresses();
+      return addresses[0]?.address;
     } else if (this.cardano) {
       return await this.cardano.getChangeAddress();
     } else if (this.spark) {
@@ -280,6 +329,7 @@ export class Web3Wallet {
     networkId,
     fetcher,
     submitter,
+    bitcoinProvider,
     projectId,
     appUrl,
     user,
@@ -290,6 +340,7 @@ export class Web3Wallet {
     networkId: 0 | 1;
     fetcher?: IFetcher;
     submitter?: ISubmitter;
+    bitcoinProvider?: IBitcoinProvider;
     projectId?: string;
     appUrl?: string;
     user?: UserSocialData;
@@ -340,69 +391,36 @@ export class Web3Wallet {
     wallet.cardano = cardanoWallet;
 
     const bitcoinWallet = new EmbeddedWallet({
-      testnet: networkId === 0,
+      network: networkId === 1 ? "Mainnet" : "Testnet",
       key: resolveWalletAddress("bitcoin", keyHashes, networkId),
+      provider: bitcoinProvider,
     });
 
-    bitcoinWallet.signTx = async (payload: TransactionPayload) => {
-      return wallet.signTx(
-        JSON.stringify(payload),
-        false,
-        "bitcoin",
-      ) as Promise<string>;
+    bitcoinWallet.signMessage = async (params) => {
+      const signature = await wallet.signData(params.message, params.address, "bitcoin") as string;
+      return {
+        signature,
+        messageHash: "",
+        address: params.address,
+      };
     };
 
-    bitcoinWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(payload, address, "bitcoin") as Promise<string>;
+    bitcoinWallet.signPsbt = async (params) => {
+      const txData = JSON.stringify(params);
+      const signedTx = await wallet.signTx(txData, false, "bitcoin");
+      return { psbt: signedTx };
     };
 
     wallet.bitcoin = bitcoinWallet;
 
-    // todo: keyHashes.sparkMainnetPubKeyHash and keyHashes.sparkRegtestPubKeyHash can be "" (empty string), and that will cause error
-    // SparkSDKError: Failed to encode Spark address
-    // Context: field: "publicKey", value: ""
-    // Original Error: SparkSDKError: Invalid public key
-    // Context: field: "publicKey", value: ""
-    // Original Error: bad point: got length 0, expected compressed=33 or uncompressed=65
-    const identityPublicKey =
-      networkId === 1
-        ? keyHashes.sparkMainnetPubKeyHash
-        : keyHashes.sparkRegtestPubKeyHash;
-
-    if (!identityPublicKey || identityPublicKey.trim() === "") {
-      console.warn(
-        "Skipping Spark wallet initialization: missing public key hash",
-      );
-      wallet.spark = new Web3SparkWallet({
-        network: networkId === 1 ? "MAINNET" : "REGTEST",
-        projectId: _options.projectId,
-        appUrl: _options.appUrl,
-      });
-    } else {
-      try {
-        const sparkWallet = new Web3SparkWallet({
-          network: networkId === 1 ? "MAINNET" : "REGTEST",
-          projectId: _options.projectId,
-          appUrl: _options.appUrl,
-          sparkscanApiKey: sparkscanApiKey || "",
-          baseUrl: baseUrl,
-          key: {
-            type: "address",
-            address: resolveWalletAddress("spark", keyHashes, networkId)
-              .address!,
-            identityPublicKey,
-          },
-        });
-        wallet.spark = sparkWallet;
-      } catch (error) {
-        console.warn("Failed to create Spark wallet:", error);
-        wallet.spark = new Web3SparkWallet({
-          network: networkId === 1 ? "MAINNET" : "REGTEST",
-          projectId: _options.projectId,
-          appUrl: _options.appUrl,
-        });
-      }
-    }
+    wallet.spark = this.initSparkWallet(
+      keyHashes,
+      networkId,
+      _options.projectId,
+      _options.appUrl,
+      sparkscanApiKey,
+      baseUrl,
+    );
 
     return wallet;
   }

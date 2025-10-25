@@ -1,10 +1,17 @@
 import axios, { AxiosInstance } from "axios";
 import { ApiError } from "../wallet-user-controlled";
 import { OpenWindowResult } from "../types";
-import { openWindow } from "../functions";
-import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
+import { encodeNewSparkAddress, openWindow } from "../functions";
 import * as Spark from "../types/spark";
-import { WalletTransfer, SparkAddressFormat } from "../types/spark";
+import {
+  WalletTransfer,
+  SparkAddressFormat,
+  BalanceWithMetadata,
+  TokenBalanceWithMetadata,
+} from "../types/spark";
+import {
+  decodeSparkAddress} from "@buildonspark/spark-sdk";
+import { OutputWithPreviousTransactionData } from "@buildonspark/spark-sdk/dist/proto/spark_token";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 
@@ -98,7 +105,7 @@ export class Web3SparkWallet {
     const networkId = options.network === "MAINNET" ? 1 : 0;
     const res: OpenWindowResult = await openWindow(
       {
-        method: "get-wallet-info",
+        method: "enable",
         projectId: options.projectId!,
         chain: "spark",
         networkId: String(networkId),
@@ -109,15 +116,21 @@ export class Web3SparkWallet {
     if (res.success === false)
       throw new ApiError({
         code: 3,
-        info: "UserDeclined - User declined to get wallet info.",
+        info: "UserDeclined - User declined to enable Spark wallet.",
       });
 
-    if (res.data.method !== "get-wallet-info") {
+    if (res.data.method !== "enable") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
       });
     }
+
+    const publicKey = options.network === "MAINNET"
+      ? res.data.sparkMainnetPubKeyHash
+      : res.data.sparkRegtestPubKeyHash;
+
+    const sparkAddress = encodeNewSparkAddress(publicKey, options.network);
 
     return new Web3SparkWallet({
       network: options.network,
@@ -126,8 +139,8 @@ export class Web3SparkWallet {
       appUrl: options.appUrl,
       key: {
         type: "address",
-        address: res.data.address,
-        identityPublicKey: res.data.pubKeyHash,
+        address: sparkAddress,
+        identityPublicKey: publicKey,
       },
     });
   }
@@ -154,7 +167,7 @@ export class Web3SparkWallet {
     const networkId = this.network === "MAINNET" ? 1 : 0;
     const res: OpenWindowResult = await openWindow(
       {
-        method: "get-wallet-info",
+        method: "get-identity-public-key",
         projectId: this.projectId,
         chain: "spark",
         networkId: String(networkId),
@@ -168,7 +181,7 @@ export class Web3SparkWallet {
         info: "UserDeclined - User declined to get identity public key.",
       });
 
-    if (res.data.method !== "get-wallet-info") {
+    if (res.data.method !== "get-identity-public-key") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
@@ -200,7 +213,7 @@ export class Web3SparkWallet {
     const networkId = this.network === "MAINNET" ? 1 : 0;
     const res: OpenWindowResult = await openWindow(
       {
-        method: "get-wallet-info",
+        method: "get-spark-address",
         projectId: this.projectId,
         chain: "spark",
         networkId: String(networkId),
@@ -214,7 +227,7 @@ export class Web3SparkWallet {
         info: "UserDeclined - User declined to get Spark address.",
       });
 
-    if (res.data.method !== "get-wallet-info") {
+    if (res.data.method !== "get-spark-address") {
       throw new ApiError({
         code: 2,
         info: "Received the wrong response from the iframe.",
@@ -309,7 +322,7 @@ export class Web3SparkWallet {
     tokenIdentifier: string;
     tokenAmount: bigint;
     receiverSparkAddress: string;
-    selectedOutputs?: any[];
+    selectedOutputs?: OutputWithPreviousTransactionData[];
   }): Promise<string> {
     if (!this.projectId || !this.appUrl) {
       throw new ApiError({
@@ -323,7 +336,8 @@ export class Web3SparkWallet {
       const payload = JSON.stringify({
         receiverSparkAddress,
         tokenIdentifier,
-        tokenAmount: tokenAmount.toString(),
+        tokenAmount,
+        selectedOutputs
       });
 
       const res: OpenWindowResult = await openWindow(
@@ -356,66 +370,6 @@ export class Web3SparkWallet {
       throw new ApiError({
         code: 4,
         info: "Failed to transfer token: " + error,
-      });
-    }
-  }
-
-  /**
-   * Signs a text message with the wallet (legacy xverse-style method)
-   * @param message - The message to sign as a string
-   * @param compact - Optional flag to specify signature format (default: false)
-   * @returns Promise resolving to SparkSignMessageResult with signature Uint8Array
-   * @throws ApiError if signing fails or user declines
-   * @deprecated Private xverse-style method, use signMessageWithIdentityKey for Spark-compliant signing
-   */
-  private async signMessage(
-    message: string,
-    compact?: boolean,
-  ): Promise<Spark.SparkSignMessageResult> {
-    if (!this.projectId || !this.appUrl) {
-      throw new ApiError({
-        code: 1,
-        info: `Sign message requires authentication. Missing: ${!this.projectId ? "projectId" : ""} ${!this.appUrl ? "appUrl" : ""}. These must be provided when calling Web3SparkWallet.enable().`,
-      });
-    }
-
-    try {
-      const networkId = this.network === "MAINNET" ? 1 : 0;
-
-      const payload = JSON.stringify({ message, compact: compact ?? false });
-      const res: OpenWindowResult = await openWindow(
-        {
-          method: "sign-data",
-          projectId: this.projectId,
-          payload: payload,
-          address: this.sparkAddress,
-          chain: "spark",
-          networkId: String(networkId),
-        },
-        this.appUrl,
-      );
-
-      if (res.success === false)
-        throw new ApiError({
-          code: 3,
-          info: "UserDeclined - User declined to sign message.",
-        });
-
-      if (res.data.method !== "sign-data") {
-        throw new ApiError({
-          code: 2,
-          info: "Received the wrong response from the iframe.",
-        });
-      }
-
-      const signatureHex = res.data.signature.signature;
-      const signatureBytes = new Uint8Array(Buffer.from(signatureHex, "hex"));
-
-      return { signature: signatureBytes };
-    } catch (error) {
-      throw new ApiError({
-        code: 6,
-        info: "Failed to sign message: " + error,
       });
     }
   }
@@ -869,12 +823,160 @@ export class Web3SparkWallet {
    * @throws ApiError if signing fails or user declines
    */
   async signData(message: string): Promise<string> {
-    const result = await this.signMessage(message);
-    return Buffer.from(result.signature).toString("hex");
+    const messageData = new Uint8Array(Buffer.from(message));
+    const result = await this.signMessageWithIdentityKey(messageData);
+    return Buffer.from(result).toString("hex");
   }
 
   async getNetworkId(): Promise<number> {
     return this.network === "MAINNET" ? 1 : 0;
+  }
+
+  /**
+   * Gets comprehensive wallet information from cached data
+   * Convenience method that returns sparkAddress, publicKey, and networkId
+   * If data is missing, attempts to derive it from available information
+   * @returns Promise resolving to wallet info object with address, public key, and network ID
+   * @throws ApiError if wallet data cannot be retrieved or derived
+   * @note This is a Mesh SDK convenience method, not part of official Spark API
+   */
+  async getWalletInfo(): Promise<Spark.WalletInfo> {
+    const networkId = this.network === "MAINNET" ? 1 : 0;
+    try {
+      if (!this.sparkAddress && this.publicKey) {
+        this.sparkAddress = encodeNewSparkAddress(this.publicKey, this.network);
+      }
+
+      if (!this.publicKey && this.sparkAddress) {
+        const addressData = decodeSparkAddress(this.sparkAddress, this.network);
+        this.publicKey = addressData.identityPublicKey;
+      }
+    } catch (error) {
+      throw new ApiError({
+        code: 1,
+        info: "Failed to derive wallet data: " + error,
+      });
+    }
+
+    if (!this.sparkAddress || !this.publicKey) {
+      throw new ApiError({
+        code: 1,
+        info: "Cannot retrieve wallet info - missing address or public key",
+      });
+    }
+
+    return {
+      sparkAddress: this.sparkAddress,
+      publicKey: this.publicKey,
+      networkId,
+    };
+  }
+
+  /**
+   * Gets wallet balance with complete token metadata from Sparkscan API
+   * Custom convenience method that enhances the basic getBalance() call
+   * with full token metadata (name, ticker, decimals, etc.)
+   * @returns Promise resolving to balance with enriched token information
+   * @throws ApiError if balance or metadata fetching fails
+   * @note This is a Mesh SDK convenience method that enriches official Spark API data
+   */
+  async getBalanceWithMetadata(): Promise<BalanceWithMetadata> {
+    try {
+      const response = await this._axiosInstance.get(
+        `address/${this.sparkAddress}?network=${this.network}`,
+      );
+
+      const balanceData = response.data as Spark.AddressSummary;
+      const tokenBalancesWithMetadata: TokenBalanceWithMetadata[] = [];
+
+      if (balanceData.tokens && Array.isArray(balanceData.tokens)) {
+        for (const token of balanceData.tokens) {
+          tokenBalancesWithMetadata.push({
+            tokenIdentifier: token.tokenIdentifier,
+            balance: BigInt(token.balance),
+            bech32mTokenIdentifier: token.tokenIdentifier,
+            metadata: {
+              name: token.name,
+              ticker: token.ticker,
+              decimals: token.decimals,
+              issuerPublicKey: token.issuerPublicKey,
+              maxSupply: token.maxSupply ? BigInt(token.maxSupply) : null,
+              isFreezable: token.isFreezable,
+            },
+          });
+        }
+      }
+
+      return {
+        balance: BigInt(balanceData.balance.btcHardBalanceSats || 0),
+        tokenBalances: tokenBalancesWithMetadata,
+      };
+    } catch (error) {
+      throw new ApiError({
+        code: 5,
+        info: "Failed to fetch balance with metadata from API: " + error,
+      });
+    }
+  }
+
+  /**
+   * Signs a text message with the wallet (legacy xverse-style method)
+   * @param message - The message to sign as a string
+   * @param compact - Optional flag to specify signature format (default: false)
+   * @returns Promise resolving to SparkSignMessageResult with signature Uint8Array
+   * @throws ApiError if signing fails or user declines
+   * @deprecated Private xverse-style method, use signMessageWithIdentityKey for Spark-compliant signing
+   */
+  private async signMessage(
+    message: string,
+    compact?: boolean,
+  ): Promise<Spark.SparkSignMessageResult> {
+    if (!this.projectId || !this.appUrl) {
+      throw new ApiError({
+        code: 1,
+        info: `Sign message requires authentication. Missing: ${!this.projectId ? "projectId" : ""} ${!this.appUrl ? "appUrl" : ""}. These must be provided when calling Web3SparkWallet.enable().`,
+      });
+    }
+
+    try {
+      const networkId = this.network === "MAINNET" ? 1 : 0;
+
+      const payload = JSON.stringify({ message, compact: compact ?? false });
+      const res: OpenWindowResult = await openWindow(
+        {
+          method: "sign-data",
+          projectId: this.projectId,
+          payload: payload,
+          address: this.sparkAddress,
+          chain: "spark",
+          networkId: String(networkId),
+        },
+        this.appUrl,
+      );
+
+      if (res.success === false)
+        throw new ApiError({
+          code: 3,
+          info: "UserDeclined - User declined to sign message.",
+        });
+
+      if (res.data.method !== "sign-data") {
+        throw new ApiError({
+          code: 2,
+          info: "Received the wrong response from the iframe.",
+        });
+      }
+
+      const signatureHex = res.data.signature.signature;
+      const signatureBytes = new Uint8Array(Buffer.from(signatureHex, "hex"));
+
+      return { signature: signatureBytes };
+    } catch (error) {
+      throw new ApiError({
+        code: 6,
+        info: "Failed to sign message: " + error,
+      });
+    }
   }
 
   private getAddress(): {
