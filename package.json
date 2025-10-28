@@ -45,7 +45,6 @@
     "@meshsdk/bitcoin": "1.9.0-beta.84",
     "@meshsdk/common": "1.9.0-beta.84",
     "@meshsdk/core-cst": "1.9.0-beta.84",
-    "@meshsdk/transaction": "1.9.0-beta.84",
     "@meshsdk/wallet": "1.9.0-beta.84",
     "@peculiar/webcrypto": "^1.5.0",
     "axios": "^1.8.3",
