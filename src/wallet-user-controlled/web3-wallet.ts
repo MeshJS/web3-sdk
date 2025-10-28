@@ -115,8 +115,8 @@ export class Web3Wallet {
         projectId: options.projectId!,
         directTo: options.directTo,
         refreshToken: options.refreshToken,
-        networkId: String(options.networkId),
         keepWindowOpen: options.keepWindowOpen ? "true" : "false",
+        networkId: String(options.networkId),
       },
       options.appUrl,
     );
@@ -160,276 +160,10 @@ export class Web3Wallet {
     return this.user;
   }
 
-  /* PRIVATE FUNCTIONS */
-
-  private static initSparkWallet(
-    keyHashes: Web3WalletKeyHashes,
-    networkId: 0 | 1,
-    projectId?: string,
-    appUrl?: string,
-    sparkscanApiKey?: string,
-    baseUrl?: string,
-  ): Web3SparkWallet {
-    const identityPublicKey =
-      networkId === 1
-        ? keyHashes.sparkMainnetPubKeyHash
-        : keyHashes.sparkRegtestPubKeyHash;
-
-    const sparkOptions: EnableSparkWalletOptions = {
-      network: (networkId === 1 ? "MAINNET" : "REGTEST") as ValidSparkNetwork,
-      projectId,
-      appUrl,
-      sparkscanApiKey: sparkscanApiKey || "",
-      baseUrl,
-      ...(identityPublicKey && {
-        key: {
-          type: "address" as const,
-          address: resolveWalletAddress("spark", keyHashes, networkId).address!,
-          identityPublicKey,
-        },
-      }),
-    };
-
-    try {
-      return new Web3SparkWallet(sparkOptions);
-    } catch (error) {
-      console.warn(
-        "Failed to create Spark wallet with key, using fallback:",
-        error,
-      );
-      const { key, ...fallbackOptions } = sparkOptions;
-      return new Web3SparkWallet(fallbackOptions);
-    }
-  }
-
-  private async signTx(
-    unsignedTx: string,
-    partialSign = false,
-    chain?: string,
-  ): Promise<string> {
-    chain = chain ?? "cardano";
-    const networkId = await this.getNetworkId(chain);
-    const res: OpenWindowResult = await openWindow(
-      {
-        method: "sign-tx",
-        projectId: this.projectId!,
-        unsignedTx,
-        partialSign: partialSign === true ? "true" : "false",
-        chain: chain,
-        networkId: String(networkId),
-      },
-      this.appUrl,
-    );
-
-    if (res.success === false)
-      throw new ApiError({
-        code: 2,
-        info: "UserDeclined - User declined to sign the transaction.",
-      });
-
-    if (res.data.method !== "sign-tx") {
-      throw new ApiError({
-        code: 2,
-        info: "Received the wrong response from the iframe.",
-      });
-    }
-
-    return res.data.tx;
-  }
-
-  /**
-   * This endpoint utilizes the [CIP-8 - Message Signing](https://cips.cardano.org/cips/cip8/) to sign arbitrary data, to verify the data was signed by the owner of the private key.
-   *
-   * @param payload - the payload to sign
-   * @param address - the address to use for signing (optional)
-   * @returns a signature
-   */
-  private async getChangeAddress(chain?: string): Promise<string | undefined> {
-    if (chain === "bitcoin" && this.bitcoin) {
-      const addresses = await this.bitcoin.getAddresses();
-      return addresses[0]?.address;
-    } else if (this.cardano) {
-      return await this.cardano.getChangeAddress();
-    } else if (this.spark) {
-      return await this.spark.getSparkAddress();
-    }
-    throw new ApiError({
-      code: 5,
-      info: "No wallet initialized",
-    });
-  }
-
-  private async getNetworkId(chain?: string): Promise<number> {
-    if (chain === "bitcoin" && this.bitcoin) {
-      return this.bitcoin.getNetworkId();
-    } else if (this.cardano) {
-      return this.cardano.getNetworkId();
-    } else if (this.spark) {
-      return this.spark.getNetworkId();
-    }
-    throw new ApiError({
-      code: 5,
-      info: "No wallet initialized",
-    });
-  }
-
-  private async signData(
-    payload: string,
-    address?: string,
-    chain?: string,
-  ): Promise<DataSignature | string> {
-    chain = chain ?? "cardano";
-    if (address === undefined) {
-      address = await this.getChangeAddress(chain)!;
-    }
-    const networkId = await this.getNetworkId(chain);
-
-    const res: OpenWindowResult = await openWindow(
-      {
-        method: "sign-data",
-        projectId: this.projectId!,
-        payload,
-        address,
-        networkId: String(networkId),
-        chain: chain,
-      },
-      this.appUrl,
-    );
-
-    if (res.success === false)
-      throw new ApiError({
-        code: 3,
-        info: "UserDeclined - User declined to sign the data.",
-      });
-
-    if (res.data.method !== "sign-data") {
-      throw new ApiError({
-        code: 2,
-        info: "Received the wrong response from the iframe.",
-      });
-    }
-
-    return res.data.signature;
-  }
-
-  /**
-   * Initializes a new instance of a Web3 wallet with the specified options.
-   *
-   * @param params - The parameters required to initialize the wallet.
-   * @param params.networkId - The network ID to connect to. Must be either `0` (testnet) or `1` (mainnet).
-   * @param params.address - The wallet address to associate with the wallet instance.
-   * @param params.fetcher - (Optional) An implementation of the `IFetcher` interface for fetching data.
-   * @param params.submitter - (Optional) An implementation of the `ISubmitter` interface for submitting transactions.
-   * @param params.projectId - (Optional) The project ID for analytics or tracking purposes.
-   * @param params.appUrl - (Optional) The application URL for associating the wallet with a specific app.
-   *
-   * @returns A promise that resolves to an initialized instance of `Web3Wallet`.
-   */
-  private static async initWallet({
-    networkId,
-    fetcher,
-    submitter,
-    bitcoinProvider,
-    projectId,
-    appUrl,
-    user,
-    keyHashes,
-    baseUrl,
-    sparkscanApiKey,
-  }: {
-    networkId: 0 | 1;
-    fetcher?: IFetcher;
-    submitter?: ISubmitter;
-    bitcoinProvider?: IBitcoinProvider;
-    projectId?: string;
-    appUrl?: string;
-    user?: UserSocialData;
-    keyHashes: Web3WalletKeyHashes;
-    baseUrl?: string;
-    sparkscanApiKey?: string;
-  }) {
-    const _options: CreateWalletOptions = {
-      networkId: networkId,
-      fetcher: fetcher,
-      submitter: submitter,
-      appUrl: appUrl,
-      projectId: projectId,
-      user: user,
-    };
-    const wallet = new Web3Wallet(_options);
-
-    const cardanoWallet = new MeshWallet({
-      networkId: networkId,
-      key: resolveWalletAddress("cardano", keyHashes, networkId),
-      fetcher: fetcher,
-      submitter: submitter,
-    });
-    await cardanoWallet.init();
-
-    cardanoWallet.signTx = async (
-      unsignedTx: string,
-      partialSign = false,
-      returnFullTx = true,
-    ) => {
-      const txCbor = await wallet.signTx(unsignedTx, partialSign, "cardano");
-      if (returnFullTx === false) {
-        const tx = deserializeTx(txCbor);
-        return tx.witnessSet().toCbor().toString();
-      } else {
-        return txCbor;
-      }
-    };
-
-    cardanoWallet.signData = async (payload: string, address?: string) => {
-      return wallet.signData(
-        payload,
-        address,
-        "cardano",
-      ) as Promise<DataSignature>;
-    };
-
-    wallet.cardano = cardanoWallet;
-
-    const bitcoinWallet = new EmbeddedWallet({
-      network: networkId === 1 ? "Mainnet" : "Testnet",
-      key: resolveWalletAddress("bitcoin", keyHashes, networkId),
-      provider: bitcoinProvider,
-    });
-
-    bitcoinWallet.signMessage = async (params) => {
-      const signature = await wallet.signData(params.message, params.address, "bitcoin") as string;
-      return {
-        signature,
-        messageHash: "",
-        address: params.address,
-      };
-    };
-
-    bitcoinWallet.signPsbt = async (params) => {
-      const txData = JSON.stringify(params);
-      const signedTx = await wallet.signTx(txData, false, "bitcoin");
-      return { psbt: signedTx };
-    };
-
-    wallet.bitcoin = bitcoinWallet;
-
-    wallet.spark = this.initSparkWallet(
-      keyHashes,
-      networkId,
-      _options.projectId,
-      _options.appUrl,
-      sparkscanApiKey,
-      baseUrl,
-    );
-
-    return wallet;
-  }
-
-  async exportWallet(chain?: string): Promise<{
+  async exportWallet(chain: "cardano" | "bitcoin" | "spark"): Promise<{
     success: boolean;
     data: { method: "export-wallet" };
   }> {
-    chain = chain ?? "cardano";
     const networkId = await this.getNetworkId(chain);
     const res: OpenWindowResult = await openWindow(
       {
@@ -472,6 +206,367 @@ export class Web3Wallet {
       });
     }
     return { success: true, data: { method: "disable" } };
+  }
+
+  /* PRIVATE FUNCTIONS */
+
+  /** depre */
+  // private async signTx(
+  //   unsignedTx: string,
+  //   partialSign = false,
+  //   chain?: string,
+  // ): Promise<string> {
+  //   chain = chain ?? "cardano";
+  //   const networkId = await this.getNetworkId(chain);
+  //   const res: OpenWindowResult = await openWindow(
+  //     {
+  //       method: "sign-tx",
+  //       projectId: this.projectId!,
+  //       unsignedTx,
+  //       partialSign: partialSign === true ? "true" : "false",
+  //       chain: chain,
+  //       networkId: String(networkId),
+  //     },
+  //     this.appUrl,
+  //   );
+
+  //   if (res.success === false)
+  //     throw new ApiError({
+  //       code: 2,
+  //       info: "UserDeclined - User declined to sign the transaction.",
+  //     });
+
+  //   if (res.data.method !== "sign-tx") {
+  //     throw new ApiError({
+  //       code: 2,
+  //       info: "Received the wrong response from the iframe.",
+  //     });
+  //   }
+
+  //   return res.data.tx;
+  // }
+
+  /** depre */
+  // private async getChangeAddress(chain?: string): Promise<string | undefined> {
+  //   if (chain === "bitcoin" && this.bitcoin) {
+  //     const addresses = await this.bitcoin.getAddresses();
+  //     return addresses[0]?.address;
+  //   } else if (this.cardano) {
+  //     return await this.cardano.getChangeAddress();
+  //   } else if (this.spark) {
+  //     return await this.spark.getSparkAddress();
+  //   }
+  //   throw new ApiError({
+  //     code: 5,
+  //     info: "No wallet initialized",
+  //   });
+  // }
+
+  private async getNetworkId(chain?: string): Promise<number> {
+    if (chain === "bitcoin" && this.bitcoin) {
+      return this.bitcoin.getNetworkId();
+    } else if (this.cardano) {
+      return this.cardano.getNetworkId();
+    } else if (this.spark) {
+      return this.spark.getNetworkId();
+    }
+    throw new ApiError({
+      code: 5,
+      info: "No wallet initialized",
+    });
+  }
+
+  /** depre */
+  // private async signData(
+  //   payload: string,
+  //   address?: string,
+  //   chain?: string,
+  // ): Promise<DataSignature | string> {
+  //   chain = chain ?? "cardano";
+  //   if (address === undefined) {
+  //     address = await this.getChangeAddress(chain)!;
+  //   }
+  //   const networkId = await this.getNetworkId(chain);
+
+  //   const res: OpenWindowResult = await openWindow(
+  //     {
+  //       method: "sign-data",
+  //       projectId: this.projectId!,
+  //       payload,
+  //       address,
+  //       networkId: String(networkId),
+  //       chain: chain,
+  //     },
+  //     this.appUrl,
+  //   );
+
+  //   if (res.success === false)
+  //     throw new ApiError({
+  //       code: 3,
+  //       info: "UserDeclined - User declined to sign the data.",
+  //     });
+
+  //   if (res.data.method !== "sign-data") {
+  //     throw new ApiError({
+  //       code: 2,
+  //       info: "Received the wrong response from the iframe.",
+  //     });
+  //   }
+
+  //   return res.data.signature;
+  // }
+
+  static async initBitcoinWallet(options: {}) {}
+
+  static async initCardanoWallet(options: {
+    projectId: string;
+    appUrl: string;
+    networkId: 0 | 1;
+    fetcher: IFetcher | undefined;
+    submitter: ISubmitter | undefined;
+    keyHashes: Web3WalletKeyHashes;
+  }): Promise<MeshWallet> {
+    const cardanoWallet = new MeshWallet({
+      networkId: options.networkId,
+      key: resolveWalletAddress(
+        "cardano",
+        options.keyHashes,
+        options.networkId,
+      ),
+      fetcher: options.fetcher,
+      submitter: options.submitter,
+    });
+    await cardanoWallet.init();
+
+    cardanoWallet.signTx = async (
+      unsignedTx: string,
+      partialSign = false,
+      returnFullTx = true,
+    ) => {
+      const res: OpenWindowResult = await openWindow(
+        {
+          method: "cardano-sign-tx",
+          projectId: options.projectId,
+          unsignedTx,
+          partialSign: partialSign === true ? "true" : "false",
+          returnFullTx: returnFullTx === true ? "true" : "false",
+          networkId: String(options.networkId),
+        },
+        options.appUrl,
+      );
+
+      if (res.success === false)
+        throw new ApiError({
+          code: 2,
+          info: "UserDeclined - User declined to sign the transaction.",
+        });
+
+      if (res.data.method !== "cardano-sign-tx") {
+        throw new ApiError({
+          code: 2,
+          info: "Received the wrong response from the iframe.",
+        });
+      }
+
+      return res.data.tx;
+    };
+
+    cardanoWallet.signData = async (payload: string, address?: string) => {
+      const res: OpenWindowResult = await openWindow(
+        {
+          method: "cardano-sign-data",
+          projectId: options.projectId,
+          payload,
+          address,
+          networkId: String(options.networkId),
+        },
+        options.appUrl,
+      );
+
+      if (res.success === false)
+        throw new ApiError({
+          code: 3,
+          info: "UserDeclined - User declined to sign the data.",
+        });
+
+      if (res.data.method !== "cardano-sign-data") {
+        throw new ApiError({
+          code: 2,
+          info: "Received the wrong response from the iframe.",
+        });
+      }
+
+      return res.data.dataSignature;
+    };
+
+    return cardanoWallet;
+  }
+
+  private static initSparkWallet(
+    keyHashes: Web3WalletKeyHashes,
+    networkId: 0 | 1,
+    projectId?: string,
+    appUrl?: string,
+    sparkscanApiKey?: string,
+    baseUrl?: string,
+  ): Web3SparkWallet {
+    const identityPublicKey =
+      networkId === 1
+        ? keyHashes.sparkMainnetPubKeyHash
+        : keyHashes.sparkRegtestPubKeyHash;
+
+    const sparkOptions: EnableSparkWalletOptions = {
+      network: (networkId === 1 ? "MAINNET" : "REGTEST") as ValidSparkNetwork,
+      projectId,
+      appUrl,
+      sparkscanApiKey: sparkscanApiKey || "",
+      baseUrl,
+      ...(identityPublicKey && {
+        key: {
+          type: "address" as const,
+          address: resolveWalletAddress("spark", keyHashes, networkId).address!,
+          identityPublicKey,
+        },
+      }),
+    };
+
+    try {
+      return new Web3SparkWallet(sparkOptions);
+    } catch (error) {
+      console.warn(
+        "Failed to create Spark wallet with key, using fallback:",
+        error,
+      );
+      const { key, ...fallbackOptions } = sparkOptions;
+      return new Web3SparkWallet(fallbackOptions);
+    }
+  }
+
+  /**
+   * Initializes a new instance of a Web3 wallet with the specified options.
+   *
+   * @param params - The parameters required to initialize the wallet.
+   * @param params.networkId - The network ID to connect to. Must be either `0` (testnet) or `1` (mainnet).
+   * @param params.address - The wallet address to associate with the wallet instance.
+   * @param params.fetcher - (Optional) An implementation of the `IFetcher` interface for fetching data.
+   * @param params.submitter - (Optional) An implementation of the `ISubmitter` interface for submitting transactions.
+   * @param params.projectId - (Optional) The project ID for analytics or tracking purposes.
+   * @param params.appUrl - (Optional) The application URL for associating the wallet with a specific app.
+   *
+   * @returns A promise that resolves to an initialized instance of `Web3Wallet`.
+   */
+  private static async initWallet({
+    networkId,
+    fetcher,
+    submitter,
+    bitcoinProvider,
+    projectId,
+    appUrl,
+    user,
+    keyHashes,
+    baseUrl,
+    sparkscanApiKey,
+  }: {
+    networkId: 0 | 1;
+    fetcher?: IFetcher;
+    submitter?: ISubmitter;
+    bitcoinProvider?: IBitcoinProvider;
+    projectId: string;
+    appUrl: string;
+    user?: UserSocialData;
+    keyHashes: Web3WalletKeyHashes;
+    baseUrl?: string;
+    sparkscanApiKey?: string;
+  }) {
+    const _options: CreateWalletOptions = {
+      networkId: networkId,
+      fetcher: fetcher,
+      submitter: submitter,
+      appUrl: appUrl,
+      projectId: projectId,
+      user: user,
+    };
+    const wallet = new Web3Wallet(_options);
+
+    //* to be removed as now calling this.initCardanoWallet */
+    // const cardanoWallet = new MeshWallet({
+    //   networkId: networkId,
+    //   key: resolveWalletAddress("cardano", keyHashes, networkId),
+    //   fetcher: fetcher,
+    //   submitter: submitter,
+    // });
+    // await cardanoWallet.init();
+
+    // cardanoWallet.signTx = async (
+    //   unsignedTx: string,
+    //   partialSign = false,
+    //   returnFullTx = true,
+    // ) => {
+    //   const txCbor = await wallet.signTx(unsignedTx, partialSign, "cardano");
+    //   if (returnFullTx === false) {
+    //     const tx = deserializeTx(txCbor);
+    //     return tx.witnessSet().toCbor().toString();
+    //   } else {
+    //     return txCbor;
+    //   }
+    // };
+
+    // cardanoWallet.signData = async (payload: string, address?: string) => {
+    //   return wallet.signData(
+    //     payload,
+    //     address,
+    //     "cardano",
+    //   ) as Promise<DataSignature>;
+    // };
+
+    wallet.cardano = await this.initCardanoWallet({
+      projectId,
+      appUrl,
+      networkId,
+      fetcher,
+      submitter,
+      keyHashes,
+    });
+
+    const bitcoinWallet = new EmbeddedWallet({
+      network: networkId === 1 ? "Mainnet" : "Testnet",
+      key: resolveWalletAddress("bitcoin", keyHashes, networkId),
+      provider: bitcoinProvider,
+    });
+
+    bitcoinWallet.signMessage = async (params) => {
+      const signature = (await wallet.signData(
+        params.message,
+        params.address,
+        "bitcoin",
+      )) as string;
+      return {
+        signature,
+        messageHash: "",
+        address: params.address,
+      };
+    };
+
+    bitcoinWallet.signPsbt = async (params) => {
+      const txData = JSON.stringify(params);
+      const signedTx = await wallet.signTx(txData, false, "bitcoin");
+      return { psbt: signedTx };
+    };
+
+    wallet.bitcoin = bitcoinWallet;
+    // wallet.bitcoin = await this.initBitcoinWallet();
+
+    wallet.spark = this.initSparkWallet(
+      keyHashes,
+      networkId,
+      _options.projectId,
+      _options.appUrl,
+      sparkscanApiKey,
+      baseUrl,
+    );
+    // wallet.spark = await this.initSparkWallet();
+
+    return wallet;
   }
 }
 
