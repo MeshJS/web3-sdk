@@ -1,21 +1,23 @@
 import { MeshWallet } from "@meshsdk/wallet";
-import { DataSignature, IFetcher, ISubmitter } from "@meshsdk/common";
+import { IFetcher, ISubmitter } from "@meshsdk/common";
 import { EmbeddedWallet, IBitcoinProvider } from "@meshsdk/bitcoin";
 import {
   OpenWindowResult,
   UserSocialData,
   Web3WalletKeyHashes,
-  CreateWalletOptions,
   Web3AuthProvider,
 } from "../types";
-import { openWindow } from "../functions";
-import { resolveWalletAddress } from "../functions/chains/get-wallet-key";
+import {
+  getCardanoAddressFromPubkey,
+  getSparkAddressFromPubkey,
+  openWindow,
+} from "../functions";
 import {
   Web3SparkWallet,
   EnableSparkWalletOptions,
   ValidSparkNetwork,
 } from "../spark/web3-spark-wallet";
-import { deserializeTx } from "@meshsdk/core-cst";
+import { getBitcoinAddressFromPubkey } from "../functions/chains/bitcoin";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
@@ -328,11 +330,14 @@ export class Web3Wallet {
   }): Promise<MeshWallet> {
     const cardanoWallet = new MeshWallet({
       networkId: options.networkId,
-      key: resolveWalletAddress(
-        "cardano",
-        options.keyHashes,
-        options.networkId,
-      ),
+      key: {
+        type: "address",
+        address: getCardanoAddressFromPubkey(
+          options.keyHashes.cardanoPubKeyHash,
+          options.keyHashes.cardanoStakeCredentialHash,
+          options.networkId,
+        ),
+      },
       fetcher: options.fetcher,
       submitter: options.submitter,
     });
@@ -424,7 +429,12 @@ export class Web3Wallet {
       ...(identityPublicKey && {
         key: {
           type: "address" as const,
-          address: resolveWalletAddress("spark", keyHashes, networkId).address!,
+          address: getSparkAddressFromPubkey(
+            networkId === 1
+              ? keyHashes.sparkMainnetPubKeyHash
+              : keyHashes.sparkRegtestPubKeyHash,
+            networkId === 1 ? "MAINNET" : "REGTEST",
+          ),
           identityPublicKey,
         },
       }),
@@ -478,7 +488,14 @@ export class Web3Wallet {
     baseUrl?: string;
     sparkscanApiKey?: string;
   }) {
-    const _options: CreateWalletOptions = {
+    const _options: {
+      networkId: 0 | 1;
+      fetcher?: IFetcher | undefined;
+      submitter?: ISubmitter;
+      appUrl?: string;
+      projectId?: string;
+      user?: UserSocialData;
+    } = {
       networkId: networkId,
       fetcher: fetcher,
       submitter: submitter,
@@ -530,7 +547,13 @@ export class Web3Wallet {
 
     const bitcoinWallet = new EmbeddedWallet({
       network: networkId === 1 ? "Mainnet" : "Testnet",
-      key: resolveWalletAddress("bitcoin", keyHashes, networkId),
+      key: {
+        type: "address",
+        address: getBitcoinAddressFromPubkey(
+          keyHashes.bitcoinPubKeyHash,
+          networkId,
+        ),
+      },
       provider: bitcoinProvider,
     });
 
