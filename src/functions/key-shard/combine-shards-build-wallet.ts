@@ -13,13 +13,13 @@ export async function combineShardsBuildWallet(
   const _share2 = hexToBytes(keyShard2);
   const reconstructed = await shamirCombine([_share1, _share2]);
 
-  const key = bytesToString(reconstructed);
+  const mnemonic = bytesToString(reconstructed);
 
   const bitcoinWallet = new EmbeddedWallet({
     network: networkId === 1 ? "Mainnet" : "Testnet",
     key: {
       type: "mnemonic",
-      words: key.split(" "),
+      words: mnemonic.split(" "),
     },
   });
 
@@ -27,21 +27,21 @@ export async function combineShardsBuildWallet(
     networkId: networkId,
     key: {
       type: "mnemonic",
-      words: key.split(" "),
+      words: mnemonic.split(" "),
     },
   });
 
   await cardanoWallet.init();
 
   const { wallet: sparkWallet } = await SparkWallet.initialize({
-    mnemonicOrSeed: key,
+    mnemonicOrSeed: mnemonic,
     options: {
       network: networkId === 1 ? "MAINNET" : "REGTEST",
     },
   });
 
   return {
-    key,
+    key: mnemonic,
     bitcoinWallet,
     cardanoWallet,
     sparkWallet,

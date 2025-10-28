@@ -294,8 +294,8 @@ export class Web3NonCustodialProvider {
     }
 
     const {
-      pubKeyHash,
-      stakeCredentialHash,
+      cardanoPubKeyHash,
+      cardanoStakeCredentialHash,
       encryptedDeviceShard,
       encryptedRecoveryShard,
       authShard,
@@ -313,8 +313,8 @@ export class Web3NonCustodialProvider {
       recoveryShard: encryptedRecoveryShard,
       authShard,
       bitcoinPubKeyHash,
-      cardanoPubKeyHash: pubKeyHash,
-      cardanoStakeCredentialHash: stakeCredentialHash,
+      cardanoPubKeyHash: cardanoPubKeyHash,
+      cardanoStakeCredentialHash: cardanoStakeCredentialHash,
       sparkMainnetPubKeyHash,
       sparkRegtestPubKeyHash,
       webauthnCredentialId: webauthnCredentialId,
