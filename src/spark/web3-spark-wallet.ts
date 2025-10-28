@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { ApiError } from "../wallet-user-controlled";
-import { AddressSummary } from "../types";
+import { AddressSummary, OpenWindowResult } from "../types";
+import { openWindow } from "../functions";
 
 export type Web3SparkWalletOptions = {
   networkId: 0 | 1;
@@ -98,5 +99,98 @@ export class Web3SparkWallet {
       balance: BigInt(addressSummary.balance.btcHardBalanceSats || 0),
       tokenBalances: tokenBalancesMap,
     };
+  }
+
+  /** https://docs.xverse.app/sats-connect/spark-methods/spark_transfer */
+  public async transfer({
+    receiverSparkAddress,
+    amountSats,
+  }: {
+    receiverSparkAddress: string;
+    amountSats: number;
+  }) {
+    const res: OpenWindowResult = await openWindow({
+      method: "spark-transfer",
+      projectId: this.projectId,
+      networkId: String(this.networkId),
+      receiverSparkAddress,
+      amountSats: String(amountSats),
+    });
+
+    if (res.success === false) {
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined the transfer.",
+      });
+    }
+
+    if (res.data.method !== "spark-transfer") {
+      throw new ApiError({
+        code: 2,
+        info: "Recieved the wrong response from wallet popover.",
+      });
+    }
+
+    return res.data.txid;
+  }
+
+  public async transferToken({
+    receiverSparkAddress,
+    tokenIdentifier,
+    tokenAmount,
+  }: {
+    receiverSparkAddress: string;
+    tokenIdentifier: string;
+    tokenAmount: number;
+  }) {
+    const res: OpenWindowResult = await openWindow({
+      method: "spark-transfer-token",
+      projectId: this.projectId,
+      networkId: String(this.networkId),
+      receiverSparkAddress,
+      tokenAmount: String(tokenAmount),
+      tokenIdentifier: String(tokenIdentifier),
+    });
+
+    if (res.success === false) {
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined the transfer.",
+      });
+    }
+
+    if (res.data.method !== "spark-transfer-token") {
+      throw new ApiError({
+        code: 2,
+        info: "Recieved the wrong response from wallet popover.",
+      });
+    }
+
+    return res.data.txid;
+  }
+
+  public async signMessage({ message }: { message: string }) {
+    const res: OpenWindowResult = await openWindow({
+      method: "spark-sign-message",
+      projectId: this.projectId,
+      networkId: String(this.networkId),
+      message,
+    });
+
+    if (res.success === false) {
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined the transfer.",
+      });
+    }
+
+    if (res.data.method !== "spark-sign-message") {
+      throw new ApiError({
+        code: 2,
+        info: "Recieved the wrong response from wallet popover.",
+      });
+    }
+
+    return res.data.signature;
   }
 }
