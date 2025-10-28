@@ -1,6 +1,3 @@
-export * from "./sign-data";
-export * from "./sign-tx";
-export * from "./wallet";
 import { Web3AuthProvider } from "../core";
 import { UserSocialData } from "../user";
 
@@ -9,69 +6,77 @@ export type OpenWindowParams =
       method: "enable";
       projectId: string;
       directTo?: Web3AuthProvider;
-      chain?: string;
       refreshToken?: string;
-      keepWindowOpen?: "true" | "false";
-      networkId?: string;
-    }
-  | {
-      method: "sign-tx";
-      projectId: string;
-      directTo?: Web3AuthProvider;
-      unsignedTx: string;
-      partialSign: "true" | "false";
-      chain?: string;
-      networkId?: string;
-    }
-  | {
-      method: "sign-data";
-      projectId: string;
-      directTo?: Web3AuthProvider;
-      payload: string;
-      address?: string;
-      chain?: string;
-      networkId?: string;
+      keepWindowOpen: "true" | "false";
+      networkId: string;
     }
   | {
       method: "export-wallet";
       projectId: string;
-      chain?: string;
-      networkId?: string;
+      chain: "cardano" | "bitcoin" | "spark";
+      networkId: string;
     }
   | {
       method: "disable";
       projectId: string;
     }
   | {
-      method: "get-identity-public-key";
+      method: "bitcoin-sign-message";
       projectId: string;
-      chain?: string;
-      networkId?: string;
+      networkId: string;
+      address: string;
+      message: string;
+      protocol?: "ECDSA" | "BIP322";
     }
   | {
-      method: "get-spark-address";
+      method: "bitcoin-sign-psbt";
       projectId: string;
-      chain?: string;
-      networkId?: string;
+      networkId: string;
+      psbt: string;
+      signInputs: string;
+      broadcast: "true" | "false";
     }
   | {
-      method: "claim-deposit";
+      method: "bitcoin-send-transfer";
+      projectId: string;
+      networkId: string;
+      recipients: string;
+    }
+  | {
+      method: "cardano-sign-data";
       projectId: string;
       payload: string;
-      chain?: string;
-      networkId?: string;
+      address?: string;
+      networkId: string;
     }
   | {
-      method: "activate-wallet";
+      method: "cardano-sign-tx";
       projectId: string;
-      chain?: string;
-      networkId?: string;
+      unsignedTx: string;
+      partialSign: "true" | "false";
+      returnFullTx: "true" | "false";
+      networkId: string;
     }
   | {
-      method: "get-deposit-address";
+      method: "spark-transfer";
       projectId: string;
-      chain?: string;
-      networkId?: string;
+      networkId: string;
+      reciverSparkAddress: string;
+      amountSats: string;
+    }
+  | {
+      method: "spark-transfer-token";
+      projectId: string;
+      networkId: string;
+      reciverSparkAddress: string;
+      tokenIdentifier: string;
+      tokenAmount: string;
+    }
+  | {
+      method: "spark-sign-message";
+      projectId: string;
+      networkId: string;
+      message: string;
     };
 
 export type OpenWindowResult =
@@ -80,23 +85,18 @@ export type OpenWindowResult =
       data:
         | {
             method: "enable";
-            cardanoPubKeyHash: string;
-            cardanoStakeCredentialHash: string;
-            bitcoinPubKeyHash: string;
-            sparkMainnetPubKeyHash: string;
-            sparkRegtestPubKeyHash: string;
-            user: UserSocialData;
-          }
-        | {
-            method: "sign-data";
-            signature: {
-              signature: string;
-              key: string;
+            bitcoin: {
+              publicKey: string;
             };
-          }
-        | {
-            method: "sign-tx";
-            tx: string;
+            cardano: {
+              pubKeyHash: string;
+              stakeCredentialHash: string;
+            };
+            spark: {
+              mainnetPubKeyHash: string;
+              regtestPubKeyHash: string;
+            };
+            user: UserSocialData;
           }
         | {
             method: "export-wallet";
@@ -105,26 +105,42 @@ export type OpenWindowResult =
             method: "disable";
           }
         | {
-            method: "get-identity-public-key";
-            pubKeyHash: string;
-          }
-        | {
-            method: "get-spark-address";
+            method: "bitcoin-sign-message";
+            signature: string;
+            messageHash: string;
             address: string;
           }
         | {
-            method: "claim-deposit";
-            txId: string;
+            method: "bitcoin-sign-psbt";
+            psbt: string;
+            txid?: string;
           }
         | {
-            method: "activate-wallet";
-            address: string;
-            staticDepositAddress: string;
-            pubKeyHash: string;
+            method: "bitcoin-send-transfer";
+            txid: string;
           }
         | {
-            method: "get-deposit-address";
-            staticDepositAddress: string;
+            method: "cardano-sign-data";
+            dataSignature: {
+              signature: string;
+              key: string;
+            };
+          }
+        | {
+            method: "cardano-sign-tx";
+            tx: string;
+          }
+        | {
+            method: "spark-transfer";
+            txid: string;
+          }
+        | {
+            method: "spark-transfer-token";
+            txid: string;
+          }
+        | {
+            method: "spark-sign-message";
+            signature: string;
           };
     }
   | {

@@ -31,7 +31,6 @@ const buildWindowFeatures = () => {
 
   const width = shouldDisplayFullScreen ? windowWidth : size.width;
   const height = shouldDisplayFullScreen ? windowHeight : size.height;
-  const name = "_blank";
 
   const windowFeatures = `left=${(windowWidth - width) / 2},top=${(windowHeight - height) / 2},width=${width},height=${height},scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no`;
   return windowFeatures;
@@ -45,13 +44,11 @@ export async function openWindow(
   const _url = `${appUrl}/client/wallet?${p.toString()}`;
 
   return new Promise((resolve, reject) => {
-    const newWindow = window.open(_url, "mesh", buildWindowFeatures());
+    const newWindow = window.open(_url, "utxos", buildWindowFeatures());
 
     if (!newWindow) {
       return reject(new Error("Failed to open window"));
     }
-
-    // newWindow.document.title = "Mesh Web3 Services";
 
     const interval = setInterval(() => {
       if (newWindow.closed) {
@@ -61,9 +58,8 @@ export async function openWindow(
     }, 500);
 
     window.addEventListener("message", (event) => {
-      if (event.data.target === "mesh") {
+      if (event.data.target === "utxos") {
         clearInterval(interval);
-        // newWindow.close();
         resolve(event.data);
       }
     });
