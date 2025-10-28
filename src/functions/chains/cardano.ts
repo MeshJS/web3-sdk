@@ -1,7 +1,7 @@
 import { pubKeyAddress } from "@meshsdk/common";
 import { serializeAddressObj } from "@meshsdk/core-cst";
 
-export function getAddressFromHashes(
+export function getCardanoAddressFromPubkey(
   pubKeyHash: string,
   stakeCredentialHash: string,
   networkId: 0 | 1,

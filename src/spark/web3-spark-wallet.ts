@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { ApiError } from "../wallet-user-controlled";
 import { OpenWindowResult } from "../types";
-import { encodeNewSparkAddress, openWindow } from "../functions";
+import { getSparkAddressFromPubkey, openWindow } from "../functions";
 import * as Spark from "../types/spark";
 import {
   WalletTransfer,
@@ -130,7 +130,7 @@ export class Web3SparkWallet {
       ? res.data.sparkMainnetPubKeyHash
       : res.data.sparkRegtestPubKeyHash;
 
-    const sparkAddress = encodeNewSparkAddress(publicKey, options.network);
+    const sparkAddress = getSparkAddressFromPubkey(publicKey, options.network);
 
     return new Web3SparkWallet({
       network: options.network,
@@ -844,7 +844,7 @@ export class Web3SparkWallet {
     const networkId = this.network === "MAINNET" ? 1 : 0;
     try {
       if (!this.sparkAddress && this.publicKey) {
-        this.sparkAddress = encodeNewSparkAddress(this.publicKey, this.network);
+        this.sparkAddress = getSparkAddressFromPubkey(this.publicKey, this.network);
       }
 
       if (!this.publicKey && this.sparkAddress) {

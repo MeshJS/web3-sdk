@@ -1,7 +1,6 @@
 import {
   decodeSparkAddress,
   getNetworkFromSparkAddress,
-  encodeSparkAddress,
   bech32mDecode,
 } from "@buildonspark/spark-sdk";
 import { bech32m } from "@scure/base";
@@ -45,7 +44,7 @@ const NEW_PREFIXES = {
 /**
  * Encode Spark address in NEW format directly from identity public key
  */
-export function encodeNewSparkAddress(
+export function getSparkAddressFromPubkey(
   identityPublicKey: string,
   network: ValidSparkNetwork,
 ): string {
