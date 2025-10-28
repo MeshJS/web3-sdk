@@ -44,17 +44,17 @@ export type OpenWindowParams =
   | {
       method: "cardano-sign-data";
       projectId: string;
+      networkId: string;
       payload: string;
       address?: string;
-      networkId: string;
     }
   | {
       method: "cardano-sign-tx";
       projectId: string;
+      networkId: string;
       unsignedTx: string;
       partialSign: "true" | "false";
       returnFullTx: "true" | "false";
-      networkId: string;
     }
   | {
       method: "spark-transfer";
@@ -76,4 +76,23 @@ export type OpenWindowParams =
       projectId: string;
       networkId: string;
       message: string;
+    }
+  /** to be deprecated */
+  | {
+      method: "sign-tx";
+      projectId: string;
+      directTo?: Web3AuthProvider;
+      unsignedTx: string;
+      partialSign: "true" | "false";
+      chain?: string;
+      networkId?: string;
+    }
+  | {
+      method: "sign-data";
+      projectId: string;
+      directTo?: Web3AuthProvider;
+      payload: string;
+      address?: string;
+      chain?: string;
+      networkId?: string;
     };

@@ -18,6 +18,9 @@ export type OpenWindowResult =
               regtestPubKeyHash: string;
             };
             user: UserSocialData;
+            /** to be deprecated */
+            cardanoPubKeyHash: string;
+            cardanoStakeCredentialHash: string;
           }
         | {
             method: "export-wallet";
@@ -62,6 +65,18 @@ export type OpenWindowResult =
         | {
             method: "spark-sign-message";
             signature: string;
+          }
+        /** to be deprecated */
+        | {
+            method: "sign-data";
+            signature: {
+              signature: string;
+              key: string;
+            };
+          }
+        | {
+            method: "sign-tx";
+            tx: string;
           };
     }
   | {
