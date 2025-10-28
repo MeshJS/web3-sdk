@@ -1,5 +1,6 @@
 import { Web3Sdk } from "..";
-import { UTxO, MeshTxBuilder } from "@meshsdk/core";
+import { MeshTxBuilder } from "@meshsdk/transaction";
+import { UTxO } from "@meshsdk/common";
 import { meshUniversalStaticUtxo } from "../index";
 import { SponsorshipTxParserPostRequestBody } from "../../types";
 
