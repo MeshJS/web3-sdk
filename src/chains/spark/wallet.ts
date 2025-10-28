@@ -1,7 +1,5 @@
 import axios, { AxiosInstance } from "axios";
-import { ApiError } from "../../wallet-user-controlled";
-import { AddressSummary, OpenWindowResult } from "../../types";
-import { openWindow } from "../../";
+import { openWindow, AddressSummary, OpenWindowResult, ApiError } from "../../";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 
