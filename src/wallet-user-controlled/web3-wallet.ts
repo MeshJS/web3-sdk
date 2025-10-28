@@ -7,21 +7,17 @@ import {
   SignPsbtParams,
 } from "@meshsdk/bitcoin";
 import {
+  getCardanoAddressFromPubkey,
+  getSparkAddressFromPubkey,
+  openWindow,
+  Web3SparkWallet,
+  Web3SparkWalletOptions,
+  getBitcoinAddressFromPubkey,
   OpenWindowResult,
   UserSocialData,
   Web3WalletKeyHashes,
   Web3AuthProvider,
-} from "../types";
-import {
-  getCardanoAddressFromPubkey,
-  getSparkAddressFromPubkey,
-  openWindow,
-} from "../functions";
-import {
-  Web3SparkWallet,
-  Web3SparkWalletOptions,
-} from "../spark/web3-spark-wallet";
-import { getBitcoinAddressFromPubkey } from "../functions/chains/bitcoin";
+} from "../";
 
 export type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
