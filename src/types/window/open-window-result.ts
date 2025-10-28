@@ -6,21 +6,12 @@ export type OpenWindowResult =
       data:
         | {
             method: "enable";
-            bitcoin: {
-              publicKey: string;
-            };
-            cardano: {
-              pubKeyHash: string;
-              stakeCredentialHash: string;
-            };
-            spark: {
-              mainnetPubKeyHash: string;
-              regtestPubKeyHash: string;
-            };
-            user: UserSocialData;
-            /** to be deprecated */
+            bitcoinPubKeyHash: string;
             cardanoPubKeyHash: string;
             cardanoStakeCredentialHash: string;
+            sparkMainnetPubKeyHash: string;
+            sparkRegtestPubKeyHash: string;
+            user: UserSocialData;
           }
         | {
             method: "export-wallet";
