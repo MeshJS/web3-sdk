@@ -3,6 +3,8 @@ import { ApiError } from "../wallet-user-controlled";
 import { AddressSummary, OpenWindowResult } from "../types";
 import { openWindow } from "../functions";
 
+export type ValidSparkNetwork = "MAINNET" | "REGTEST";
+
 export type Web3SparkWalletOptions = {
   networkId: 0 | 1;
   appUrl: string;
