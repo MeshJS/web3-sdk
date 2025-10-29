@@ -1,18 +1,13 @@
-import { InitWeb3WalletOptions, Web3Wallet } from "@meshsdk/web3-sdk";
-import { BlockfrostProvider } from "@meshsdk/provider";
+import { EnableWeb3WalletOptions, Web3Wallet } from "@meshsdk/web3-sdk";
 import { useState } from "react";
 
 export default function Home() {
   const [wallet, setWallet] = useState<Web3Wallet | null>(null);
 
   async function connectWallet() {
-    const provider = new BlockfrostProvider("API-KEY");
-
-    const _options: InitWeb3WalletOptions = {
+    const _options: EnableWeb3WalletOptions = {
+      projectId: "11111111-2222-3333-YOUR-PROJECTID",
       networkId: 0, // 0: preprod, 1: mainnet
-      fetcher: provider,
-      submitter: provider,
-      // projectId: "11111111-2222-3333-YOUR-PROJECTID",
     };
 
     const wallet = await Web3Wallet.enable(_options);
@@ -54,7 +49,7 @@ export default function Home() {
               <button
                 className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 onClick={async () => {
-                  const address = await wallet.getChangeAddress();
+                  const address = await wallet.spark.getAddress();
                   alert(address);
                 }}
               >
@@ -63,11 +58,13 @@ export default function Home() {
               <button
                 className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 onClick={async () => {
-                  const signature = await wallet.signData("mesh");
+                  const signature = await wallet.spark.signMessage({
+                    message: "mesh",
+                  });
                   alert(JSON.stringify(signature));
                 }}
               >
-                Sign Data
+                Sign Message
               </button>
             </div>
           )}

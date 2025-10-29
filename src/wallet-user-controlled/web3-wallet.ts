@@ -33,7 +33,7 @@ export type EnableWeb3WalletOptions = {
   sparkscanApiKey?: string;
 };
 
-type InitWeb3WalletOptions = {
+type EnableWeb3WalletOptions = {
   networkId: 0 | 1;
   fetcher?: IFetcher;
   submitter?: ISubmitter;
@@ -64,7 +64,7 @@ export class Web3Wallet {
   spark: Web3SparkWallet;
   networkId: 0 | 1;
 
-  constructor(options: InitWeb3WalletOptions) {
+  constructor(options: EnableWeb3WalletOptions) {
     this.projectId = options.projectId;
     this.appUrl = options.appUrl || "https://utxos.dev/";
     this.user = options.user;
@@ -449,7 +449,7 @@ export class Web3Wallet {
       baseUrl,
     );
 
-    const _options: InitWeb3WalletOptions = {
+    const _options: EnableWeb3WalletOptions = {
       networkId: networkId,
       fetcher: fetcher,
       submitter: submitter,
