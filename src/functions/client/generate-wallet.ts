@@ -12,19 +12,6 @@ export async function clientGenerateWallet(
 ) {
   const mnemonic = await generateMnemonic(256);
 
-  /* get addresses */
-  const wallet = new MeshWallet({
-    networkId: 1,
-    key: {
-      type: "mnemonic",
-      words: mnemonic.split(" "),
-    },
-  });
-  await wallet.init();
-
-  const addresses = await wallet.getAddresses();
-  const keyHashes = deserializeBech32Address(addresses.baseAddressBech32!);
-
   /* spilt key shares */
   const [keyShare1, keyShare2, keyShare3] = await spiltKeyIntoShards(mnemonic);
 
@@ -50,13 +37,22 @@ export async function clientGenerateWallet(
 
   const bitcoinPubKeyHash = bitcoinWallet.getPublicKey();
 
-  /* spark */
-  // Generate network-specific Spark identity keys
-  // NOTE: Spark uses different identity keys per network (by design)
-  // - MAINNET key for production transactions and addresses
-  // - REGTEST key for development/testing transactions and addresses
-  // This ensures proper network isolation and correct address derivation
+  /* cardano */
+  const cardanoWallet = new MeshWallet({
+    networkId: 1,
+    key: {
+      type: "mnemonic",
+      words: mnemonic.split(" "),
+    },
+  });
+  await cardanoWallet.init();
 
+  const cardanoAddresses = await cardanoWallet.getAddresses();
+  const cardanoKeyHashes = deserializeBech32Address(
+    cardanoAddresses.baseAddressBech32!,
+  );
+
+  /* spark */
   const { wallet: sparkMainnetWallet } = await SparkWallet.initialize({
     mnemonicOrSeed: mnemonic,
     options: {
@@ -77,12 +73,12 @@ export async function clientGenerateWallet(
   ]);
 
   return {
-    pubKeyHash: keyHashes.pubKeyHash,
-    stakeCredentialHash: keyHashes.stakeCredentialHash,
     encryptedDeviceShard,
     authShard: keyShare2!,
     encryptedRecoveryShard,
     bitcoinPubKeyHash: bitcoinPubKeyHash,
+    cardanoPubKeyHash: cardanoKeyHashes.pubKeyHash,
+    cardanoStakeCredentialHash: cardanoKeyHashes.stakeCredentialHash,
     sparkMainnetPubKeyHash: sparkMainnetPubKeyHash,
     sparkRegtestPubKeyHash: sparkRegtestPubKeyHash,
   };

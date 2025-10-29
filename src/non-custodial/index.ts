@@ -1,7 +1,10 @@
-import { clientGenerateWallet, clientRecovery } from "../functions";
-import { Web3JWTBody } from "../types";
-import { Web3WalletObject } from "../types";
-import { Web3AuthProvider } from "../types/core";
+import {
+  clientGenerateWallet,
+  clientRecovery,
+  Web3JWTBody,
+  Web3WalletObject,
+  Web3AuthProvider,
+} from "../";
 export * from "./utils";
 
 const AUTH_KEY = "mesh-web3-services-auth";
@@ -294,8 +297,8 @@ export class Web3NonCustodialProvider {
     }
 
     const {
-      pubKeyHash,
-      stakeCredentialHash,
+      cardanoPubKeyHash,
+      cardanoStakeCredentialHash,
       encryptedDeviceShard,
       encryptedRecoveryShard,
       authShard,
@@ -313,8 +316,8 @@ export class Web3NonCustodialProvider {
       recoveryShard: encryptedRecoveryShard,
       authShard,
       bitcoinPubKeyHash,
-      cardanoPubKeyHash: pubKeyHash,
-      cardanoStakeCredentialHash: stakeCredentialHash,
+      cardanoPubKeyHash: cardanoPubKeyHash,
+      cardanoStakeCredentialHash: cardanoStakeCredentialHash,
       sparkMainnetPubKeyHash,
       sparkRegtestPubKeyHash,
       webauthnCredentialId: webauthnCredentialId,

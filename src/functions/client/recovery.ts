@@ -8,11 +8,6 @@ export async function clientRecovery(
   newDeviceShardEncryptionKey: CryptoKey,
 ) {
   try {
-    // TODO! I think this line is wrong.
-    // const answer = recoveryAnswer
-    //   .replace(/[^a-zA-Z0-9]/g, "")
-    //   .toLocaleLowerCase();
-
     const recoverKeyShare3 = await decryptWithCipher({
       encryptedDataJSON: recoveryShard,
       key: recoveryShardEncryptionKey,

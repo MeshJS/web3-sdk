@@ -6,7 +6,7 @@ import {
 import { bech32m } from "@scure/base";
 import { BinaryWriter } from "@bufbuild/protobuf/wire";
 import { hexToBytes } from "@noble/curves/utils";
-import type { ValidSparkNetwork } from "../../spark/web3-spark-wallet";
+import type { ValidSparkNetwork } from "./wallet";
 
 /**
  * Extracts identity public key from a Spark address

@@ -60,14 +60,14 @@ export type OpenWindowParams =
       method: "spark-transfer";
       projectId: string;
       networkId: string;
-      reciverSparkAddress: string;
+      receiverSparkAddress: string;
       amountSats: string;
     }
   | {
       method: "spark-transfer-token";
       projectId: string;
       networkId: string;
-      reciverSparkAddress: string;
+      receiverSparkAddress: string;
       tokenIdentifier: string;
       tokenAmount: string;
     }
