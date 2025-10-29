@@ -95,8 +95,8 @@ export class Web3Wallet {
       {
         method: "enable",
         projectId: options.projectId!,
-        directTo: options.directTo,
-        refreshToken: options.refreshToken,
+        directTo: options.directTo ? options.directTo : "undefined",
+        refreshToken: options.refreshToken ? options.refreshToken : "undefined",
         keepWindowOpen: options.keepWindowOpen ? "true" : "false",
         networkId: String(options.networkId),
       },

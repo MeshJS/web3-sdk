@@ -1,11 +1,12 @@
 import { Web3AuthProvider } from "../core";
 
+/** in this schema you will see string versions of undefined & boolean, this type is exclusively used for converting into URLSearchParams (where undefined & booleans don't exist) */
 export type OpenWindowParams =
   | {
       method: "enable";
       projectId: string;
-      directTo?: Web3AuthProvider;
-      refreshToken?: string;
+      directTo: Web3AuthProvider | "undefined";
+      refreshToken: string | "undefined";
       keepWindowOpen: "true" | "false";
       networkId: string;
     }
@@ -81,18 +82,18 @@ export type OpenWindowParams =
   | {
       method: "sign-tx";
       projectId: string;
-      directTo?: Web3AuthProvider;
+      directTo: Web3AuthProvider | "undefined";
       unsignedTx: string;
       partialSign: "true" | "false";
-      chain?: string;
+      chain: string | "undefined";
       networkId?: string;
     }
   | {
       method: "sign-data";
       projectId: string;
-      directTo?: Web3AuthProvider;
+      directTo: Web3AuthProvider | "undefined";
       payload: string;
-      address?: string;
-      chain?: string;
-      networkId?: string;
+      address: string | "undefined";
+      chain: string | "undefined";
+      networkId: string | "undefined";
     };
