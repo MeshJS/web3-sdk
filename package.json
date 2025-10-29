@@ -1,7 +1,7 @@
 {
   "name": "@meshsdk/web3-sdk",
   "version": "0.0.67",
-  "description": "UTXOS SDK - Mesh Web3 Services",
+  "description": "UTXOS SDK - Web3 infrastructure platform for UTXO blockchains",
   "main": "./dist/index.cjs",
   "browser": "./dist/index.js",
   "module": "./dist/index.js",
@@ -41,12 +41,12 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@buildonspark/spark-sdk": "^0.4.1",
-    "@meshsdk/bitcoin": "1.9.0-beta.83",
-    "@meshsdk/common": "1.9.0-beta.83",
-    "@meshsdk/core": "1.9.0-beta.83",
-    "@meshsdk/core-cst": "1.9.0-beta.83",
-    "@meshsdk/wallet": "1.9.0-beta.83",
+    "@buildonspark/spark-sdk": "^0.4.2",
+    "@meshsdk/bitcoin": "1.9.0-beta.84",
+    "@meshsdk/common": "1.9.0-beta.84",
+    "@meshsdk/core": "1.9.0-beta.84",
+    "@meshsdk/core-cst": "1.9.0-beta.84",
+    "@meshsdk/wallet": "1.9.0-beta.84",
     "@peculiar/webcrypto": "^1.5.0",
     "axios": "^1.8.3",
     "base32-encoding": "^1.0.0",
@@ -57,9 +57,11 @@
   },
   "license": "Apache-2.0",
   "keywords": [
-    "cardano",
-    "web3",
+    "bitcoin",
     "blockchain",
-    "sdk"
+    "cardano",
+    "sdk",
+    "spark",
+    "web3"
   ]
 }
