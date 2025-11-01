@@ -5,6 +5,7 @@ import {
   IBitcoinProvider,
   SignMessageParams,
   SignPsbtParams,
+  SendTransferParams,
 } from "@meshsdk/bitcoin";
 import {
   getCardanoAddressFromPubkey,
@@ -228,6 +229,30 @@ export class Web3Wallet {
         });
 
       if (res.data.method !== "bitcoin-sign-message") {
+        throw new ApiError({
+          code: 2,
+          info: "Received the wrong response from the iframe.",
+        });
+      }
+
+      return res.data;
+    };
+
+    bitcoinWallet.sendTransfer = async (params: SendTransferParams) => {
+      const res: OpenWindowResult = await openWindow({
+        method: "bitcoin-send-transfer",
+        projectId: options.projectId,
+        recipients: JSON.stringify(params.recipients),
+        networkId: String(options.networkId),
+      });
+
+      if (res.success === false)
+        throw new ApiError({
+          code: 2,
+          info: "UserDeclined - User declined to sign the transaction.",
+        });
+
+      if (res.data.method !== "bitcoin-send-transfer") {
         throw new ApiError({
           code: 2,
           info: "Received the wrong response from the iframe.",
