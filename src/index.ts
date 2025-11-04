@@ -6,4 +6,8 @@ export * from "./types";
 export * from "./wallet-user-controlled";
 
 // Re-export Spark utilities to avoid installing full SDK in apps
-export { isValidSparkAddress } from "@buildonspark/spark-sdk";
+export {
+  isValidSparkAddress,
+  type Bech32mTokenIdentifier,
+  type SparkWallet,
+} from "@buildonspark/spark-sdk";
