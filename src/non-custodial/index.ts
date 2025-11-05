@@ -396,7 +396,7 @@ export class Web3NonCustodialProvider {
   ) {
     const { data: user, error: userError } = await this.getUser();
     if (userError) {
-      return { error: userError };
+      return { error: userError, data: null };
     }
     const res = await fetch(this.appOrigin + "/api/wallet/" + walletId, {
       headers: { Authorization: "Bearer " + user.token },
@@ -409,11 +409,12 @@ export class Web3NonCustodialProvider {
             "from the server failed with status " +
             res.status,
         ),
+        data: null,
       };
     }
     const wallet = (await res.json()) as GetWalletBody;
 
-    const { authShard, deviceShard } = await clientRecovery(
+    const { authShard, deviceShard, fullKey } = await clientRecovery(
       wallet.authShard,
       wallet.recoveryShard,
       recoveryShardEncryptionKey,
@@ -439,6 +440,7 @@ export class Web3NonCustodialProvider {
           "Retrieving wallets from the server failed with status " +
             createDeviceRes.status,
         ),
+        data: null,
       };
     }
 
@@ -451,7 +453,7 @@ export class Web3NonCustodialProvider {
       walletId,
     });
 
-    return { error: null };
+    return { error: null, data: { fullKey } };
   }
 
   signInWithProvider(

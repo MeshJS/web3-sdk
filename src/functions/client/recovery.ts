@@ -33,6 +33,7 @@ export async function clientRecovery(
     return {
       deviceShard: encryptedAuthKey,
       authShard: keyShare2!,
+      fullKey: key,
     };
   } catch (e) {
     console.error(e);

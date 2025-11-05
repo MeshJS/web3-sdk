@@ -109,13 +109,16 @@ export class Web3SparkWallet {
     receiverSparkAddress: string;
     amountSats: number;
   }) {
-    const res: OpenWindowResult = await openWindow({
-      method: "spark-transfer",
-      projectId: this.projectId,
-      networkId: String(this.networkId),
-      receiverSparkAddress,
-      amountSats: String(amountSats),
-    });
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "spark-transfer",
+        projectId: this.projectId,
+        networkId: String(this.networkId),
+        receiverSparkAddress,
+        amountSats: String(amountSats),
+      },
+      this.appUrl,
+    );
 
     if (res.success === false) {
       throw new ApiError({
@@ -143,14 +146,17 @@ export class Web3SparkWallet {
     tokenIdentifier: string;
     tokenAmount: number;
   }) {
-    const res: OpenWindowResult = await openWindow({
-      method: "spark-transfer-token",
-      projectId: this.projectId,
-      networkId: String(this.networkId),
-      receiverSparkAddress,
-      tokenAmount: String(tokenAmount),
-      tokenIdentifier: String(tokenIdentifier),
-    });
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "spark-transfer-token",
+        projectId: this.projectId,
+        networkId: String(this.networkId),
+        receiverSparkAddress,
+        tokenAmount: String(tokenAmount),
+        tokenIdentifier: String(tokenIdentifier),
+      },
+      this.appUrl,
+    );
 
     if (res.success === false) {
       throw new ApiError({
@@ -170,12 +176,15 @@ export class Web3SparkWallet {
   }
 
   public async signMessage({ message }: { message: string }) {
-    const res: OpenWindowResult = await openWindow({
-      method: "spark-sign-message",
-      projectId: this.projectId,
-      networkId: String(this.networkId),
-      message,
-    });
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "spark-sign-message",
+        projectId: this.projectId,
+        networkId: String(this.networkId),
+        message,
+      },
+      this.appUrl,
+    );
 
     if (res.success === false) {
       throw new ApiError({
