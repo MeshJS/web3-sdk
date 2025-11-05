@@ -9,5 +9,5 @@ export * from "./wallet-user-controlled";
 export {
   isValidSparkAddress,
   type Bech32mTokenIdentifier,
-  type SparkWallet,
+  SparkWallet,
 } from "@buildonspark/spark-sdk";
