@@ -235,7 +235,11 @@ export class Web3Wallet {
         });
       }
 
-      return res.data;
+      return {
+        signature: res.data.signature,
+        messageHash: res.data.messageHash,
+        address: res.data.address,
+      };
     };
 
     bitcoinWallet.sendTransfer = async (params: SendTransferParams) => {
@@ -259,7 +263,7 @@ export class Web3Wallet {
         });
       }
 
-      return res.data;
+      return { txid: res.data.txid };
     };
 
     bitcoinWallet.signPsbt = async (params: SignPsbtParams) => {
@@ -288,7 +292,10 @@ export class Web3Wallet {
         });
       }
 
-      return res.data;
+      return {
+        psbt: res.data.psbt,
+        txid: res.data.txid,
+      };
     };
 
     return bitcoinWallet;

@@ -131,7 +131,7 @@ export class Web3SparkWallet {
       });
     }
 
-    return res.data.txid;
+    return { txid: res.data.txid };
   }
 
   public async transferToken({
@@ -166,7 +166,7 @@ export class Web3SparkWallet {
       });
     }
 
-    return res.data.txid;
+    return { txid: res.data.txid };
   }
 
   public async signMessage({ message }: { message: string }) {
@@ -191,6 +191,8 @@ export class Web3SparkWallet {
       });
     }
 
-    return res.data.signature;
+    return {
+      signature: res.data.signature,
+    };
   }
 }
