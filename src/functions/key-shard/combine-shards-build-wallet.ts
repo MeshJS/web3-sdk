@@ -1,13 +1,14 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import { shamirCombine } from "./shamir-secret-sharing";
 import { bytesToString, hexToBytes } from "../convertors";
-import { EmbeddedWallet } from "@meshsdk/bitcoin";
+import { EmbeddedWallet, IBitcoinProvider } from "@meshsdk/bitcoin";
 import { SparkWallet } from "@buildonspark/spark-sdk";
 
 export async function combineShardsBuildWallet(
   networkId: 0 | 1,
   keyShard1: string,
   keyShard2: string,
+  bitcoinProvider?: IBitcoinProvider,
 ) {
   const _share1 = hexToBytes(keyShard1);
   const _share2 = hexToBytes(keyShard2);
@@ -21,6 +22,7 @@ export async function combineShardsBuildWallet(
       type: "mnemonic",
       words: mnemonic.split(" "),
     },
+    provider: bitcoinProvider,
   });
 
   const cardanoWallet = new MeshWallet({
