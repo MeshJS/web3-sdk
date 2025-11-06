@@ -243,12 +243,15 @@ export class Web3Wallet {
     };
 
     bitcoinWallet.sendTransfer = async (params: SendTransferParams) => {
-      const res: OpenWindowResult = await openWindow({
-        method: "bitcoin-send-transfer",
-        projectId: options.projectId,
-        recipients: JSON.stringify(params.recipients),
-        networkId: String(options.networkId),
-      });
+      const res: OpenWindowResult = await openWindow(
+        {
+          method: "bitcoin-send-transfer",
+          projectId: options.projectId,
+          recipients: JSON.stringify(params.recipients),
+          networkId: String(options.networkId),
+        },
+        options.appUrl,
+      );
 
       if (res.success === false)
         throw new ApiError({
