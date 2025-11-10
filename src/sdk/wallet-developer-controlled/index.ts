@@ -1,180 +1,124 @@
 import { Web3Sdk } from "..";
-import { MeshWallet } from "@meshsdk/wallet";
-import { decryptWithPrivateKey, encryptWithPublicKey } from "../../functions";
-import { Web3ProjectWallet } from "../../types";
-import { deserializeBech32Address } from "@meshsdk/core-cst";
-import { v4 as uuidv4 } from "uuid";
+import { Web3ProjectCardanoWallet, Web3ProjectSparkWallet } from "../../types";
+import { CardanoWalletDeveloperControlled } from "./cardano";
+import { SparkWalletDeveloperControlled } from "./spark";
+
+// Export chain-specific classes
+export { CardanoWalletDeveloperControlled } from "./cardano";
+export { SparkWalletDeveloperControlled } from "./spark";
 
 /**
  * The `WalletDeveloperControlled` class provides functionality for managing developer-controlled wallets
- * within a Web3 project. It allows for creating wallets, retrieving wallet information, and accessing
- * specific wallets using their identifiers.
+ * within a Web3 project. It orchestrates chain-specific wallet management for Cardano and Spark.
  */
 export class WalletDeveloperControlled {
   readonly sdk: Web3Sdk;
+  readonly cardano: CardanoWalletDeveloperControlled;
+  readonly spark: SparkWalletDeveloperControlled;
 
   constructor({ sdk }: { sdk: Web3Sdk }) {
-    {
-      this.sdk = sdk;
-    }
+    this.sdk = sdk;
+    this.cardano = new CardanoWalletDeveloperControlled({ sdk });
+    this.spark = new SparkWalletDeveloperControlled({ sdk });
   }
 
   /**
-   * Creates a new wallet associated with the current project.
-   * This method generates a new wallet encrypts it with the project's public key, and registers the wallet with the backend service.
-   *
-   * @param {Object} [options] - Optional parameters for wallet creation.
-   * @param {string} [options.tag] - An optional tag to associate with the wallet.
-   *
-   * @returns {Promise<Web3ProjectWallet>} A promise that resolves to the created wallet instance.
-   *
-   * @throws {Error} If the project's public key is not found.
-   * @throws {Error} If the wallet creation request to the backend fails.
+   * Creates a new wallet for the specified chain
    */
-  async createWallet({
-    tags,
-  }: { tags?: string[] } = {}): Promise<Web3ProjectWallet> {
-    const project = await this.sdk.getProject();
-
-    if (!project.publicKey) {
-      throw new Error("Project public key not found");
+  async createWallet(
+    chain: "cardano" | "spark",
+    options: {
+      tags?: string[];
+      network?: "MAINNET" | "REGTEST"; // For Spark only
+      purpose?: "tokenization" | "general"; // For Spark only
+    } = {}
+  ): Promise<Web3ProjectCardanoWallet | Web3ProjectSparkWallet> {
+    if (chain === "cardano") {
+      return this.cardano.createWallet({ tags: options.tags });
+    } else if (chain === "spark") {
+      return this.spark.createWallet({
+        tags: options.tags,
+        network: options.network,
+        purpose: options.purpose,
+      });
     }
-
-    const mnemonic = MeshWallet.brew() as string[];
-    const encryptedMnemonic = await encryptWithPublicKey({
-      publicKey: project.publicKey,
-      data: mnemonic.join(" "),
-    });
-
-    const _wallet = new MeshWallet({
-      networkId: 1,
-      key: {
-        type: "mnemonic",
-        words: mnemonic,
-      },
-      fetcher: this.sdk.providerFetcher,
-      submitter: this.sdk.providerSubmitter,
-    });
-    await _wallet.init();
-
-    const addresses = await _wallet.getAddresses();
-    const baseAddressBech32 = addresses.baseAddressBech32!;
-
-    const { pubKeyHash, stakeCredentialHash } =
-      deserializeBech32Address(baseAddressBech32);
-
-    // create wallet
-
-    const web3Wallet: Web3ProjectWallet = {
-      id: uuidv4(),
-      key: encryptedMnemonic,
-      tags: tags || [],
-      projectId: this.sdk.projectId,
-      pubKeyHash: pubKeyHash,
-      stakeCredentialHash: stakeCredentialHash,
-    };
-
-    const { data, status } = await this.sdk.axiosInstance.post(
-      `api/project-wallet`,
-      web3Wallet,
-    );
-
-    if (status === 200) {
-      return data as Web3ProjectWallet;
-    }
-
-    throw new Error("Failed to create wallet");
+    
+    throw new Error(`Unsupported chain: ${chain}`);
   }
 
   /**
-   * Retrieves a list of wallets associated with the current project.
-   *
-   * @returns {Promise<Web3ProjectWallet[]>} A promise that resolves to an array of wallets,
-   * each containing the wallet's `id`, `address`, `networkId`, and `tag`.
-   *
-   * @throws {Error} Throws an error if the request to fetch wallets fails.
+   * Get wallets for a specific chain
    */
-  async getWallets(): Promise<Web3ProjectWallet[]> {
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}`,
-    );
-
-    if (status === 200) {
-      return data as Web3ProjectWallet[];
+  async getWallets(
+    chain: "cardano" | "spark"
+  ): Promise<Web3ProjectCardanoWallet[] | Web3ProjectSparkWallet[]> {
+    if (chain === "cardano") {
+      return this.cardano.getWallets();
+    } else if (chain === "spark") {
+      return this.spark.getWallets();
     }
-
-    throw new Error("Failed to get wallets");
+    
+    throw new Error(`Unsupported chain: ${chain}`);
   }
 
   /**
-   * Retrieves a wallet by its ID and decrypts the key with the project's private key.
-   *
-   * @param walletId - The unique identifier of the wallet to retrieve.
-   * @param networkId - The network ID associated with the wallet (0 or 1).
-   * @param decryptKey - A boolean indicating whether to decrypt the wallet key (default: false).
-   *
-   * @returns A promise that resolves to an initialized `MeshWallet` instance.
-   * @throws Will throw an error if the private key is not found or if the wallet retrieval fails.
+   * Get a specific wallet by ID and chain
    */
   async getWallet(
+    chain: "cardano" | "spark",
     walletId: string,
-    networkId: 0 | 1,
-    decryptKey = false,
-  ): Promise<{
-    info: Web3ProjectWallet;
-    wallet: MeshWallet;
+    options: {
+      networkId?: 0 | 1; // For Cardano only
+      decryptKey?: boolean;
+    } = {}
+  ): Promise<any> {
+    if (chain === "cardano") {
+      return this.cardano.getWallet(
+        walletId,
+        options.networkId ?? 1,
+        options.decryptKey
+      );
+    } else if (chain === "spark") {
+      return this.spark.getWallet(walletId, options.decryptKey);
+    }
+    
+    throw new Error(`Unsupported chain: ${chain}`);
+  }
+
+  /**
+   * Get all wallets (both Cardano and Spark) for the project
+   */
+  async getAllWallets(): Promise<{
+    cardano: Web3ProjectCardanoWallet[];
+    spark: Web3ProjectSparkWallet[];
   }> {
-    if (this.sdk.privateKey === undefined) {
-      throw new Error("Private key not found");
-    }
+    const [cardanoWallets, sparkWallets] = await Promise.all([
+      this.cardano.getWallets(),
+      this.spark.getWallets(),
+    ]);
 
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}/${walletId}`,
-    );
-
-    if (status === 200) {
-      const web3Wallet = data as Web3ProjectWallet;
-
-      const mnemonic = await decryptWithPrivateKey({
-        privateKey: this.sdk.privateKey,
-        encryptedDataJSON: web3Wallet.key,
-      });
-
-      if (decryptKey) {
-        web3Wallet.key = mnemonic;
-      }
-
-      const wallet = new MeshWallet({
-        networkId: networkId,
-        key: {
-          type: "mnemonic",
-          words: mnemonic.split(" "),
-        },
-        fetcher: this.sdk.providerFetcher,
-        submitter: this.sdk.providerSubmitter,
-      });
-      await wallet.init();
-
-      return { info: web3Wallet, wallet: wallet };
-    }
-
-    throw new Error("Failed to get wallet");
+    return {
+      cardano: cardanoWallets,
+      spark: sparkWallets,
+    };
   }
 
-  async getWalletsByTag(tag: string): Promise<Web3ProjectWallet[]> {
-    if (this.sdk.privateKey === undefined) {
-      throw new Error("Private key not found");
-    }
+  /**
+   * Get wallets by tag across all chains
+   */
+  async getWalletsByTag(tag: string): Promise<{
+    cardano: Web3ProjectCardanoWallet[];
+    spark: Web3ProjectSparkWallet[];
+  }> {
+    const [cardanoWallets, sparkWallets] = await Promise.all([
+      this.cardano.getWalletsByTag(tag),
+      this.spark.getWalletsByTag(tag),
+    ]);
 
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}/tag/${tag}`,
-    );
-
-    if (status === 200) {
-      const web3Wallets = data as Web3ProjectWallet[];
-      return web3Wallets;
-    }
-
-    throw new Error("Failed to get wallet");
+    return {
+      cardano: cardanoWallets,
+      spark: sparkWallets,
+    };
   }
+
 }

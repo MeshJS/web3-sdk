@@ -57,6 +57,62 @@ export type OpenWindowResult =
             method: "spark-sign-message";
             signature: string;
           }
+        /** Spark Token Operations */
+        | {
+            method: "spark-create-token";
+            txId?: string;
+            tokenId?: string;
+          }
+        | {
+            method: "spark-mint-tokens";
+            txId: string;
+          }
+        | {
+            method: "spark-burn-tokens";
+            txId: string;
+          }
+        | {
+            method: "spark-freeze-address";
+            txId: string;
+          }
+        | {
+            method: "spark-unfreeze-address";
+            txId: string;
+          }
+        | {
+            method: "spark-transfer-tokens";
+            txId: string;
+          }
+        | {
+            method: "spark-batch-transfer";
+            txIds?: string[];
+            txId?: string;
+          }
+        | {
+            method: "spark-get-token-balance";
+            balance: string;
+          }
+        | {
+            method: "spark-get-token-holders";
+            holders: Array<{
+              address: string;
+              balance: string;
+            }>;
+          }
+        | {
+            method: "spark-get-token-policy";
+            policy: any;
+          }
+        | {
+            method: "spark-get-token-analytics";
+            analytics: {
+              totalSupply: string;
+              circulatingSupply: string;
+              holdersCount: number;
+              transactionsCount: number;
+              frozenAddressesCount: number;
+            };
+          }
         /** to be deprecated */
         | {
             method: "sign-data";

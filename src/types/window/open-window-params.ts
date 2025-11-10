@@ -78,6 +78,86 @@ export type OpenWindowParams =
       networkId: string;
       message: string;
     }
+  /** Spark Token Operations */
+  | {
+      method: "spark-create-token";
+      projectId: string;
+      networkId: string;
+      tokenName: string;
+      tokenTicker: string;
+      decimals: string;
+      maxSupply: string;
+      isFreezable: "true" | "false";
+    }
+  | {
+      method: "spark-mint-tokens";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+      amount: string;
+      recipientAddress: string;
+    }
+  | {
+      method: "spark-burn-tokens";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+      amount: string;
+    }
+  | {
+      method: "spark-freeze-address";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+      address: string;
+      reason?: string;
+    }
+  | {
+      method: "spark-unfreeze-address";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+      address: string;
+    }
+  | {
+      method: "spark-transfer-tokens";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+      amount: string;
+      recipientAddress: string;
+    }
+  | {
+      method: "spark-batch-transfer";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+      transfers: string;
+    }
+  | {
+      method: "spark-get-token-balance";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+    }
+  | {
+      method: "spark-get-token-holders";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+    }
+  | {
+      method: "spark-get-token-policy";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+    }
+  | {
+      method: "spark-get-token-analytics";
+      projectId: string;
+      networkId: string;
+      tokenIdentifier: string;
+    }
   /** to be deprecated */
   | {
       method: "sign-tx";

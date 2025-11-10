@@ -27,13 +27,24 @@ export type Web3ProjectBranding = {
   appleEnabled?: boolean;
 };
 
-export type Web3ProjectWallet = {
+export type Web3ProjectCardanoWallet = {
   id: string;
   key: string;
   tags: string[];
   projectId: string;
   pubKeyHash: string;
   stakeCredentialHash: string;
+};
+
+export type Web3ProjectSparkWallet = {
+  id: string;
+  key: string;
+  tags: string[];
+  projectId: string;
+  sparkAddress: string;
+  publicKey: string;
+  network: "MAINNET" | "REGTEST";
+  purpose?: "tokenization" | "general";
 };
 
 export type Web3JWTBody = {
