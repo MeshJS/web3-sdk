@@ -30,7 +30,6 @@ export class WalletDeveloperControlled {
     options: {
       tags?: string[];
       network?: "MAINNET" | "REGTEST"; // For Spark only
-      purpose?: "tokenization" | "general"; // For Spark only
     } = {}
   ): Promise<Web3ProjectCardanoWallet | Web3ProjectSparkWallet> {
     if (chain === "cardano") {
@@ -39,7 +38,6 @@ export class WalletDeveloperControlled {
       return this.spark.createWallet({
         tags: options.tags,
         network: options.network,
-        purpose: options.purpose,
       });
     }
     
