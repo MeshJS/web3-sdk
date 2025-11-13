@@ -44,7 +44,6 @@ export type Web3ProjectSparkWallet = {
   sparkAddress: string;
   publicKey: string;
   network: "MAINNET" | "REGTEST";
-  purpose?: "tokenization" | "general";
 };
 
 export type Web3JWTBody = {
