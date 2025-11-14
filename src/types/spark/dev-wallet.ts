@@ -1,18 +1,7 @@
 import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
 
 /**
- * Parameters for creating a new Spark token
- */
-export interface SparkTokenCreationParams {
-  tokenName: string;
-  tokenTicker: string;
-  decimals: number;
-  maxSupply?: string;
-  isFreezable: boolean;
-}
-
-/**
- * Parameters for minting Spark tokens
+ * Enhanced minting parameters for dev-controlled wallets (extends base MintTokenParams)
  */
 export interface SparkMintTokensParams {
   tokenization_id: Bech32mTokenIdentifier;

@@ -1,13 +1,10 @@
 import { Web3Sdk } from "..";
 import { decryptWithPrivateKey, encryptWithPublicKey } from "../../functions";
-import { Web3ProjectSparkWallet } from "../../types";
-import { generateMnemonic } from "@meshsdk/common";
+import { Web3ProjectSparkWallet, TokenCreationParams } from "../../types";
 import { v4 as uuidv4 } from "uuid";
 import { IssuerSparkWallet, IssuerTokenMetadata } from "@buildonspark/issuer-sdk";
-import { bitcoin, EmbeddedWallet } from "@meshsdk/bitcoin";
-import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
+import { EmbeddedWallet } from "@meshsdk/bitcoin";
 import {
-  SparkTokenCreationParams,
   SparkMintTokensParams,
   SparkBatchMintParams,
   SparkTransferTokensParams,
@@ -256,7 +253,7 @@ export class SparkWalletDeveloperControlled {
    */
   async createToken(
     walletId: string,
-    params: SparkTokenCreationParams
+    params: TokenCreationParams
   ): Promise<SparkTransactionResult> {
     const { wallet } = await this.getWallet(walletId);
 
@@ -269,7 +266,7 @@ export class SparkWalletDeveloperControlled {
     });
 
     return {
-      transactionId,
+      transactionId, // Returns transaction ID as proof of creation
     };
   }
 

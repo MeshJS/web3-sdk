@@ -237,7 +237,7 @@ export interface TokenCreationParams {
   tokenName: string;
   tokenTicker: string;
   decimals: number;
-  maxSupply: number;
+  maxSupply?: string;
   isFreezable: boolean;
 }
 

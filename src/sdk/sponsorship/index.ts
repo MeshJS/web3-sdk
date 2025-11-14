@@ -340,10 +340,10 @@ export class Sponsorship {
   }
 
   private async getSponsorWallet(projectWalletId: string) {
-    const networkId = this.sdk.network === "mainnet" ? 1 : 0;
-    // For sponsorship, we assume Cardano wallets (since this is for Cardano sponsorship)
-    const wallet = await this.sdk.wallet.getWallet("cardano", projectWalletId, { networkId });
-    return wallet.wallet;
+    const networkId: 0 | 1 = this.sdk.network === "mainnet" ? 1 : 0;
+    // For sponsorship, we use direct Cardano wallet access
+    const walletResult = await this.sdk.wallet.cardano.getWallet(projectWalletId, networkId);
+    return walletResult.wallet;
   }
 
   /**

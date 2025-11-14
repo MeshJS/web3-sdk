@@ -76,3 +76,5 @@ export type SponsorshipTxParserPostRequestBody = {
   sponsorUtxo: string;
   network: "mainnet" | "testnet";
 };
+
+export * from "./multi-chain";
