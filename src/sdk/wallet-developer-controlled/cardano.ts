@@ -1,9 +1,20 @@
 import { Web3Sdk } from "..";
 import { MeshWallet } from "@meshsdk/wallet";
 import { decryptWithPrivateKey, encryptWithPublicKey } from "../../functions";
-import { Web3ProjectCardanoWallet } from "../../types";
+import { Web3ProjectCardanoWallet, TokenCreationParams } from "../../types";
 import { deserializeBech32Address } from "@meshsdk/core-cst";
 import { v4 as uuidv4 } from "uuid";
+import {
+  CardanoTransactionResult,
+  CardanoTokenBalanceParams,
+  CardanoTokenBalanceResult,
+  CardanoTransferTokensParams,
+  CardanoBatchTransferParams,
+  CardanoFreezeTokensParams,
+  CardanoUnfreezeTokensParams,
+  CardanoFreezeResult,
+  CardanoBurnTokensParams,
+} from "../../types/cardano/dev-wallet";
 
 /**
  * CardanoWalletDeveloperControlled - Manages Cardano-specific developer-controlled wallets
@@ -151,5 +162,128 @@ export class CardanoWalletDeveloperControlled {
     }
 
     throw new Error("Failed to get Cardano wallets by tag");
+  }
+
+  // =================================================================================
+  // TOKEN OPERATIONS - UNIMPLEMENTED (Future CIP-113 Integration)
+  // =================================================================================
+
+  /**
+   * Creates a new Cardano token (CIP-113 programmable tokens).
+   *
+   * @param params - Token creation parameters (same interface as Spark)
+   * @returns Promise that resolves to transaction information
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   *
+   * @example
+   * ```typescript
+   * const result = await cardanoWallet.createToken({
+   *   tokenName: "My Token",
+   *   tokenTicker: "MTK",
+   *   decimals: 6,
+   *   maxSupply: "1000000",
+   *   isFreezable: true
+   * });
+   * ```
+   */
+  async createToken(params: TokenCreationParams): Promise<CardanoTransactionResult> {
+    throw new Error("Cardano token creation not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Mints Cardano tokens to specified address or issuer wallet.
+   *
+   * @param params - Minting parameters
+   * @returns Promise that resolves to transaction information
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async mintTokens(params: { tokenId: string; amount: string; address?: string }): Promise<CardanoTransactionResult> {
+    throw new Error("Cardano token minting not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Transfers Cardano tokens between addresses.
+   *
+   * @param params - Transfer parameters
+   * @returns Promise that resolves to transaction information
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async transferTokens(params: CardanoTransferTokensParams): Promise<CardanoTransactionResult> {
+    throw new Error("Cardano token transfer not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Batch transfers Cardano tokens to multiple recipients.
+   *
+   * @param params - Batch transfer parameters
+   * @returns Promise that resolves to transaction information
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async batchTransferTokens(params: CardanoBatchTransferParams): Promise<CardanoTransactionResult> {
+    throw new Error("Cardano batch token transfer not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Gets token balance for a Cardano address.
+   *
+   * @param params - Balance query parameters
+   * @returns Promise that resolves to balance information
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async getTokenBalance(params: CardanoTokenBalanceParams): Promise<CardanoTokenBalanceResult> {
+    throw new Error("Cardano token balance query not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Gets metadata for a specific Cardano token.
+   *
+   * @param params - Token metadata query parameters
+   * @returns Promise that resolves to token metadata
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async getTokenMetadata(params: { tokenId: string }): Promise<any> {
+    throw new Error("Cardano token metadata query not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Burns Cardano tokens permanently from circulation.
+   *
+   * @param params - Token burning parameters
+   * @returns Promise that resolves to transaction information
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async burnTokens(params: CardanoBurnTokensParams): Promise<CardanoTransactionResult> {
+    throw new Error("Cardano token burning not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Freezes Cardano tokens at specific address (CIP-113 compliance).
+   *
+   * @param params - Freeze parameters
+   * @returns Promise that resolves to freeze operation details
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async freezeTokens(params: CardanoFreezeTokensParams): Promise<CardanoFreezeResult> {
+    throw new Error("Cardano token freezing not implemented yet - awaiting CIP-113 standard");
+  }
+
+  /**
+   * Unfreezes Cardano tokens at specific address (CIP-113 compliance).
+   *
+   * @param params - Unfreeze parameters
+   * @returns Promise that resolves to unfreeze operation details
+   *
+   * @throws {Error} Method not implemented yet - awaiting CIP-113
+   */
+  async unfreezeTokens(params: CardanoUnfreezeTokensParams): Promise<CardanoFreezeResult> {
+    throw new Error("Cardano token unfreezing not implemented yet - awaiting CIP-113 standard");
   }
 }

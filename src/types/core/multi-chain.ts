@@ -28,10 +28,8 @@ export interface MultiChainWalletInfo {
     cardano?: {
       pubKeyHash: string;
       stakeCredentialHash: string;
-      address: string;
     };
     spark?: {
-      sparkAddress: string;
       publicKey: string;
     };
   };

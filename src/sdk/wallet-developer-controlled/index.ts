@@ -18,18 +18,18 @@ export { SparkWalletDeveloperControlled } from "./spark";
 /**
  * The `WalletDeveloperControlled` class provides functionality for managing developer-controlled wallets
  * within a Web3 project. Supports multi-chain wallets with UTXO-native design.
- * 
+ *
  * @example
  * ```typescript
  * // Create multi-chain wallet
- * const walletInfo = await sdk.wallet.createWallet({ 
- *   tags: ["minting"], 
- *   networks: { cardano: 1, spark: 1 } 
+ * const walletInfo = await sdk.wallet.createWallet({
+ *   tags: ["minting"],
+ *   networks: { cardano: 1, spark: 1 }
  * });
- * 
+ *
  * // Get specific chain for performance
  * const { sparkWallet } = await sdk.wallet.getWallet(walletInfo.id, 1, "spark");
- * 
+ *
  * // Get all chains
  * const { cardanoWallet, sparkWallet } = await sdk.wallet.getWallet(walletInfo.id, 1);
  * ```
@@ -38,26 +38,26 @@ export class WalletDeveloperControlled {
   readonly sdk: Web3Sdk;
 
   // Chain-specific handlers (public access for direct operations)
-  readonly cardano: CardanoWalletDeveloperControlled;
-  readonly spark: SparkWalletDeveloperControlled;
+  readonly cardanoWallet: CardanoWalletDeveloperControlled;
+  readonly sparkWallet: SparkWalletDeveloperControlled;
 
   constructor({ sdk }: { sdk: Web3Sdk }) {
     this.sdk = sdk;
-    this.cardano = new CardanoWalletDeveloperControlled({ sdk });
-    this.spark = new SparkWalletDeveloperControlled({ sdk });
+    this.cardanoWallet = new CardanoWalletDeveloperControlled({ sdk });
+    this.sparkWallet = new SparkWalletDeveloperControlled({ sdk });
   }
 
   /**
    * Creates a new multi-chain wallet associated with the current project.
    * One wallet per project with unified ID containing all chain keys.
-   * 
+   *
    * @param options - Multi-chain wallet creation options
    * @param options.tags - Optional tags to organize the wallet
    * @param options.networks - Network configuration for each chain
    * @returns Promise that resolves to multi-chain wallet information
-   * 
+   *
    * @throws {Error} When wallet creation fails or project has existing wallet
-   * 
+   *
    * @example
    * ```typescript
    * const wallet = await sdk.wallet.createWallet({
@@ -80,8 +80,8 @@ export class WalletDeveloperControlled {
     }
 
     const walletId = uuidv4();
-    const networkId = options.networkId || 1; // Default to mainnet
-    const enabledChains = options.chains || ["cardano", "spark"]; // Default chains
+    const networkId = options.networkId || 0; // Default to testnet
+    const enabledChains = options.chains || ["cardano", "spark"];
     const chains: MultiChainWalletInfo['chains'] = {};
 
     // Generate single mnemonic for all chains (matches user-controlled pattern)
@@ -91,7 +91,6 @@ export class WalletDeveloperControlled {
       data: sharedMnemonic.join(" "),
     });
 
-    // Generate addresses for enabled chains using shared mnemonic and network
     if (enabledChains.includes("cardano")) {
       const tempWallet = new MeshWallet({
         networkId: networkId,
@@ -101,13 +100,12 @@ export class WalletDeveloperControlled {
       });
       await tempWallet.init();
 
-      const addresses = await tempWallet.getAddresses();
+      const addresses = tempWallet.getAddresses();
       const { pubKeyHash, stakeCredentialHash } = deserializeBech32Address(addresses.baseAddressBech32!);
 
       chains.cardano = {
         pubKeyHash,
         stakeCredentialHash,
-        address: addresses.baseAddressBech32!,
       };
     }
 
@@ -122,24 +120,22 @@ export class WalletDeveloperControlled {
       const publicKey = await tempSparkWallet.getIdentityPublicKey();
 
       chains.spark = {
-        sparkAddress,
         publicKey,
       };
     }
 
-    // Store unified wallet in database
     const walletData = {
       id: walletId,
       projectId: this.sdk.projectId,
       tags: options.tags || [],
-      key: encryptedKey, // Single shared mnemonic
-      networkId: networkId, // Single network for all chains
+      key: encryptedKey,
+      networkId: networkId,
       chains,
       createdAt: new Date().toISOString(),
     };
 
     const { data, status } = await this.sdk.axiosInstance.post(
-      `api/project-wallet/multi-chain`,
+      `api/project-wallet`,
       walletData
     );
 

@@ -16,6 +16,8 @@ import {
   SparkTokenBalanceResult,
   SparkFreezeResult,
   SparkFrozenAddressesResult,
+  SparkTokenMetadata,
+  SparkTokenMetadataResponse,
   PaginationParams,
 } from "../../types/spark/dev-wallet";
 
@@ -484,25 +486,41 @@ export class SparkWalletDeveloperControlled {
    * Get metadata for a specific token.
    *
    * @param params - Token metadata query parameters
-   * @param params.tokenId - The token identifier to get metadata for
-   * @returns Promise that resolves to token metadata
+   * @param params.tokenIds - Array of token identifiers (up to 100 tokens)
+   * @returns Promise that resolves to token metadata response
    *
    * @example
    * ```typescript
-   * const metadata = await sparkWallet.getTokenMetadata({ tokenId: "spark1token123..." });
+   * // Single token
+   * const response = await sparkWallet.getTokenMetadata({ tokenIds: ["btkn1token123..."] });
+   * const metadata = response.metadata[0];
    * console.log(`${metadata.name} (${metadata.ticker})`);
+   *
+   * // Multiple tokens
+   * const batchResponse = await sparkWallet.getTokenMetadata({
+   *   tokenIds: ["btkntoken1...", "btkn1token2...", "btkn1token3..."]
+   * });
+   * batchResponse.metadata.forEach(token => console.log(token.name));
    * ```
    */
-  async getTokenMetadata(params: { tokenId: string }): Promise<any> {
+  async getTokenMetadata(params: { tokenIds: string[] }): Promise<SparkTokenMetadataResponse> {
+    if (params.tokenIds.length === 0) {
+      return { metadata: [], total_count: 0 };
+    }
+
+    if (params.tokenIds.length > 100) {
+      throw new Error("Maximum 100 token IDs allowed per batch request");
+    }
+
     const { data, status } = await this.sdk.axiosInstance.post(
-      `api/spark/tokens/metadata`,
+      `api/spark/tokens/metadata/batch`,
       {
-        token_addresses: [params.tokenId]
+        token_addresses: params.tokenIds
       }
     );
 
     if (status === 200) {
-      return data.metadata?.[0] || null;
+      return data as SparkTokenMetadataResponse;
     }
 
     throw new Error("Failed to get token metadata");

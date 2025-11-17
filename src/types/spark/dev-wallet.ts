@@ -124,3 +124,30 @@ export interface SparkFrozenAddressesResult {
   frozenAddresses: SparkFrozenAddressInfo[];
   pagination: PaginationMeta;
 }
+
+/**
+ * Token metadata from Sparkscan API
+ */
+export interface SparkTokenMetadata {
+  tokenIdentifier: string;
+  tokenAddress: string;
+  name: string;
+  ticker: string;
+  decimals: number;
+  issuerPublicKey: string;
+  iconUrl: string;
+  holderCount: number;
+  priceUsd: number;
+  maxSupply: number | null;
+  isFreezable: boolean | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/**
+ * Response for token metadata batch query
+ */
+export interface SparkTokenMetadataResponse {
+  metadata: SparkTokenMetadata[];
+  total_count: number;
+}
