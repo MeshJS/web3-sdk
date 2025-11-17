@@ -51,10 +51,3 @@ export interface MultiChainWalletInstance {
  * Supported chain types for wallet operations
  */
 export type SupportedChain = "cardano" | "spark";
-
-/**
- * Chain-specific wallet retrieval options
- */
-export interface ChainWalletOptions {
-  decryptKey?: boolean;
-}
