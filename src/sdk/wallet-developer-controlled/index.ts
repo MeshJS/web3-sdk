@@ -38,13 +38,13 @@ export class WalletDeveloperControlled {
   readonly sdk: Web3Sdk;
 
   // Chain-specific handlers (public access for direct operations)
-  readonly cardanoWallet: CardanoWalletDeveloperControlled;
-  readonly sparkWallet: SparkWalletDeveloperControlled;
+  readonly cardano: CardanoWalletDeveloperControlled;
+  readonly spark: SparkWalletDeveloperControlled;
 
   constructor({ sdk }: { sdk: Web3Sdk }) {
     this.sdk = sdk;
-    this.cardanoWallet = new CardanoWalletDeveloperControlled({ sdk });
-    this.sparkWallet = new SparkWalletDeveloperControlled({ sdk });
+    this.cardano = new CardanoWalletDeveloperControlled({ sdk });
+    this.spark = new SparkWalletDeveloperControlled({ sdk });
   }
 
   /**
