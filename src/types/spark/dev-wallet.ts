@@ -4,7 +4,7 @@ import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
  * Enhanced minting parameters for dev-controlled wallets (extends base MintTokenParams)
  */
 export interface SparkMintTokensParams {
-  tokenization_id: Bech32mTokenIdentifier;
+  tokenizationId: Bech32mTokenIdentifier;
   amount: string;
   address?: string;
 }
@@ -21,7 +21,7 @@ export interface SparkBatchRecipient {
  * Parameters for batch minting Spark tokens to multiple recipients
  */
 export interface SparkBatchMintParams {
-  tokenization_id: Bech32mTokenIdentifier;
+  tokenizationId: Bech32mTokenIdentifier;
   recipients: SparkBatchRecipient[];
 }
 

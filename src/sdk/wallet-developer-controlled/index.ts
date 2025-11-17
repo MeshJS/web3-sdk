@@ -227,27 +227,14 @@ export class WalletDeveloperControlled {
   }
 
   /**
-   * Helper method to check if wallet has Cardano chain
+   * Helper method to check if wallet has the supported chain
    */
-  private async hasCardanoWallet(walletId: string): Promise<boolean> {
+  private async hasWallet(walletId: string, chain: SupportedChain): Promise<boolean> {
     try {
       const wallet = await this.getProjectWallet();
-      return !!wallet.chains.cardano;
+      return !!wallet.chains[chain];
     } catch {
       return false;
     }
   }
-
-  /**
-   * Helper method to check if wallet has Spark chain
-   */
-  private async hasSparkWallet(walletId: string): Promise<boolean> {
-    try {
-      const wallet = await this.getProjectWallet();
-      return !!wallet.chains.spark;
-    } catch {
-      return false;
-    }
-  }
-
 }

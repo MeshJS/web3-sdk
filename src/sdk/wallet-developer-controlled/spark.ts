@@ -251,13 +251,14 @@ export class SparkWalletDeveloperControlled {
    * console.log(`Token created with transaction: ${result.transactionId}`);
    * ```
    */
-  async createToken(
-    walletId: string,
-    params: TokenCreationParams
-  ): Promise<SparkTransactionResult> {
-    const { wallet } = await this.getWallet(walletId);
+  async createToken(params: TokenCreationParams): Promise<SparkTransactionResult> {
+    const { sparkWallet } = await this.sdk.wallet.getWallet("spark");
 
-    const transactionId = await wallet.createToken({
+    if (!sparkWallet) {
+      throw new Error("Spark wallet not available for this project");
+    }
+
+    const transactionId = await sparkWallet.createToken({
       tokenName: params.tokenName,
       tokenTicker: params.tokenTicker,
       decimals: params.decimals,
@@ -266,7 +267,7 @@ export class SparkWalletDeveloperControlled {
     });
 
     return {
-      transactionId, // Returns transaction ID as proof of creation
+      transactionId,
     };
   }
 
@@ -280,7 +281,7 @@ export class SparkWalletDeveloperControlled {
    *
    * @param walletId - The ID of the issuer wallet to mint tokens with
    * @param params - Minting parameters
-   * @param params.tokenization_id - The Bech32m token identifier to mint
+   * @param params.tokenizationId - The Bech32m token identifier to mint
    * @param params.amount - The amount of tokens to mint (as string to handle large numbers)
    * @param params.address - Optional Spark address to receive tokens (defaults to issuer wallet)
    * @returns Promise that resolves to transaction information (transfer tx if address provided, mint tx otherwise)
@@ -290,43 +291,43 @@ export class SparkWalletDeveloperControlled {
    * @example
    * ```typescript
    * // Mint to issuer wallet
-   * const result1 = await sparkWallet.mintTokens("wallet-id", {
+   * const result1 = await sparkWallet.mintTokens({
    *   tokenization_id: "spark1token123...",
    *   amount: "1000000"
    * });
    *
    * // Mint and transfer to specific address (two-step process)
-   * const result2 = await sparkWallet.mintTokens("wallet-id", {
+   * const result2 = await sparkWallet.mintTokens({
    *   tokenization_id: "spark1token123...",
    *   amount: "1000000",
    *   address: "spark1recipient456..."
    * });
    * ```
    */
-  async mintTokens(
-    walletId: string,
-    params: SparkMintTokensParams
-  ): Promise<SparkTransactionResult> {
-    const { wallet } = await this.getWallet(walletId);
+  async mintTokens(params: SparkMintTokensParams): Promise<SparkTransactionResult> {
+    const { sparkWallet } = await this.sdk.wallet.getWallet("spark");
+
+    if (!sparkWallet) {
+      throw new Error("Spark wallet not available for this project");
+    }
 
     if (params.address) {
       // Two-step process: mint to issuer, then transfer to target address
-      await wallet.mintTokens(BigInt(params.amount));
-      
+      await sparkWallet.mintTokens(BigInt(params.amount));
+
       // Transfer the minted tokens to the specified address
-      const transferResult = await wallet.transferTokens({
-        tokenIdentifier: params.tokenization_id,
+      const transferResult = await sparkWallet.transferTokens({
+        tokenIdentifier: params.tokenizationId,
         tokenAmount: BigInt(params.amount),
         receiverSparkAddress: params.address,
       });
-      
+
       return {
         transactionId: transferResult,
       };
     } else {
-      // Direct mint to issuer wallet
-      const mintResult = await wallet.mintTokens(BigInt(params.amount));
-      
+      const mintResult = await sparkWallet.mintTokens(BigInt(params.amount));
+
       return {
         transactionId: mintResult,
       };
@@ -343,7 +344,7 @@ export class SparkWalletDeveloperControlled {
    *
    * @param walletId - The ID of the issuer wallet to mint tokens with
    * @param params - Batch minting parameters
-   * @param params.tokenization_id - The Bech32m token identifier to mint
+   * @param params.tokenizationId - The Bech32m token identifier to mint
    * @param params.recipients - Array of recipient addresses and amounts
    * @returns Promise that resolves to mint transaction ID and batch transfer transaction ID
    *
@@ -352,7 +353,7 @@ export class SparkWalletDeveloperControlled {
    * @example
    * ```typescript
    * const result = await sparkWallet.batchMintTokens("wallet-id", {
-   *   tokenization_id: "spark1token123...",
+   *   tokenizationId: "spark1token123...",
    *   recipients: [
    *     { address: "spark1addr1...", amount: "1000" },
    *     { address: "spark1addr2...", amount: "2000" },
@@ -377,7 +378,7 @@ export class SparkWalletDeveloperControlled {
 
     const mintTransactionId = await wallet.mintTokens(totalAmount);
     const receiverOutputs = params.recipients.map(recipient => ({
-      tokenIdentifier: params.tokenization_id,
+      tokenIdentifier: params.tokenizationId,
       tokenAmount: BigInt(recipient.amount),
       receiverSparkAddress: recipient.address,
     }));
@@ -480,6 +481,65 @@ export class SparkWalletDeveloperControlled {
   }
 
   /**
+   * Get metadata for a specific token.
+   *
+   * @param params - Token metadata query parameters
+   * @param params.tokenId - The token identifier to get metadata for
+   * @returns Promise that resolves to token metadata
+   *
+   * @example
+   * ```typescript
+   * const metadata = await sparkWallet.getTokenMetadata({ tokenId: "spark1token123..." });
+   * console.log(`${metadata.name} (${metadata.ticker})`);
+   * ```
+   */
+  async getTokenMetadata(params: { tokenId: string }): Promise<any> {
+    const { data, status } = await this.sdk.axiosInstance.post(
+      `api/spark/tokens/metadata`,
+      {
+        token_addresses: [params.tokenId]
+      }
+    );
+
+    if (status === 200) {
+      return data.metadata?.[0] || null;
+    }
+
+    throw new Error("Failed to get token metadata");
+  }
+
+  /**
+   * Burns tokens permanently from circulation.
+   *
+   * @param params - Token burning parameters
+   * @param params.amount - The amount of tokens to burn from issuer wallet
+   * @returns Promise that resolves to transaction information
+   *
+   * @throws {Error} When token burning fails
+   *
+   * @example
+   * ```typescript
+   * const result = await sparkWallet.burnTokens({
+   *   amount: "1000"
+   * });
+   * console.log(`Burned tokens with transaction: ${result.transactionId}`);
+   * ```
+   */
+  async burnTokens(params: { amount: string }): Promise<SparkTransactionResult> {
+    const { sparkWallet } = await this.sdk.wallet.getWallet("spark");
+
+    if (!sparkWallet) {
+      throw new Error("Spark wallet not available for this project");
+    }
+
+    const result = await sparkWallet.burnTokens(BigInt(params.amount));
+
+    return {
+      transactionId: result,
+    };
+  }
+
+  /**
    * Freezes all tokens at a specific Spark address (compliance/admin control).
    *
    * This operation can only be performed by issuer wallets on freezable tokens.
@@ -567,10 +627,10 @@ export class SparkWalletDeveloperControlled {
    * ```typescript
    * // Get first page with default limit
    * const frozenInfo = await sparkWallet.getFrozenAddresses();
-   * 
+   *
    * // Get specific page with custom limit
    * const page2 = await sparkWallet.getFrozenAddresses({ page: 2, limit: 25 });
-   * 
+   *
    * // Display in admin table
    * frozenInfo.frozenAddresses.forEach(addr => {
    *   console.log(`${addr.address}: ${addr.frozenTokenAmount} tokens frozen since ${addr.frozenAt}`);

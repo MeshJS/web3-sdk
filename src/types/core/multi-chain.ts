@@ -12,7 +12,7 @@ export type NetworkId = 0 | 1;
 export interface MultiChainWalletOptions {
   tags?: string[];
   networkId?: NetworkId;
-  chains?: ("cardano" | "spark" | "bitcoin")[];
+  chains?: ("cardano" | "spark")[];
 }
 
 /**
