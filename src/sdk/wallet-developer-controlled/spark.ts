@@ -139,7 +139,6 @@ export class SparkWalletDeveloperControlled {
   /**
    * Retrieves a specific Spark wallet by ID and creates a wallet instance.
    *
-   * @param walletId - The unique identifier of the wallet to retrieve
    * @param decryptKey - Whether to decrypt and return the mnemonic key (default: false)
    * @returns Promise that resolves to wallet info and initialized IssuerSparkWallet instance
    *
@@ -152,7 +151,6 @@ export class SparkWalletDeveloperControlled {
    * ```
    */
   async getWallet(
-    walletId: string,
     decryptKey = false,
   ): Promise<{
     info: Web3ProjectSparkWallet;
@@ -163,7 +161,7 @@ export class SparkWalletDeveloperControlled {
     }
 
     const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}/spark/${walletId}`,
+      `api/project-wallet/${this.sdk.projectId}/spark`,
     );
 
     if (status === 200) {
@@ -211,7 +209,6 @@ export class SparkWalletDeveloperControlled {
   /**
    * Get token metadata for tokens created by a specific issuer wallet.
    *
-   * @param walletId - The ID of the issuer wallet to get token metadata for
    * @returns Promise that resolves to token metadata information
    *
    * @throws {Error} When token metadata retrieval fails
@@ -222,15 +219,14 @@ export class SparkWalletDeveloperControlled {
    * console.log(`Token: ${metadata.tokenName} (${metadata.tokenSymbol})`);
    * ```
    */
-  async getIssuerTokenMetadata(walletId: string): Promise<IssuerTokenMetadata> {
-    const { wallet } = await this.getWallet(walletId);
+  async getIssuerTokenMetadata(): Promise<IssuerTokenMetadata> {
+    const { wallet } = await this.getWallet();
     return await wallet.getIssuerTokenMetadata();
   }
 
   /**
    * Creates a new token using a specific issuer wallet.
    *
-   * @param walletId - The ID of the issuer wallet to use for token creation
    * @param params - Token creation parameters
    * @param params.tokenName - The full name of the token
    * @param params.tokenTicker - The ticker symbol for the token
@@ -281,7 +277,6 @@ export class SparkWalletDeveloperControlled {
    * 1. Mints tokens to the issuer wallet
    * 2. Transfers the minted tokens to the specified address
    *
-   * @param walletId - The ID of the issuer wallet to mint tokens with
    * @param params - Minting parameters
    * @param params.tokenizationId - The Bech32m token identifier to mint
    * @param params.amount - The amount of tokens to mint (as string to handle large numbers)
@@ -344,7 +339,6 @@ export class SparkWalletDeveloperControlled {
    * 2. Performing a single mint operation to the issuer wallet
    * 3. Executing a single batch transfer to all recipients simultaneously
    *
-   * @param walletId - The ID of the issuer wallet to mint tokens with
    * @param params - Batch minting parameters
    * @param params.tokenizationId - The Bech32m token identifier to mint
    * @param params.recipients - Array of recipient addresses and amounts
@@ -367,10 +361,9 @@ export class SparkWalletDeveloperControlled {
    * ```
    */
   async batchMintTokens(
-    walletId: string,
     params: SparkBatchMintParams
   ): Promise<SparkBatchMintResult> {
-    const { wallet } = await this.getWallet(walletId);
+    const { wallet } = await this.getWallet();
 
     // Calculate total amount needed for all recipients
     const totalAmount = params.recipients.reduce(
@@ -396,7 +389,6 @@ export class SparkWalletDeveloperControlled {
   /**
    * Transfers tokens from an issuer wallet to another Spark address.
    *
-   * @param walletId - The ID of the issuer wallet to transfer tokens from
    * @param params - Transfer parameters
    * @param params.tokenIdentifier - The Bech32m token identifier for the token to transfer
    * @param params.amount - The amount of tokens to transfer (as string to handle large numbers)
@@ -416,10 +408,9 @@ export class SparkWalletDeveloperControlled {
    * ```
    */
   async transferTokens(
-    walletId: string,
     params: SparkTransferTokensParams
   ): Promise<SparkTransactionResult> {
-    const { wallet } = await this.getWallet(walletId);
+    const { wallet } = await this.getWallet();
 
     const result = await wallet.transferTokens({
       tokenIdentifier: params.tokenIdentifier,
@@ -434,21 +425,25 @@ export class SparkWalletDeveloperControlled {
 
   /**
    * Retrieves metadata for tokens created by a specific issuer wallet.
-   *
-   * @param walletId - The ID of the issuer wallet to get token metadata for
+   *x
    * @returns Promise that resolves to token metadata information
    *
    * @throws {Error} When token metadata retrieval fails
    *
    * @example
    * ```typescript
-   * const metadata = await sparkWallet.getCreatedTokens("wallet-id");
+   * const metadata = await sparkWallet.getCreatedTokens();
    * console.log(`Token: ${metadata.tokenName} (${metadata.tokenSymbol})`);
    * ```
    */
-  async getCreatedTokens(walletId: string): Promise<IssuerTokenMetadata> {
-    const { wallet } = await this.getWallet(walletId);
-    return await wallet.getIssuerTokenMetadata();
+  async getCreatedTokens(): Promise<IssuerTokenMetadata> {
+    const { sparkWallet } = await this.sdk.wallet.getWallet("spark");
+    
+    if (!sparkWallet) {
+      throw new Error("Spark wallet not available for this project");
+    }
+    
+    return await sparkWallet.getIssuerTokenMetadata();
   }
 
   /**
@@ -563,7 +558,6 @@ export class SparkWalletDeveloperControlled {
    * This operation can only be performed by issuer wallets on freezable tokens.
    * Frozen tokens cannot be transferred until unfrozen by the issuer.
    *
-   * @param walletId - The ID of the issuer wallet with freeze authority
    * @param params - Freeze parameters
    * @param params.address - The Spark address to freeze tokens at
    * @returns Promise that resolves to freeze operation details
@@ -579,10 +573,9 @@ export class SparkWalletDeveloperControlled {
    * ```
    */
   async freezeTokens(
-    walletId: string,
     params: SparkFreezeTokensParams
   ): Promise<SparkFreezeResult> {
-    const { wallet } = await this.getWallet(walletId);
+    const { wallet } = await this.getWallet();
 
     const result = await wallet.freezeTokens(params.address);
 
@@ -598,7 +591,6 @@ export class SparkWalletDeveloperControlled {
    * This operation can only be performed by issuer wallets that previously froze the tokens.
    * Unfrozen tokens can be transferred normally again.
    *
-   * @param walletId - The ID of the issuer wallet with unfreeze authority
    * @param params - Unfreeze parameters
    * @param params.address - The Spark address to unfreeze tokens at
    * @returns Promise that resolves to unfreeze operation details
@@ -614,10 +606,9 @@ export class SparkWalletDeveloperControlled {
    * ```
    */
   async unfreezeTokens(
-    walletId: string,
     params: SparkUnfreezeTokensParams
   ): Promise<SparkFreezeResult> {
-    const { wallet } = await this.getWallet(walletId);
+    const { wallet } = await this.getWallet();
 
     const result = await wallet.unfreezeTokens(params.address);
 
