@@ -3,7 +3,8 @@ import {
   MultiChainWalletOptions,
   MultiChainWalletInfo,
   MultiChainWalletInstance,
-  SupportedChain
+  SupportedChain,
+  NetworkId
 } from "../../types/core/multi-chain";
 import { CardanoWalletDeveloperControlled } from "./cardano";
 import { SparkWalletDeveloperControlled } from "./spark";
@@ -68,12 +69,6 @@ export class WalletDeveloperControlled {
    * ```
    */
   async createWallet(options: MultiChainWalletOptions = {}): Promise<MultiChainWalletInfo> {
-    // Check if project already has a wallet
-    const existingWallet = await this.getProjectWallet().catch(() => null);
-    if (existingWallet) {
-      throw new Error("Project already has a wallet. Use getWallet() to retrieve it or add chains to existing wallet.");
-    }
-
     const project = await this.sdk.getProject();
     if (!project.publicKey) {
       throw new Error("Project public key not found");
@@ -84,7 +79,7 @@ export class WalletDeveloperControlled {
     const enabledChains = options.chains || ["cardano", "spark"];
     const chains: MultiChainWalletInfo['chains'] = {};
 
-    // Generate single mnemonic for all chains (matches user-controlled pattern)
+    // Generate single mnemonic for all chains
     const sharedMnemonic = MeshWallet.brew() as string[];
     const encryptedKey = await encryptWithPublicKey({
       publicKey: project.publicKey,
@@ -110,17 +105,29 @@ export class WalletDeveloperControlled {
     }
 
     if (enabledChains.includes("spark")) {
-      const sparkNetwork = networkId === 1 ? "MAINNET" : "REGTEST";
-      const { wallet: tempSparkWallet } = await IssuerSparkWallet.initialize({
-        mnemonicOrSeed: sharedMnemonic.join(" "),
-        options: { network: sparkNetwork },
-      });
+      const [mainnetWallet, regtestWallet] = await Promise.all([
+        IssuerSparkWallet.initialize({
+          mnemonicOrSeed: sharedMnemonic.join(" "),
+          options: { network: "MAINNET" },
+        }),
+        IssuerSparkWallet.initialize({
+          mnemonicOrSeed: sharedMnemonic.join(" "),
+          options: { network: "REGTEST" },
+        })
+      ]);
 
-      const sparkAddress = await tempSparkWallet.getSparkAddress();
-      const publicKey = await tempSparkWallet.getIdentityPublicKey();
+      const [mainnetAddress, mainnetPublicKey, regtestAddress, regtestPublicKey] = await Promise.all([
+        mainnetWallet.wallet.getSparkAddress(),
+        mainnetWallet.wallet.getIdentityPublicKey(),
+        regtestWallet.wallet.getSparkAddress(),
+        regtestWallet.wallet.getIdentityPublicKey()
+      ]);
 
       chains.spark = {
-        publicKey,
+        mainnetPublicKey,
+        mainnetAddress,
+        regtestPublicKey,
+        regtestAddress,
       };
     }
 
@@ -158,16 +165,18 @@ export class WalletDeveloperControlled {
    * @example
    * ```typescript
    * // Load specific chain
-   * const { sparkWallet } = await sdk.wallet.getWallet("wallet-id", "spark");
+   * const { sparkWallet } = await sdk.wallet.getWallet("wallet-id", 0, "spark");
    *
    * // Load all available chains
-   * const { info, cardanoWallet, sparkWallet } = await sdk.wallet.getWallet("wallet-id");
+   * const { info, cardanoWallet, sparkWallet } = await sdk.wallet.getWallet("wallet-id", 0, "cardano");
    * ```
    */
   async getWallet(
-    chain?: SupportedChain,
+    projectWalletId: string,
+    networkId: NetworkId,
+    chain: SupportedChain,
   ): Promise<MultiChainWalletInstance> {
-    const walletInfo = await this.getProjectWallet();
+    const walletInfo = await this.getProjectWallet(projectWalletId);
 
     const instance: MultiChainWalletInstance = {
       info: walletInfo
@@ -181,10 +190,9 @@ export class WalletDeveloperControlled {
       });
     }
 
-    // Load requested chain or ALL available chains if no specific chain requested
     if ((chain === "cardano" || !chain) && walletInfo.chains.cardano && sharedMnemonic) {
       const cardanoWallet = new MeshWallet({
-        networkId: walletInfo.networkId,
+        networkId: networkId,
         key: { type: "mnemonic", words: sharedMnemonic.split(" ") },
         fetcher: this.sdk.providerFetcher,
         submitter: this.sdk.providerSubmitter,
@@ -210,27 +218,17 @@ export class WalletDeveloperControlled {
   /**
    * Get the project's single multi-chain wallet
    */
-  async getProjectWallet(): Promise<MultiChainWalletInfo> {
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}`
-    );
+  async getProjectWallet(walletId?: string): Promise<MultiChainWalletInfo> {
+    const endpoint = walletId
+      ? `api/project-wallet/${this.sdk.projectId}/${walletId}`
+      : `api/project-wallet/${this.sdk.projectId}`;
+
+    const { data, status } = await this.sdk.axiosInstance.get(endpoint);
 
     if (status === 200) {
       return data as MultiChainWalletInfo;
     }
 
     throw new Error("Project wallet not found");
-  }
-
-  /**
-   * Helper method to check if wallet has the supported chain
-   */
-  private async hasWallet(walletId: string, chain: SupportedChain): Promise<boolean> {
-    try {
-      const wallet = await this.getProjectWallet();
-      return !!wallet.chains[chain];
-    } catch {
-      return false;
-    }
   }
 }

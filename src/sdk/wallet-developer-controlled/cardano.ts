@@ -113,7 +113,7 @@ export class CardanoWalletDeveloperControlled {
     }
 
     const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}/cardano/${walletId}`,
+      `api/project-wallet/${this.sdk.projectId}/${walletId}?chain=cardano`,
     );
 
     if (status === 200) {

@@ -140,7 +140,7 @@ export class Web3SparkWallet {
   }
 
   /**
-   * Create a new token (basic implementation - will be enhanced by SparkTokenIssuer)
+   * Create a new token
    */
   async createToken(params: Spark.TokenCreationParams): Promise<string> {
     if (!this.projectId || !this.appUrl) {
@@ -161,7 +161,7 @@ export class Web3SparkWallet {
           tokenName: params.tokenName,
           tokenTicker: params.tokenTicker,
           decimals: String(params.decimals),
-          maxSupply: params.maxSupply.toString(),
+          maxSupply: params.maxSupply?.toString() ?? "0",
           isFreezable: params.isFreezable ? "true" : "false",
         },
         this.appUrl,
@@ -548,6 +548,28 @@ export class Web3SparkWallet {
     }
   }
 
+  /**
+   * Get the balance of a specific token for the current wallet address
+   * @param tokenIdentifier - The token identifier to check balance for
+   * @param address - Optional specific address to check (defaults to wallet address)
+   * @returns Promise resolving to the token balance as a string, or "0" if not found
+   */
+  async getTokenBalance(tokenIdentifier: string, address?: string): Promise<string> {
+    try {
+      const tokensResponse = await this.getAddressTokens(address);
+      
+      const token = tokensResponse.tokens?.find(
+        (token) => token.tokenIdentifier === tokenIdentifier || token.tokenAddress === tokenIdentifier
+      );
+      
+      return token ? token.balance.toString() : "0";
+    } catch (error) {
+      throw new ApiError({
+        code: 5,
+        info: `Failed to get token balance: ${error}`,
+      });
+    }
+  }
 
   /**
    * Query token transactions using Sparkscan API

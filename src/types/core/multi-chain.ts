@@ -30,7 +30,10 @@ export interface MultiChainWalletInfo {
       stakeCredentialHash: string;
     };
     spark?: {
-      publicKey: string;
+      mainnetPublicKey: string;
+      mainnetAddress: string;
+      regtestPublicKey: string;
+      regtestAddress: string;
     };
   };
   createdAt: string;

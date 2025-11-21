@@ -39,7 +39,7 @@ export interface SparkTransferTokensParams {
  */
 export interface SparkTokenBalanceParams {
   tokenId: string;
-  address: string;
+  address?: string;
 }
 
 /**
@@ -69,6 +69,7 @@ export interface SparkTokenBalanceResult {
  */
 export interface SparkFreezeTokensParams {
   address: string;
+  freezeReason?: string;
 }
 
 /**
@@ -103,6 +104,7 @@ export interface PaginationParams {
   page?: number;
   limit?: number;
   offset?: number;
+  network?: "MAINNET" | "REGTEST";
 }
 
 /**

@@ -41,7 +41,6 @@ export type Web3ProjectSparkWallet = {
   key: string;
   tags: string[];
   projectId: string;
-  sparkAddress: string;
   publicKey: string;
   network: "MAINNET" | "REGTEST";
 };
