@@ -17,6 +17,12 @@ export type OpenWindowResult =
             method: "export-wallet";
           }
         | {
+            method: "bitcoin-onramp";
+          }
+        | {
+            method: "cardano-onramp";
+          }
+        | {
             method: "disable";
           }
         | {
