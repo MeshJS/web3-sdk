@@ -55,13 +55,22 @@ export class SparkWalletDeveloperControlled {
    * @param params - Wallet creation parameters
    * @param params.tags - Optional tags to organize the wallet
    * @param params.network - Network to create the wallet on (default: "REGTEST")
-   * @returns Promise that resolves to the created Spark wallet
+   * @returns Promise that resolves to both wallet info and ready-to-use IssuerSparkWallet instance
    *
    * @example
    * ```typescript
-   * const wallet = await sparkWallet.createWallet({
+   * const { info, wallet } = await sparkWallet.createWallet({
    *   tags: ["tokenization", "mainnet"],
    *   network: "MAINNET"
+   * });
+   * 
+   * // Use wallet instance immediately (no privateKey needed)
+   * const tokenTx = await wallet.createToken({
+   *   tokenName: "MyToken",
+   *   tokenTicker: "MTK",
+   *   decimals: 8,
+   *   maxSupply: BigInt("1000000"),
+   *   isFreezable: true
    * });
    * ```
    */
@@ -71,14 +80,16 @@ export class SparkWalletDeveloperControlled {
   }: {
     tags?: string[];
     network?: "MAINNET" | "REGTEST";
-  } = {}): Promise<Web3ProjectSparkWallet> {
+  } = {}): Promise<{
+    info: Web3ProjectSparkWallet;
+    wallet: IssuerSparkWallet;
+  }> {
     const project = await this.sdk.getProject();
 
     if (!project.publicKey) {
       throw new Error("Project public key not found");
     }
 
-    // Generate mnemonic for Spark wallet
     const mnemonic = EmbeddedWallet.brew(256);
     const encryptedMnemonic = await encryptWithPublicKey({
       publicKey: project.publicKey,
@@ -107,7 +118,10 @@ export class SparkWalletDeveloperControlled {
     );
 
     if (status === 200) {
-      return data as Web3ProjectSparkWallet;
+      return {
+        info: data as Web3ProjectSparkWallet,
+        wallet: sparkWallet
+      };
     }
 
     throw new Error("Failed to create Spark wallet");
