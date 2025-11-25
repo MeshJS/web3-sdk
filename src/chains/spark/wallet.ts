@@ -11,6 +11,8 @@ export type Web3SparkWalletOptions = {
   sparkApiUrl: string;
   publicKeyHex: string;
   sparkApiKey?: string;
+  sparkMainnetStaticDepositAddress: string;
+  sparkRegtestStaticDepositAddress: string;
 };
 export class Web3SparkWallet {
   networkId: 0 | 1;
@@ -20,6 +22,9 @@ export class Web3SparkWallet {
   sparkApiUrl: string;
   publicKeyHex: string;
   sparkApiKey?: string;
+  sparkMainnetStaticDepositAddress: string;
+  sparkRegtestStaticDepositAddress: string;
+
   private readonly _axiosInstance: AxiosInstance;
 
   constructor(options: Web3SparkWalletOptions) {
@@ -30,6 +35,10 @@ export class Web3SparkWallet {
     this.sparkApiUrl = options.sparkApiUrl;
     this.publicKeyHex = options.publicKeyHex;
     this.sparkApiKey = options.sparkApiKey;
+    this.sparkMainnetStaticDepositAddress =
+      options.sparkMainnetStaticDepositAddress;
+    this.sparkRegtestStaticDepositAddress =
+      options.sparkRegtestStaticDepositAddress;
 
     this._axiosInstance = axios.create({
       baseURL: options.sparkApiUrl,

@@ -20,6 +20,8 @@ export type Web3WalletObject = {
   bitcoinPubKeyHash: string;
   sparkMainnetPubKeyHash: string | null;
   sparkRegtestPubKeyHash: string | null;
+  sparkMainnetStaticDepositAddress: string | null;
+  sparkRegtestStaticDepositAddress: string | null;
   projectId: string;
 };
 

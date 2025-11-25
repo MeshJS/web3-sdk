@@ -34,6 +34,8 @@ export type CreateWalletBody = {
   bitcoinPubKeyHash: string;
   sparkMainnetPubKeyHash: string;
   sparkRegtestPubKeyHash: string;
+  sparkMainnetStaticDepositAddress: string;
+  sparkRegtestStaticDepositAddress: string;
   projectId: string;
 };
 
@@ -305,6 +307,8 @@ export class Web3NonCustodialProvider {
       bitcoinPubKeyHash,
       sparkMainnetPubKeyHash,
       sparkRegtestPubKeyHash,
+      sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress,
     } = await clientGenerateWallet(
       deviceShardEncryptionKey,
       recoveryShardEncryptionKey,
@@ -322,6 +326,8 @@ export class Web3NonCustodialProvider {
       sparkRegtestPubKeyHash,
       webauthnCredentialId: webauthnCredentialId,
       recoveryShardQuestion: recoveryQuestion,
+      sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress,
     };
     const res = await fetch(this.appOrigin + "/api/wallet", {
       method: "POST",

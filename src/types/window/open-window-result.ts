@@ -11,6 +11,8 @@ export type OpenWindowResult =
             cardanoStakeCredentialHash: string;
             sparkMainnetPubKeyHash: string;
             sparkRegtestPubKeyHash: string;
+            sparkMainnetStaticDepositAddress: string;
+            sparkRegtestStaticDepositAddress: string;
             user: UserSocialData;
           }
         | {
