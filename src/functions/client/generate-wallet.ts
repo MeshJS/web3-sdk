@@ -67,9 +67,16 @@ export async function clientGenerateWallet(
     },
   });
 
-  const [sparkMainnetPubKeyHash, sparkRegtestPubKeyHash] = await Promise.all([
+  const [
+    sparkMainnetPubKeyHash,
+    sparkRegtestPubKeyHash,
+    sparkMainnetStaticDepositAddress,
+    sparkRegtestStaticDepositAddress,
+  ] = await Promise.all([
     sparkMainnetWallet.getIdentityPublicKey(),
     sparkRegtestWallet.getIdentityPublicKey(),
+    sparkMainnetWallet.getStaticDepositAddress(),
+    sparkRegtestWallet.getStaticDepositAddress(),
   ]);
 
   return {
@@ -81,5 +88,7 @@ export async function clientGenerateWallet(
     cardanoStakeCredentialHash: cardanoKeyHashes.stakeCredentialHash,
     sparkMainnetPubKeyHash: sparkMainnetPubKeyHash,
     sparkRegtestPubKeyHash: sparkRegtestPubKeyHash,
+    sparkMainnetStaticDepositAddress,
+    sparkRegtestStaticDepositAddress,
   };
 }

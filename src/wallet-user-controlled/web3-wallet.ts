@@ -132,6 +132,10 @@ export class Web3Wallet {
         sparkMainnetPubKeyHash: res.data.sparkMainnetPubKeyHash,
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
+      sparkMainnetStaticDepositAddress:
+        res.data.sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress:
+        res.data.sparkRegtestStaticDepositAddress,
       sparkscanApiKey: options.sparkscanApiKey,
       baseUrl: options.baseUrl,
     });
@@ -432,6 +436,8 @@ export class Web3Wallet {
     networkId: 0 | 1,
     projectId: string,
     appUrl: string,
+    sparkMainnetStaticDepositAddress: string,
+    sparkRegtestStaticDepositAddress: string,
     sparkscanApiKey?: string,
     baseUrl = "https://api.sparkscan.io",
   ): Promise<Web3SparkWallet> {
@@ -446,6 +452,8 @@ export class Web3Wallet {
       appUrl,
       sparkApiKey: sparkscanApiKey,
       sparkApiUrl: baseUrl,
+      sparkMainnetStaticDepositAddress: sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress: sparkRegtestStaticDepositAddress,
       address: getSparkAddressFromPubkey(
         networkId === 1
           ? keyHashes.sparkMainnetPubKeyHash
@@ -481,6 +489,8 @@ export class Web3Wallet {
     user,
     keyHashes,
     baseUrl,
+    sparkMainnetStaticDepositAddress,
+    sparkRegtestStaticDepositAddress,
     sparkscanApiKey,
   }: {
     networkId: 0 | 1;
@@ -491,6 +501,8 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
+    sparkMainnetStaticDepositAddress: string;
+    sparkRegtestStaticDepositAddress: string;
     baseUrl?: string;
     sparkscanApiKey?: string;
   }) {
@@ -516,6 +528,8 @@ export class Web3Wallet {
       networkId,
       projectId,
       appUrl,
+      sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress,
       sparkscanApiKey,
       baseUrl,
     );
