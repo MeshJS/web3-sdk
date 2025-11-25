@@ -232,45 +232,18 @@ export class Web3Wallet {
     networkId: 0 | 1;
     bitcoinProvider?: IBitcoinProvider;
     keyHashes: Web3WalletKeyHashes;
-  }): Promise<EmbeddedWallet & { onramp: () => void }> {
-    let bitcoinWallet: EmbeddedWallet & { onramp: () => void };
-    bitcoinWallet = Object.assign(
-      new EmbeddedWallet({
-        network: options.networkId === 1 ? "Mainnet" : "Testnet",
-        key: {
-          type: "address",
-          address: getBitcoinAddressFromPubkey(
-            options.keyHashes.bitcoinPubKeyHash,
-            options.networkId,
-          ),
-        },
-        provider: options.bitcoinProvider,
-      }),
-      {
-        onramp: async () => {
-          const res: OpenWindowResult = await openWindow(
-            {
-              method: "bitcoin-onramp",
-              projectId: options.projectId,
-            },
-            options.appUrl,
-          );
-
-          if (res.success === false)
-            throw new ApiError({
-              code: 2,
-              info: "UserDeclined - User declined to sign the message.",
-            });
-
-          if (res.data.method !== "bitcoin-onramp") {
-            throw new ApiError({
-              code: 2,
-              info: "Received the wrong response from the iframe.",
-            });
-          }
-        },
+  }): Promise<EmbeddedWallet> {
+    const bitcoinWallet = new EmbeddedWallet({
+      network: options.networkId === 1 ? "Mainnet" : "Testnet",
+      key: {
+        type: "address",
+        address: getBitcoinAddressFromPubkey(
+          options.keyHashes.bitcoinPubKeyHash,
+          options.networkId,
+        ),
       },
-    );
+      provider: options.bitcoinProvider,
+    });
 
     bitcoinWallet.signMessage = async (params: SignMessageParams) => {
       const res: OpenWindowResult = await openWindow(
