@@ -1,86 +1,34 @@
-import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
-
 /**
- * Enhanced minting parameters for dev-controlled wallets (extends base MintTokenParams)
+ * Developer-controlled Spark wallet types
+ *
+ * Most types are re-exported from @buildonspark/spark-sdk and @buildonspark/issuer-sdk.
+ * This file only contains types specific to our wrapper layer.
  */
-export interface SparkMintTokensParams {
-  tokenizationId: Bech32mTokenIdentifier;
-  amount: string;
-  address?: string;
-}
+
+// Re-export SDK types for convenience
+export type { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
+export type { IssuerTokenMetadata } from "@buildonspark/issuer-sdk";
 
 /**
- * Individual recipient for batch minting operations
- */
-export interface SparkBatchRecipient {
-  address: string;
-  amount: string;
-}
-
-/**
- * Parameters for batch minting Spark tokens to multiple recipients
- */
-export interface SparkBatchMintParams {
-  tokenizationId: Bech32mTokenIdentifier;
-  recipients: SparkBatchRecipient[];
-}
-
-/**
- * Parameters for transferring Spark tokens
- */
-export interface SparkTransferTokensParams {
-  tokenIdentifier: Bech32mTokenIdentifier;
-  amount: string;
-  toAddress: string;
-}
-
-/**
- * Parameters for querying token balance
- */
-export interface SparkTokenBalanceParams {
-  tokenId: string;
-  address?: string;
-}
-
-/**
- * Standard transaction result for Spark operations
- */
-export interface SparkTransactionResult {
-  transactionId: string;
-}
-
-/**
- * Result for batch minting operations
- */
-export interface SparkBatchMintResult {
-  mintTransactionId: string;
-  batchTransferTransactionId: string;
-}
-
-/**
- * Result for token balance queries
- */
-export interface SparkTokenBalanceResult {
-  balance: string;
-}
-
-/**
- * Parameters for freezing tokens at a specific address
+ * Parameters for freezing tokens at a specific address.
+ * Extends SDK freeze with optional reason for database tracking.
  */
 export interface SparkFreezeTokensParams {
   address: string;
+  /** Optional reason for freezing - stored in database for compliance tracking */
   freezeReason?: string;
 }
 
 /**
- * Parameters for unfreezing tokens at a specific address
+ * Parameters for unfreezing tokens at a specific address.
  */
 export interface SparkUnfreezeTokensParams {
   address: string;
 }
 
 /**
- * Result for freeze/unfreeze operations
+ * Result for freeze/unfreeze operations.
+ * Matches SDK return type but with string amounts for serialization.
  */
 export interface SparkFreezeResult {
   impactedOutputIds: string[];
@@ -88,68 +36,12 @@ export interface SparkFreezeResult {
 }
 
 /**
- * Information about a frozen address
+ * Information about a frozen address stored in database.
  */
 export interface SparkFrozenAddressInfo {
   address: string;
   frozenTokenAmount: string;
   freezeTransactionId?: string;
+  freezeReason?: string;
   frozenAt: string;
-}
-
-/**
- * Pagination parameters for queries
- */
-export interface PaginationParams {
-  page?: number;
-  limit?: number;
-  offset?: number;
-  network?: "MAINNET" | "REGTEST";
-}
-
-/**
- * Pagination metadata in results
- */
-export interface PaginationMeta {
-  totalItems: number;
-  currentPage: number;
-  totalPages: number;
-  limit: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-}
-
-/**
- * Result for querying frozen addresses with pagination
- */
-export interface SparkFrozenAddressesResult {
-  frozenAddresses: SparkFrozenAddressInfo[];
-  pagination: PaginationMeta;
-}
-
-/**
- * Token metadata from Sparkscan API
- */
-export interface SparkTokenMetadata {
-  tokenIdentifier: string;
-  tokenAddress: string;
-  name: string;
-  ticker: string;
-  decimals: number;
-  issuerPublicKey: string;
-  iconUrl: string;
-  holderCount: number;
-  priceUsd: number;
-  maxSupply: number | null;
-  isFreezable: boolean | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-}
-
-/**
- * Response for token metadata batch query
- */
-export interface SparkTokenMetadataResponse {
-  metadata: SparkTokenMetadata[];
-  total_count: number;
 }

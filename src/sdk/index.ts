@@ -151,3 +151,4 @@ export class Web3Sdk {
 }
 
 export * from "./sponsorship";
+export * from "./wallet-developer-controlled";

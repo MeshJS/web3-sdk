@@ -340,9 +340,8 @@ export class Sponsorship {
   }
 
   private async getSponsorWallet(projectWalletId: string) {
-    const networkId: 0 | 1 = this.sdk.network === "mainnet" ? 1 : 0;
     // For sponsorship, we use direct Cardano wallet access
-    const walletResult = await this.sdk.wallet.cardano.getWallet(projectWalletId, networkId);
+    const walletResult = await this.sdk.wallet.cardano.getWallet(projectWalletId);
     return walletResult.wallet;
   }
 

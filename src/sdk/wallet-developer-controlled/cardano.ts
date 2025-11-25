@@ -21,65 +21,17 @@ import {
  */
 export class CardanoWalletDeveloperControlled {
   readonly sdk: Web3Sdk;
+  private wallet: MeshWallet | null = null;
+  private walletInfo: Web3ProjectCardanoWallet | null = null;
 
-  constructor({ sdk }: { sdk: Web3Sdk }) {
+  constructor({ sdk, wallet, walletInfo }: { 
+    sdk: Web3Sdk; 
+    wallet?: MeshWallet;
+    walletInfo?: Web3ProjectCardanoWallet;
+  }) {
     this.sdk = sdk;
-  }
-
-  /**
-   * Creates a new Cardano wallet associated with the current project.
-   */
-  async createWallet({
-    tags,
-  }: { tags?: string[] } = {}): Promise<Web3ProjectCardanoWallet> {
-    const project = await this.sdk.getProject();
-
-    if (!project.publicKey) {
-      throw new Error("Project public key not found");
-    }
-
-    const mnemonic = MeshWallet.brew() as string[];
-    const encryptedMnemonic = await encryptWithPublicKey({
-      publicKey: project.publicKey,
-      data: mnemonic.join(" "),
-    });
-
-    const _wallet = new MeshWallet({
-      networkId: 1,
-      key: {
-        type: "mnemonic",
-        words: mnemonic,
-      },
-      fetcher: this.sdk.providerFetcher,
-      submitter: this.sdk.providerSubmitter,
-    });
-    await _wallet.init();
-
-    const addresses = await _wallet.getAddresses();
-    const baseAddressBech32 = addresses.baseAddressBech32!;
-
-    const { pubKeyHash, stakeCredentialHash } =
-      deserializeBech32Address(baseAddressBech32);
-
-    const web3Wallet: Web3ProjectCardanoWallet = {
-      id: uuidv4(),
-      key: encryptedMnemonic,
-      tags: tags || [],
-      projectId: this.sdk.projectId,
-      pubKeyHash: pubKeyHash,
-      stakeCredentialHash: stakeCredentialHash,
-    };
-
-    const { data, status } = await this.sdk.axiosInstance.post(
-      `api/project-wallet/cardano`,
-      web3Wallet,
-    );
-
-    if (status === 200) {
-      return data as Web3ProjectCardanoWallet;
-    }
-
-    throw new Error("Failed to create Cardano wallet");
+    this.wallet = wallet || null;
+    this.walletInfo = walletInfo || null;
   }
 
   /**
@@ -102,7 +54,6 @@ export class CardanoWalletDeveloperControlled {
    */
   async getWallet(
     walletId: string,
-    networkId: 0 | 1,
     decryptKey = false,
   ): Promise<{
     info: Web3ProjectCardanoWallet;
@@ -128,6 +79,7 @@ export class CardanoWalletDeveloperControlled {
         web3Wallet.key = mnemonic;
       }
 
+      const networkId = this.sdk.network === "mainnet" ? 1 : 0;
       const wallet = new MeshWallet({
         networkId: networkId,
         key: {

@@ -1,144 +1,431 @@
-// TODO: Add network parameters to all methods and clean up API calls to consistently use network params
-
 import { Web3Sdk } from "..";
-import { decryptWithPrivateKey, encryptWithPublicKey } from "../../functions";
-import { Web3ProjectSparkWallet, TokenCreationParams } from "../../types";
-import { v4 as uuidv4 } from "uuid";
-import { IssuerSparkWallet, IssuerTokenMetadata } from "@buildonspark/issuer-sdk";
-import { EmbeddedWallet } from "@meshsdk/bitcoin";
+import { decryptWithPrivateKey } from "../../functions";
+import { Web3ProjectSparkWallet } from "../../types";
+import { IssuerSparkWallet } from "@buildonspark/issuer-sdk";
+import { Bech32mTokenIdentifier } from "@buildonspark/spark-sdk";
+import { extractIdentityPublicKey } from "../../chains/spark/utils";
 import {
-  SparkMintTokensParams,
-  SparkBatchMintParams,
-  SparkTransferTokensParams,
   SparkFreezeTokensParams,
   SparkUnfreezeTokensParams,
-  SparkTransactionResult,
-  SparkBatchMintResult,
-  SparkTokenBalanceResult,
-  SparkFreezeResult,
-  SparkFrozenAddressesResult,
-  SparkTokenMetadataResponse,
-  PaginationParams,
+  SparkFreezeResult
 } from "../../types/spark/dev-wallet";
-import { QueryTokenTransactionsResponse } from "@buildonspark/spark-sdk/dist/proto/spark_token";
-import { extractIdentityPublicKey } from "../../chains/spark/utils";
 
 /**
- * SparkWalletDeveloperControlled - Manages Spark-specific developer-controlled wallets
+ * SparkWalletDeveloperControlled - Developer-controlled Spark wallet for token operations
  *
- * This class provides functionality for managing developer-controlled Spark wallets,
- * including wallet creation, token operations, and issuer wallet management.
+ * Provides token issuance, minting, transfer, and compliance operations on the Spark network.
+ * Wraps an IssuerSparkWallet instance with database synchronization.
  *
  * @example
  * ```typescript
- * const sparkWallet = sdk.wallet.spark;
- * const wallet = await sparkWallet.createWallet({ tags: ["my-wallet"] });
- * const tokenResult = await sparkWallet.createToken(wallet.id, {
+ * // Create wallet via SDK
+ * const { sparkWallet } = await sdk.wallet.createWallet({
+ *   tags: ["tokenization"]
+ * });
+ *
+ * // Token operations
+ * await sparkWallet.createToken({
  *   tokenName: "MyToken",
  *   tokenTicker: "MTK",
  *   decimals: 8,
  *   maxSupply: "1000000",
  *   isFreezable: true
  * });
+ *
+ * await sparkWallet.mintTokens(BigInt("1000000"));
+ * const balance = await sparkWallet.getTokenBalance();
  * ```
  */
 export class SparkWalletDeveloperControlled {
   readonly sdk: Web3Sdk;
+  private wallet: IssuerSparkWallet | null = null;
+  private walletInfo: Web3ProjectSparkWallet | null = null;
 
-  constructor({ sdk }: { sdk: Web3Sdk }) {
+  constructor({ sdk, wallet, walletInfo }: {
+    sdk: Web3Sdk;
+    wallet?: IssuerSparkWallet;
+    walletInfo?: Web3ProjectSparkWallet;
+  }) {
     this.sdk = sdk;
+    this.wallet = wallet || null;
+    this.walletInfo = walletInfo || null;
   }
 
   /**
-   * Creates a new Spark wallet associated with the current project.
+   * Internal method to ensure wallet is loaded
+   */
+  private ensureWallet(): IssuerSparkWallet {
+    if (!this.wallet) {
+      throw new Error("Wallet not initialized. Use sdk.wallet.createWallet() or sdk.wallet.initWallet() first.");
+    }
+    return this.wallet;
+  }
+
+  /**
+   * Internal helper to log token transactions to the database
+   */
+  private async logTransaction(params: {
+    tokenId: string;
+    type: "create" | "mint" | "burn" | "transfer" | "freeze" | "unfreeze";
+    txHash?: string;
+    amount?: string;
+    fromAddress?: string;
+    toAddress?: string;
+    status?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    try {
+      await this.sdk.axiosInstance.post("/api/tokenization/transactions", {
+        tokenId: params.tokenId,
+        projectId: this.sdk.projectId,
+        projectWalletId: this.walletInfo?.id,
+        type: params.type,
+        chain: "spark",
+        network: this.walletInfo?.network.toLowerCase(),
+        txHash: params.txHash,
+        amount: params.amount,
+        fromAddress: params.fromAddress,
+        toAddress: params.toAddress,
+        status: params.status || "success",
+        metadata: params.metadata,
+      });
+    } catch (error) {
+      console.warn(`Failed to log ${params.type} transaction:`, error);
+    }
+  }
+
+  /**
+   * Internal helper to get the token ID (hex) from wallet metadata
+   */
+  private async getTokenIdHex(): Promise<string> {
+    const wallet = this.ensureWallet();
+    const tokenMetadata = await wallet.getIssuerTokenMetadata();
+    return Buffer.from(tokenMetadata.rawTokenIdentifier).toString("hex");
+  }
+
+  /**
+   * Creates a new token on the Spark network using this wallet as the issuer.
    *
-   * @param params - Wallet creation parameters
-   * @param params.tags - Optional tags to organize the wallet
-   * @param params.network - Network to create the wallet on (default: "REGTEST")
-   * @returns Promise that resolves to both wallet info and ready-to-use IssuerSparkWallet instance
+   * @param params Token creation parameters (matches IssuerSparkWallet.createToken)
+   * @returns Promise resolving to the transaction ID
+   * @throws Error if wallet is not initialized or token creation fails
+   */
+  async createToken(params: {
+    tokenName: string;
+    tokenTicker: string;
+    decimals: number;
+    maxSupply?: bigint;
+    isFreezable: boolean;
+  }): Promise<string> {
+    const wallet = this.ensureWallet();
+    const transactionId = await wallet.createToken(params);
+
+    try {
+      const tokenMetadata = await wallet.getIssuerTokenMetadata();
+      const rawTokenIdHex = Buffer.from(tokenMetadata.rawTokenIdentifier).toString("hex");
+
+      // Create tokenization policy
+      await this.sdk.axiosInstance.post("/api/tokenization/tokens", {
+        tokenId: rawTokenIdHex,
+        projectId: this.sdk.projectId,
+        walletId: this.walletInfo?.id,
+        chain: "spark",
+        network: this.walletInfo?.network.toLowerCase(),
+      });
+
+      // Log the create transaction
+      await this.logTransaction({
+        tokenId: rawTokenIdHex,
+        type: "create",
+        txHash: transactionId,
+        metadata: {
+          tokenName: params.tokenName,
+          tokenTicker: params.tokenTicker,
+          decimals: params.decimals,
+          maxSupply: params.maxSupply?.toString(),
+          isFreezable: params.isFreezable,
+        },
+      });
+    } catch (saveError) {
+      console.warn("Failed to save token to main app:", saveError);
+    }
+
+    return transactionId;
+  }
+
+  /**
+   * Mints tokens from this issuer wallet.
+   *
+   * @param amount Amount of tokens to mint (as bigint)
+   * @returns Promise resolving to the transaction ID
+   * @throws Error if wallet is not initialized or minting fails
+   */
+  async mintTokens(amount: bigint): Promise<string> {
+    const wallet = this.ensureWallet();
+    const txHash = await wallet.mintTokens(amount);
+
+    // Log the mint transaction
+    const tokenId = await this.getTokenIdHex();
+    await this.logTransaction({
+      tokenId,
+      type: "mint",
+      txHash,
+      amount: amount.toString(),
+    });
+
+    return txHash;
+  }
+
+  /**
+   * Transfers tokens from this wallet to another Spark address.
+   *
+   * @param params Transfer parameters including token identifier, amount, and destination
+   * @returns Promise resolving to the transaction ID
+   * @throws Error if wallet is not initialized or transfer fails
+   */
+  async transferTokens(params: {
+    tokenIdentifier: string;
+    amount: bigint;
+    toAddress: string;
+  }): Promise<string> {
+    const wallet = this.ensureWallet();
+    const txHash = await wallet.transferTokens({
+      tokenIdentifier: params.tokenIdentifier as Bech32mTokenIdentifier,
+      tokenAmount: params.amount,
+      receiverSparkAddress: params.toAddress,
+    });
+
+    // Log the transfer transaction
+    const tokenId = await this.getTokenIdHex();
+    const issuerAddress = await wallet.getSparkAddress();
+    await this.logTransaction({
+      tokenId,
+      type: "transfer",
+      txHash,
+      amount: params.amount.toString(),
+      fromAddress: issuerAddress,
+      toAddress: params.toAddress,
+    });
+
+    return txHash;
+  }
+
+  /**
+   * Burns tokens permanently from circulation.
+   *
+   * @param amount Amount of tokens to burn (as bigint)
+   * @returns Promise resolving to the transaction ID
+   * @throws Error if wallet is not initialized or burning fails
+   */
+  async burnTokens(amount: bigint): Promise<string> {
+    const wallet = this.ensureWallet();
+    const txHash = await wallet.burnTokens(amount);
+
+    // Log the burn transaction
+    const tokenId = await this.getTokenIdHex();
+    await this.logTransaction({
+      tokenId,
+      type: "burn",
+      txHash,
+      amount: amount.toString(),
+    });
+
+    return txHash;
+  }
+
+  /**
+   * Gets the token balance for this issuer wallet.
+   *
+   * @returns Promise resolving to balance information
+   * @throws Error if wallet is not initialized
+   */
+  async getTokenBalance() {
+    const wallet = this.ensureWallet();
+    const result = await wallet.getIssuerTokenBalance();
+    return { balance: result.balance.toString() };
+  }
+
+  /**
+   * Gets metadata for tokens created by this issuer wallet.
+   *
+   * @returns Promise resolving to token metadata
+   * @throws Error if wallet is not initialized
+   */
+  async getTokenMetadata() {
+    const wallet = this.ensureWallet();
+    return await wallet.getIssuerTokenMetadata();
+  }
+
+  /**
+   * Freezes tokens at a specific Spark address for compliance purposes.
+   *
+   * @param params Freeze parameters including address and optional reason
+   * @returns Promise resolving to freeze operation results
+   * @throws Error if wallet is not initialized or freeze operation fails
+   */
+  async freezeTokens(params: SparkFreezeTokensParams): Promise<SparkFreezeResult> {
+    const wallet = this.ensureWallet();
+    const result = await wallet.freezeTokens(params.address);
+
+    // Save freeze operation to database
+    try {
+      const tokenMetadata = await wallet.getIssuerTokenMetadata();
+      const tokenId = Buffer.from(tokenMetadata.rawTokenIdentifier).toString("hex");
+      const publicKeyHash = extractIdentityPublicKey(params.address);
+
+      if (!publicKeyHash) {
+        throw new Error(`Failed to extract public key hash from Spark address: ${params.address}`);
+      }
+
+      // Update frozen addresses table
+      await this.sdk.axiosInstance.post("/api/tokenization/frozen-addresses", {
+        tokenId,
+        projectId: this.sdk.projectId,
+        projectWalletId: this.walletInfo?.id,
+        chain: "spark",
+        network: this.walletInfo?.network.toLowerCase(),
+        publicKeyHash,
+        isFrozen: true,
+        freezeReason: params.freezeReason || "Frozen by issuer",
+        frozenAt: new Date().toISOString(),
+      });
+
+      // Log the freeze transaction
+      await this.logTransaction({
+        tokenId,
+        type: "freeze",
+        toAddress: params.address,
+        amount: result.impactedTokenAmount.toString(),
+        metadata: {
+          freezeReason: params.freezeReason,
+          impactedOutputIds: result.impactedOutputIds,
+          publicKeyHash,
+        },
+      });
+    } catch (saveError) {
+      console.warn("Failed to save freeze operation:", saveError);
+    }
+
+    return {
+      impactedOutputIds: result.impactedOutputIds,
+      impactedTokenAmount: result.impactedTokenAmount.toString(),
+    };
+  }
+
+  /**
+   * Unfreezes tokens at a specific Spark address.
+   *
+   * @param params Unfreeze parameters including the address to unfreeze
+   * @returns Promise resolving to unfreeze operation results
+   * @throws Error if wallet is not initialized or unfreeze operation fails
+   */
+  async unfreezeTokens(params: SparkUnfreezeTokensParams): Promise<SparkFreezeResult> {
+    const wallet = this.ensureWallet();
+    const result = await wallet.unfreezeTokens(params.address);
+
+    // Update freeze status in database
+    try {
+      const tokenMetadata = await wallet.getIssuerTokenMetadata();
+      const tokenId = Buffer.from(tokenMetadata.rawTokenIdentifier).toString("hex");
+      const publicKeyHash = extractIdentityPublicKey(params.address);
+
+      if (!publicKeyHash) {
+        throw new Error(`Failed to extract public key hash from Spark address: ${params.address}`);
+      }
+
+      // Update frozen addresses table
+      await this.sdk.axiosInstance.put("/api/tokenization/frozen-addresses", {
+        tokenId,
+        publicKeyHash,
+        projectId: this.sdk.projectId,
+        projectWalletId: this.walletInfo?.id,
+      });
+
+      // Log the unfreeze transaction
+      await this.logTransaction({
+        tokenId,
+        type: "unfreeze",
+        toAddress: params.address,
+        amount: result.impactedTokenAmount.toString(),
+        metadata: {
+          impactedOutputIds: result.impactedOutputIds,
+          publicKeyHash,
+        },
+      });
+    } catch (saveError) {
+      console.warn("Failed to save unfreeze operation:", saveError);
+    }
+
+    return {
+      impactedOutputIds: result.impactedOutputIds,
+      impactedTokenAmount: result.impactedTokenAmount.toString(),
+    };
+  }
+
+
+  /**
+   * Gets an existing Spark wallet by ID and returns a SparkWalletDeveloperControlled instance.
+   *
+   * @param walletId The wallet ID to retrieve
+   * @returns Promise resolving to a SparkWalletDeveloperControlled instance
    *
    * @example
    * ```typescript
-   * const { info, wallet } = await sparkWallet.createWallet({
-   *   tags: ["tokenization", "mainnet"],
-   *   network: "MAINNET"
-   * });
-   * 
-   * // Use wallet instance immediately (no privateKey needed)
-   * const tokenTx = await wallet.createToken({
-   *   tokenName: "MyToken",
-   *   tokenTicker: "MTK",
-   *   decimals: 8,
-   *   maxSupply: BigInt("1000000"),
-   *   isFreezable: true
-   * });
+   * const sparkWallet = await sdk.wallet.spark.getWallet("existing-wallet-id");
+   * const address = await sparkWallet.getAddress();
+   * await sparkWallet.mintTokens(BigInt("1000000"));
    * ```
    */
-  async createWallet({
-    tags,
-    network = "REGTEST",
-  }: {
-    tags?: string[];
-    network?: "MAINNET" | "REGTEST";
-  } = {}): Promise<{
-    info: Web3ProjectSparkWallet;
-    wallet: IssuerSparkWallet;
-  }> {
-    const project = await this.sdk.getProject();
-
-    if (!project.publicKey) {
-      throw new Error("Project public key not found");
+  async getWallet(walletId: string): Promise<SparkWalletDeveloperControlled> {
+    if (this.sdk.privateKey === undefined) {
+      throw new Error("Private key not found - required to decrypt wallet");
     }
 
-    const mnemonic = EmbeddedWallet.brew(256);
-    const encryptedMnemonic = await encryptWithPublicKey({
-      publicKey: project.publicKey,
-      data: mnemonic.join(" "),
-    });
-
-    const { wallet: sparkWallet } = await IssuerSparkWallet.initialize({
-      mnemonicOrSeed: mnemonic.join(" "),
-      options: { network },
-    });
-
-    const publicKey = await sparkWallet.getIdentityPublicKey();
-
-    const web3Wallet: Web3ProjectSparkWallet = {
-      id: uuidv4(),
-      key: encryptedMnemonic,
-      tags: tags || [],
-      projectId: this.sdk.projectId,
-      publicKey,
-      network,
-    };
-
-    const { data, status } = await this.sdk.axiosInstance.post(
-      `api/project-wallet/spark`,
-      web3Wallet,
+    const networkParam = this.sdk.network === "mainnet" ? "mainnet" : "regtest";
+    const { data, status } = await this.sdk.axiosInstance.get(
+      `api/project-wallet/${this.sdk.projectId}/${walletId}?chain=spark&network=${networkParam}`,
     );
 
     if (status === 200) {
-      return {
-        info: data as Web3ProjectSparkWallet,
-        wallet: sparkWallet
-      };
+      const sparkWalletInfo = data as Web3ProjectSparkWallet;
+
+      const mnemonic = await decryptWithPrivateKey({
+        privateKey: this.sdk.privateKey,
+        encryptedDataJSON: sparkWalletInfo.key,
+      });
+
+      const { wallet: issuerSparkWallet } = await IssuerSparkWallet.initialize({
+        mnemonicOrSeed: mnemonic,
+        options: { network: sparkWalletInfo.network },
+      });
+
+      return new SparkWalletDeveloperControlled({
+        sdk: this.sdk,
+        wallet: issuerSparkWallet,
+        walletInfo: sparkWalletInfo
+      });
     }
 
-    throw new Error("Failed to create Spark wallet");
+    throw new Error("Failed to get Spark wallet");
   }
 
   /**
-   * Retrieves all Spark wallets for the current project.
+   * Lists all Spark wallets for the current project.
+   * Returns basic wallet information for selection/management purposes.
    *
-   * @returns Promise that resolves to an array of all Spark wallets in the project
+   * @returns Promise resolving to array of wallet information
    *
    * @example
    * ```typescript
-   * const wallets = await sparkWallet.getWallets();
-   * console.log(`Found ${wallets.length} Spark wallets`);
+   * const wallets = await sdk.wallet.spark.list();
+   * console.log(`Found ${wallets.length} Spark wallets:`);
+   * wallets.forEach(w => console.log(`- ${w.id}: tags=[${w.tags.join(', ')}]`));
+   *
+   * // Load a specific wallet for operations
+   * const wallet = await sdk.wallet.spark.getWallet(wallets[0].id);
    * ```
    */
-  async getWallets(): Promise<Web3ProjectSparkWallet[]> {
+  async list(): Promise<Web3ProjectSparkWallet[]> {
     const { data, status } = await this.sdk.axiosInstance.get(
       `api/project-wallet/${this.sdk.projectId}/spark`,
     );
@@ -151,66 +438,18 @@ export class SparkWalletDeveloperControlled {
   }
 
   /**
-   * Retrieves a specific Spark wallet by ID and creates a wallet instance.
+   * Gets Spark wallets filtered by tag.
    *
-   * @param decryptKey - Whether to decrypt and return the mnemonic key (default: false)
-   * @returns Promise that resolves to wallet info and initialized IssuerSparkWallet instance
-   *
-   * @throws {Error} When private key is not found or wallet retrieval fails
+   * @param tag The tag to filter by
+   * @returns Promise resolving to array of matching wallet information
    *
    * @example
    * ```typescript
-   * const { info, wallet } = await sparkWallet.getWallet("wallet-id-123");
-   * const address = await wallet.getSparkAddress();
+   * const tokenizationWallets = await sdk.wallet.spark.getByTag("tokenization");
+   * const wallet = await sdk.wallet.spark.getWallet(tokenizationWallets[0].id);
    * ```
    */
-  async getWallet(
-    walletId: string,
-    network: "MAINNET" | "REGTEST" = "REGTEST",
-    decryptKey = false,
-  ): Promise<{
-    info: Web3ProjectSparkWallet;
-    wallet: IssuerSparkWallet;
-  }> {
-    if (this.sdk.privateKey === undefined) {
-      throw new Error("Private key not found");
-    }
-
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/project-wallet/${this.sdk.projectId}/${walletId}?chain=spark&network=${network.toLowerCase()}`,
-    );
-
-    if (status === 200) {
-      const sparkWallet = data as Web3ProjectSparkWallet;
-      
-      const mnemonic = await decryptWithPrivateKey({
-        privateKey: this.sdk.privateKey,
-        encryptedDataJSON: sparkWallet.key,
-      });
-
-      if (decryptKey) {
-        sparkWallet.key = mnemonic;
-      }
-      
-      const { wallet: issuerSparkWallet } = await IssuerSparkWallet.initialize({
-        mnemonicOrSeed: mnemonic,
-        options: { network: sparkWallet.network },
-      });
-
-      return { info: sparkWallet, wallet: issuerSparkWallet };
-    }
-
-    throw new Error("Failed to get Spark wallet");
-  }
-
-  /**
-   * Get Spark wallets by tag
-   */
-  async getWalletsByTag(tag: string): Promise<Web3ProjectSparkWallet[]> {
-    if (this.sdk.privateKey === undefined) {
-      throw new Error("Private key not found");
-    }
-
+  async getByTag(tag: string): Promise<Web3ProjectSparkWallet[]> {
     const { data, status } = await this.sdk.axiosInstance.get(
       `api/project-wallet/${this.sdk.projectId}/spark/tag/${tag}`,
     );
@@ -220,589 +459,5 @@ export class SparkWalletDeveloperControlled {
     }
 
     throw new Error("Failed to get Spark wallets by tag");
-  }
-
-  /**
-   * Get token metadata for tokens created by a specific issuer wallet.
-   *
-   * @returns Promise that resolves to token metadata information
-   *
-   * @throws {Error} When token metadata retrieval fails
-   *
-   * @example
-   * ```typescript
-   * const metadata = await sparkWallet.getIssuerTokenMetadata("wallet-123");
-   * console.log(`Token: ${metadata.tokenName} (${metadata.tokenTicker})`);
-   * ```
-   */
-  async getIssuerTokenMetadata(walletId: string): Promise<IssuerTokenMetadata> {
-    const { wallet: sparkWallet } = await this.getWallet(walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-    return await sparkWallet.getIssuerTokenMetadata();
-  }
-
-
-  /**
-   * Creates a new token using a specific issuer wallet.
-   *
-   * @param params - Token creation parameters
-   * @param params.tokenName - The full name of the token
-   * @param params.tokenTicker - The ticker symbol for the token
-   * @param params.decimals - Number of decimal places for the token
-   * @param params.maxSupply - Maximum supply of tokens (optional, defaults to unlimited)
-   * @param params.isFreezable - Whether token transfers can be frozen
-   * @returns Promise that resolves to transaction information
-   *
-   * @throws {Error} When token creation fails
-   *
-   * @example
-   * ```typescript
-   * const result = await sparkWallet.createToken({
-   *   tokenName: "My Token",
-   *   tokenTicker: "MTK",
-   *   decimals: 8,
-   *   maxSupply: "1000000",
-   *   isFreezable: true,
-   *   walletId: "wallet-123"
-   * });
-   * console.log(`Token created with transaction: ${result.transactionId}`);
-   * ```
-   */
-  async createToken(params: TokenCreationParams & { walletId: string }): Promise<SparkTransactionResult> {
-    const { info: walletInfo, wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-
-    const transactionId = await sparkWallet.createToken({
-      tokenName: params.tokenName,
-      tokenTicker: params.tokenTicker,
-      decimals: params.decimals,
-      maxSupply: params.maxSupply ? BigInt(params.maxSupply) : undefined,
-      isFreezable: params.isFreezable,
-    });
-
-    try {
-      const tokenMetadata = await sparkWallet.getIssuerTokenMetadata();
-      const rawTokenIdHex = Buffer.from(tokenMetadata.rawTokenIdentifier).toString('hex');
-      
-      await this.sdk.axiosInstance.post('/api/tokenization/tokens', {
-        tokenId: rawTokenIdHex,
-        projectId: this.sdk.projectId,
-        walletId: walletInfo.id,
-        chain: "spark",
-        network: walletInfo.network.toLowerCase()
-      });
-    } catch (saveError) {
-      console.warn("Failed to save token to main app:", saveError);
-    }
-
-    return {
-      transactionId,
-    };
-  }
-
-
-  /**
-   * Mints tokens to a specified address or to the issuer wallet if no address provided.
-   *
-   * When an address is provided, this method performs a two-step process:
-   * 1. Mints tokens to the issuer wallet
-   * 2. Transfers the minted tokens to the specified address
-   *
-   * @param params - Minting parameters
-   * @param params.tokenizationId - The Bech32m token identifier to mint
-   * @param params.amount - The amount of tokens to mint (as string to handle large numbers)
-   * @param params.address - Optional Spark address to receive tokens (defaults to issuer wallet)
-   * @returns Promise that resolves to transaction information (transfer tx if address provided, mint tx otherwise)
-   *
-   * @throws {Error} When token minting or transfer fails
-   *
-   * @example
-   * ```typescript
-   * // Mint to issuer wallet
-   * const result1 = await sparkWallet.mintTokens({
-   *   tokenizationId: "btkn1token123...",
-   *   amount: "1000000",
-   *   walletId: "wallet-123"
-   * });
-   *
-   * // Mint and transfer to specific address (two-step process)
-   * const result2 = await sparkWallet.mintTokens({
-   *   tokenizationId: "btkn1token123...",
-   *   amount: "1000000",
-   *   address: "spark1recipient456...",
-   *   walletId: "wallet-123"
-   * });
-   * ```
-   */
-  async mintTokens(params: SparkMintTokensParams & { walletId: string }): Promise<SparkTransactionResult> {
-    const { wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-
-    if (params.address) {
-      // Two-step process: mint to issuer, then transfer to target address
-      await sparkWallet.mintTokens(BigInt(params.amount));
-
-      // Transfer the minted tokens to the specified address
-      const transferResult = await sparkWallet.transferTokens({
-        tokenIdentifier: params.tokenizationId,
-        tokenAmount: BigInt(params.amount),
-        receiverSparkAddress: params.address,
-      });
-
-      return {
-        transactionId: transferResult,
-      };
-    } else {
-      const mintResult = await sparkWallet.mintTokens(BigInt(params.amount));
-
-      return {
-        transactionId: mintResult,
-      };
-    }
-  }
-
-  /**
-   * Efficiently mints tokens to multiple recipients in batch.
-   *
-   * This method optimizes the minting process by:
-   * 1. Calculating the total amount needed for all recipients
-   * 2. Performing a single mint operation to the issuer wallet
-   * 3. Executing a single batch transfer to all recipients simultaneously
-   *
-   * @param params - Batch minting parameters
-   * @param params.tokenizationId - The Bech32m token identifier to mint
-   * @param params.recipients - Array of recipient addresses and amounts
-   * @returns Promise that resolves to mint transaction ID and batch transfer transaction ID
-   *
-   * @throws {Error} When token minting or batch transfer fails
-   *
-   * @example
-   * ```typescript
-   * const result = await sparkWallet.batchMintTokens("wallet-id", {
-   *   tokenizationId: "spark1token123...",
-   *   recipients: [
-   *     { address: "spark1addr1...", amount: "1000" },
-   *     { address: "spark1addr2...", amount: "2000" },
-   *     { address: "spark1addr3...", amount: "500" }
-   *   ]
-   * });
-   * console.log(`Mint tx: ${result.mintTransactionId}`);
-   * console.log(`Batch transfer tx: ${result.batchTransferTransactionId}`);
-   * ```
-   */
-  async batchMintTokens(
-    params: SparkBatchMintParams & { walletId: string }
-  ): Promise<SparkBatchMintResult> {
-    const { wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-
-    // Calculate total amount needed for all recipients
-    const totalAmount = params.recipients.reduce(
-      (sum, recipient) => sum + BigInt(recipient.amount),
-      0n
-    );
-
-    const mintTransactionId = await sparkWallet.mintTokens(totalAmount);
-    const receiverOutputs = params.recipients.map(recipient => ({
-      tokenIdentifier: params.tokenizationId,
-      tokenAmount: BigInt(recipient.amount),
-      receiverSparkAddress: recipient.address,
-    }));
-
-    const batchTransferTransactionId = await sparkWallet.batchTransferTokens(receiverOutputs);
-
-    return {
-      mintTransactionId,
-      batchTransferTransactionId,
-    };
-  }
-
-  /**
-   * Transfers tokens from an issuer wallet to another Spark address.
-   *
-   * @param params - Transfer parameters
-   * @param params.tokenIdentifier - The Bech32m token identifier for the token to transfer
-   * @param params.amount - The amount of tokens to transfer (as string to handle large numbers)
-   * @param params.toAddress - The recipient Spark address
-   * @returns Promise that resolves to transaction information
-   *
-   * @throws {Error} When token transfer fails
-   *
-   * @example
-   * ```typescript
-   * const result = await sparkWallet.transferTokens({
-   *   tokenIdentifier: "btkn1abc...",
-   *   amount: "100000",
-   *   toAddress: "spark1def...",
-   *   walletId: "wallet-123"
-   * });
-   * console.log(`Transferred tokens with transaction: ${result.transactionId}`);
-   * ```
-   */
-  async transferTokens(
-    params: SparkTransferTokensParams & { walletId: string }
-  ): Promise<SparkTransactionResult> {
-    const { wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-
-    const result = await sparkWallet.transferTokens({
-      tokenIdentifier: params.tokenIdentifier,
-      tokenAmount: BigInt(params.amount),
-      receiverSparkAddress: params.toAddress,
-    });
-
-    return {
-      transactionId: result,
-    };
-  }
-
-  /**
-   * Retrieves token balance for a specific address using Sparkscan API.
-   *
-   * @param params - Balance query parameters
-   * @param params.tokenId - The token identifier to check balance for
-   * @param params.address - The Spark address to check balance of
-   * @returns Promise that resolves to balance information
-   *
-   * @throws {Error} When balance retrieval fails
-   *
-   * @example
-   * ```typescript
-   * const balance = await sparkWallet.getTokenBalance({
-   *   tokenId: "spark1token123...",
-   *   address: "spark1addr456..."
-   * });
-   * console.log(`Balance: ${balance.balance} tokens`);
-   * ```
-   */
-  async getTokenBalance(walletId: string): Promise<SparkTokenBalanceResult> {
-    try {
-      const { wallet: sparkWallet } = await this.getWallet(walletId);
-
-      if (!sparkWallet) {
-        throw new Error("Spark wallet not found");
-      }
-
-      const balanceResult = await sparkWallet.getIssuerTokenBalance();
-
-      return { balance: balanceResult.balance.toString() };
-    } catch (error) {
-      throw new Error(`Failed to get token balance: ${error}`);
-    }
-  }
-
-  /**
-   * Query token transactions using Sparkscan API
-   * @param params - Query parameters for filtering transactions
-   * @param params.tokenIdentifiers - Array of token identifiers to filter by
-   * @param params.ownerPublicKeys - Optional array of owner public keys to filter by
-   * @param params.issuerPublicKeys - Optional array of issuer public keys to filter by
-   * @param params.tokenTransactionHashes - Optional array of transaction hashes to filter by
-   * @param params.outputIds - Optional array of output IDs to filter by
-   * @returns Promise resolving to array of token transactions
-   *
-   * @example
-   * ```typescript
-   * const transactions = await sparkWallet.queryTokenTransactions({
-   *   tokenIdentifiers: ["btkn1..."],
-   *   ownerPublicKeys: ["spark1..."]
-   * });
-   * console.log("Token transactions:", transactions);
-   * ```
-   */
-  async queryTokenTransactions(params: {
-    walletId: string;
-    sparkAddresses?: string[];
-    ownerPublicKeys?: string[];
-    issuerPublicKeys?: string[];
-    tokenTransactionHashes?: string[];
-    tokenIdentifiers?: string[];
-    outputIds?: string[];
-    order?: "asc" | "desc";
-    pageSize?: number;
-    offset?: number;
-  }): Promise<QueryTokenTransactionsResponse> {
-    try {
-      const { wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-      if (!sparkWallet) {
-        throw new Error("Spark wallet not found");
-      }
-
-      return await sparkWallet.queryTokenTransactions(params);
-    } catch (error) {
-      throw new Error(`Failed to query token transactions: ${error}`);
-    }
-  }
-
-  /**
-   * TODO: Remove this, we should use the issuer sdk
-   * Get metadata for a specific token.
-   *
-   * @param params - Token metadata query parameters
-   * @param params.tokenIds - Array of token identifiers (up to 100 tokens)
-   * @returns Promise that resolves to token metadata response
-   *
-   * @example
-   * ```typescript
-   * // Single token
-   * const response = await sparkWallet.getTokenMetadata({ tokenIds: ["btkn1token123..."] });
-   * const metadata = response.metadata[0];
-   * console.log(`${metadata.name} (${metadata.ticker})`);
-   *
-   * // Multiple tokens
-   * const batchResponse = await sparkWallet.getTokenMetadata({
-   *   tokenIds: ["btkntoken1...", "btkn1token2...", "btkn1token3..."]
-   * });
-   * batchResponse.metadata.forEach(token => console.log(token.name));
-   * ```
-   */
-  async getTokenMetadata(params: { tokenIds: string[] }): Promise<SparkTokenMetadataResponse> {
-    if (params.tokenIds.length === 0) {
-      return { metadata: [], total_count: 0 };
-    }
-
-    if (params.tokenIds.length > 100) {
-      throw new Error("Maximum 100 token IDs allowed per batch request");
-    }
-
-    const { data, status } = await this.sdk.axiosInstance.post(
-      `api/spark/tokens/metadata/batch`,
-      {
-        token_addresses: params.tokenIds
-      }
-    );
-
-    if (status === 200) {
-      return data as SparkTokenMetadataResponse;
-    }
-
-    throw new Error("Failed to get token metadata");
-  }
-
-  /**
-   * Burns tokens permanently from circulation.
-   *
-   * @param params - Token burning parameters
-   * @param params.amount - The amount of tokens to burn from issuer wallet
-   * @returns Promise that resolves to transaction information
-   *
-   * @throws {Error} When token burning fails
-   *
-   * @example
-   * ```typescript
-   * const result = await sparkWallet.burnTokens({
-   *   amount: "1000"
-   * });
-   * console.log(`Burned tokens with transaction: ${result.transactionId}`);
-   * ```
-   */
-  async burnTokens(params: { amount: string; walletId: string }): Promise<SparkTransactionResult> {
-    const { wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-
-    const result = await sparkWallet.burnTokens(BigInt(params.amount));
-
-    return {
-      transactionId: result,
-    };
-  }
-
-  /**
-   * Freezes all tokens at a specific Spark address (compliance/admin control).
-   *
-   * This operation can only be performed by issuer wallets on freezable tokens.
-   * Frozen tokens cannot be transferred until unfrozen by the issuer.
-   *
-   * @param params - Freeze parameters
-   * @param params.address - The Spark address to freeze tokens at
-   * @returns Promise that resolves to freeze operation details
-   *
-   * @throws {Error} When token freezing fails or tokens are not freezable
-   *
-   * @example
-   * ```typescript
-   * const result = await sparkWallet.freezeTokens({
-   *   address: "spark1suspicious123...",
-   *   walletId: "wallet-123"
-   * });
-   * console.log(`Frozen ${result.impactedTokenAmount} tokens at ${result.impactedOutputIds.length} outputs`);
-   * ```
-   */
-  async freezeTokens(
-    params: SparkFreezeTokensParams & { walletId: string }
-  ): Promise<SparkFreezeResult> {
-    const { info: walletInfo, wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-
-    const result = await sparkWallet.freezeTokens(params.address);
-
-    try {
-      const tokenMetadata = await sparkWallet.getIssuerTokenMetadata();
-      const tokenId = Buffer.from(tokenMetadata.rawTokenIdentifier).toString('hex');
-
-      // Extract public key hash from Spark address
-      const publicKeyHash = extractIdentityPublicKey(params.address);
-      if (!publicKeyHash) {
-        throw new Error(`Failed to extract public key hash from Spark address: ${params.address}`);
-      }
-
-      await this.sdk.axiosInstance.post('/api/tokenization/frozen-addresses', {
-        tokenId,
-        projectId: this.sdk.projectId,
-        projectWalletId: walletInfo.id,
-        chain: "spark",
-        network: walletInfo.network.toLowerCase(),
-        publicKeyHash: publicKeyHash,
-        isFrozen: true,
-        freezeReason: params.freezeReason || "Frozen by issuer",
-        frozenAt: new Date().toISOString()
-      });
-    } catch (saveError) {
-      console.warn("Failed to save freeze operation to main app:", saveError);
-    }
-
-    return {
-      impactedOutputIds: result.impactedOutputIds,
-      impactedTokenAmount: result.impactedTokenAmount.toString(),
-    };
-  }
-
-  /**
-   * Unfreezes all tokens at a specific Spark address (compliance/admin control).
-   *
-   * This operation can only be performed by issuer wallets that previously froze the tokens.
-   * Unfrozen tokens can be transferred normally again.
-   *
-   * @param params - Unfreeze parameters
-   * @param params.address - The Spark address to unfreeze tokens at
-   * @returns Promise that resolves to unfreeze operation details
-   *
-   * @throws {Error} When token unfreezing fails
-   *
-   * @example
-   * ```typescript
-   * const result = await sparkWallet.unfreezeTokens({
-   *   address: "spark1cleared123...",
-   *   walletId: "wallet-123"
-   * });
-   * console.log(`Unfrozen ${result.impactedTokenAmount} tokens at ${result.impactedOutputIds.length} outputs`);
-   * ```
-   */
-  async unfreezeTokens(
-    params: SparkUnfreezeTokensParams & { walletId: string }
-  ): Promise<SparkFreezeResult> {
-    const { info: walletInfo, wallet: sparkWallet } = await this.getWallet(params.walletId);
-
-    if (!sparkWallet) {
-      throw new Error("Spark wallet not available for this project");
-    }
-
-    const result = await sparkWallet.unfreezeTokens(params.address);
-
-    try {
-      const tokenMetadata = await sparkWallet.getIssuerTokenMetadata();
-      const tokenId = Buffer.from(tokenMetadata.rawTokenIdentifier).toString('hex');
-
-      const publicKeyHash = extractIdentityPublicKey(params.address);
-      if (!publicKeyHash) {
-        throw new Error(`Failed to extract public key hash from Spark address: ${params.address}`);
-      }
-
-      await this.sdk.axiosInstance.put('/api/tokenization/frozen-addresses', {
-        tokenId,
-        publicKeyHash: publicKeyHash,
-        projectId: this.sdk.projectId,
-        projectWalletId: walletInfo.id,
-      });
-    } catch (saveError) {
-      console.warn("Failed to save unfreeze operation to main app:", saveError);
-    }
-
-    return {
-      impactedOutputIds: result.impactedOutputIds,
-      impactedTokenAmount: result.impactedTokenAmount.toString(),
-    };
-  }
-
-  /**
-   * Retrieves frozen addresses with pagination support for administrative review.
-   *
-   * This method queries the backend service to get a paginated list of addresses
-   * that currently have frozen tokens. Useful for compliance dashboards and admin tables.
-   *
-   * @param params - Optional pagination parameters
-   * @param params.page - Page number to retrieve (1-based, default: 1)
-   * @param params.limit - Number of items per page (default: 50)
-   * @param params.offset - Number of items to skip (alternative to page)
-   * @returns Promise that resolves to paginated list of frozen addresses with metadata
-   *
-   * @throws {Error} When frozen address query fails
-   *
-   * @example
-   * ```typescript
-   * // Get first page with default limit
-   * const frozenInfo = await sparkWallet.getFrozenAddresses();
-   *
-   * // Get specific page with custom limit
-   * const page2 = await sparkWallet.getFrozenAddresses({ page: 2, limit: 25 });
-   *
-   * // Display in admin table
-   * frozenInfo.frozenAddresses.forEach(addr => {
-   *   console.log(`${addr.address}: ${addr.frozenTokenAmount} tokens frozen since ${addr.frozenAt}`);
-   * });
-   * console.log(`Page ${frozenInfo.pagination.currentPage} of ${frozenInfo.pagination.totalPages}`);
-   * ```
-   */
-  async getFrozenAddresses(params?: PaginationParams & { walletId: string }): Promise<SparkFrozenAddressesResult> {
-    if (!params?.walletId) {
-      throw new Error("walletId is required for getFrozenAddresses");
-    }
-
-    const targetNetwork = params.network || "REGTEST";
-    const { info: walletInfo, wallet: sparkWallet } = await this.getWallet(params.walletId, targetNetwork);
-    const tokenMetadata = await sparkWallet.getIssuerTokenMetadata();
-    const tokenId = Buffer.from(tokenMetadata.rawTokenIdentifier).toString('hex');
-
-    const queryParams = new URLSearchParams({
-      tokenId: tokenId,
-      projectId: this.sdk.projectId,
-      chain: "spark",
-      network: walletInfo.network.toLowerCase(),
-      ...(params?.page && { page: params.page.toString() }),
-      ...(params?.limit && { limit: params.limit.toString() }),
-      ...(params?.offset && { offset: params.offset.toString() }),
-    });
-
-    const { data, status } = await this.sdk.axiosInstance.get(
-      `api/tokenization/frozen-addresses?${queryParams.toString()}`
-    );
-
-    if (status === 200) {
-      return data as SparkFrozenAddressesResult;
-    }
-
-    throw new Error("Failed to get frozen addresses");
   }
 }
