@@ -190,51 +190,60 @@ export class Web3Wallet {
     return { success: true, data: { method: "disable" } };
   }
 
+  async onramp(options: { chain: "cardano" | "bitcoin" }) {
+    const chain = options.chain;
+    const method: "cardano-onramp" | "bitcoin-onramp" = `${chain}-onramp`;
+    if (!this.projectId) {
+      throw new ApiError({
+        code: 2,
+        info: "Cannot start onramp without a projectId.",
+      });
+    }
+
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: method,
+        projectId: this.projectId,
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false)
+      throw new ApiError({
+        code: 2,
+        info: "UserDeclined - User declined to sign the message.",
+      });
+
+    if (res.data.method !== "cardano-onramp") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
+    return {
+      success: true,
+      data: { method },
+    };
+  }
+
   static async initBitcoinWallet(options: {
     projectId: string;
     appUrl: string;
     networkId: 0 | 1;
     bitcoinProvider?: IBitcoinProvider;
     keyHashes: Web3WalletKeyHashes;
-  }): Promise<EmbeddedWallet & { onramp: () => void }> {
-    let bitcoinWallet: EmbeddedWallet & { onramp: () => void };
-    bitcoinWallet = Object.assign(
-      new EmbeddedWallet({
-        network: options.networkId === 1 ? "Mainnet" : "Testnet",
-        key: {
-          type: "address",
-          address: getBitcoinAddressFromPubkey(
-            options.keyHashes.bitcoinPubKeyHash,
-            options.networkId,
-          ),
-        },
-        provider: options.bitcoinProvider,
-      }),
-      {
-        onramp: async () => {
-          const res: OpenWindowResult = await openWindow(
-            {
-              method: "bitcoin-onramp",
-              projectId: options.projectId,
-            },
-            options.appUrl,
-          );
-
-          if (res.success === false)
-            throw new ApiError({
-              code: 2,
-              info: "UserDeclined - User declined to sign the message.",
-            });
-
-          if (res.data.method !== "bitcoin-onramp") {
-            throw new ApiError({
-              code: 2,
-              info: "Received the wrong response from the iframe.",
-            });
-          }
-        },
+  }): Promise<EmbeddedWallet> {
+    const bitcoinWallet = new EmbeddedWallet({
+      network: options.networkId === 1 ? "Mainnet" : "Testnet",
+      key: {
+        type: "address",
+        address: getBitcoinAddressFromPubkey(
+          options.keyHashes.bitcoinPubKeyHash,
+          options.networkId,
+        ),
       },
-    );
+      provider: options.bitcoinProvider,
+    });
 
     bitcoinWallet.signMessage = async (params: SignMessageParams) => {
       const res: OpenWindowResult = await openWindow(
@@ -338,47 +347,20 @@ export class Web3Wallet {
     fetcher: IFetcher | undefined;
     submitter: ISubmitter | undefined;
     keyHashes: Web3WalletKeyHashes;
-  }): Promise<MeshWallet & { onramp: () => void }> {
-    let cardanoWallet: MeshWallet & { onramp: () => void };
-    cardanoWallet = Object.assign(
-      new MeshWallet({
-        networkId: options.networkId,
-        key: {
-          type: "address",
-          address: getCardanoAddressFromPubkey(
-            options.keyHashes.cardanoPubKeyHash,
-            options.keyHashes.cardanoStakeCredentialHash,
-            options.networkId,
-          ),
-        },
-        fetcher: options.fetcher,
-        submitter: options.submitter,
-      }),
-      {
-        onramp: async () => {
-          const res: OpenWindowResult = await openWindow(
-            {
-              method: "cardano-onramp",
-              projectId: options.projectId,
-            },
-            options.appUrl,
-          );
-
-          if (res.success === false)
-            throw new ApiError({
-              code: 2,
-              info: "UserDeclined - User declined to sign the message.",
-            });
-
-          if (res.data.method !== "cardano-onramp") {
-            throw new ApiError({
-              code: 2,
-              info: "Received the wrong response from the iframe.",
-            });
-          }
-        },
+  }): Promise<MeshWallet> {
+    const cardanoWallet = new MeshWallet({
+      networkId: options.networkId,
+      key: {
+        type: "address",
+        address: getCardanoAddressFromPubkey(
+          options.keyHashes.cardanoPubKeyHash,
+          options.keyHashes.cardanoStakeCredentialHash,
+          options.networkId,
+        ),
       },
-    );
+      fetcher: options.fetcher,
+      submitter: options.submitter,
+    });
     await cardanoWallet.init();
 
     cardanoWallet.signTx = async (
