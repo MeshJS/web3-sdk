@@ -65,6 +65,10 @@ export type OpenWindowResult =
             method: "spark-sign-message";
             signature: string;
           }
+        | {
+            method: "spark-claim-static-deposit";
+            transferId: string;
+          }
         /** to be deprecated */
         | {
             method: "sign-data";
