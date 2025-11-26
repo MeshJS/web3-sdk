@@ -56,18 +56,20 @@ export class WalletDeveloperControlled {
    * Creates a new developer-controlled wallet with both Spark and Cardano chains using shared mnemonic.
    *
    * @param options - Wallet creation options
-   * @param options.networkId - Network ID (0 = testnet, 1 = mainnet)
+   * @param options.tags - Optional tags for the wallet
+   * @param options.enableTokenization - If true, links the wallet to sdk.tokenization.spark for seamless token creation
    * @returns Promise that resolves to both chain wallet instances
    *
    * @example
    * ```typescript
-   * const { sparkIssuerWallet, cardanoWallet } = await sdk.wallet.createWallet({
+   * // With tokenization enabled
+   * const { info } = await sdk.wallet.createWallet({
    *   tags: ["tokenization"],
-   *   networkId: 1 // mainnet
+   *   enableTokenization: true
    * });
    *
-   * // Both wallets share the same mnemonic
-   * await sparkIssuerWallet.createToken({
+   * // createToken works seamlessly - wallet is already linked
+   * await sdk.tokenization.spark.createToken({
    *   tokenName: "MyToken",
    *   tokenTicker: "MTK",
    *   decimals: 8,
@@ -78,6 +80,7 @@ export class WalletDeveloperControlled {
   async createWallet(
     options: {
       tags?: string[];
+      enableTokenization?: boolean;
     } = {},
   ): Promise<{
     info: MultiChainWalletInfo;
@@ -169,18 +172,18 @@ export class WalletDeveloperControlled {
 
       const sparkWalletDev = new SparkIssuerWalletDeveloperControlled({
         sdk: this.sdk,
-        wallet: sparkWallet,
-        walletInfo: sparkWalletInfo,
       });
 
       const cardanoWalletDev = new CardanoWalletDeveloperControlled({
-        sdk: this.sdk,
-        wallet: cardanoWallet,
-        walletInfo: cardanoWalletInfo,
+        sdk: this.sdk
       });
 
       this.sparkIssuer = sparkWalletDev;
       this.cardano = cardanoWalletDev;
+
+      if (options.enableTokenization) {
+        this.sdk.tokenization.spark.setWallet(sparkWallet, sparkWalletInfo);
+      }
 
       return {
         info: walletData as MultiChainWalletInfo,
@@ -260,14 +263,10 @@ export class WalletDeveloperControlled {
 
     const sparkWalletDev = new SparkIssuerWalletDeveloperControlled({
       sdk: this.sdk,
-      wallet: sparkWallet,
-      walletInfo: sparkWalletInfo,
     });
 
     const cardanoWalletDev = new CardanoWalletDeveloperControlled({
-      sdk: this.sdk,
-      wallet: cardanoWallet,
-      walletInfo: cardanoWalletInfo,
+      sdk: this.sdk
     });
 
     this.sparkIssuer = sparkWalletDev;
@@ -350,8 +349,6 @@ export class WalletDeveloperControlled {
 
       instance.sparkIssuerWallet = new SparkIssuerWalletDeveloperControlled({
         sdk: this.sdk,
-        wallet: sparkWallet,
-        walletInfo: sparkWalletInfo,
       });
     }
 

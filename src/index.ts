@@ -12,6 +12,8 @@ export {
   getNetworkFromSparkAddress,
   type Bech32mTokenIdentifier,
   encodeBech32mTokenIdentifier,
+  decodeBech32mTokenIdentifier,
+  getNetworkFromBech32mTokenIdentifier,
   SparkWallet,
 } from "@buildonspark/spark-sdk";
 

@@ -19,21 +19,13 @@ import {
  */
 export class CardanoWalletDeveloperControlled {
   readonly sdk: Web3Sdk;
-  private wallet: MeshWallet | null = null;
-  private walletInfo: Web3ProjectCardanoWallet | null = null;
 
   constructor({
     sdk,
-    wallet,
-    walletInfo,
   }: {
     sdk: Web3Sdk;
-    wallet?: MeshWallet;
-    walletInfo?: Web3ProjectCardanoWallet;
   }) {
     this.sdk = sdk;
-    this.wallet = wallet || null;
-    this.walletInfo = walletInfo || null;
   }
 
   /**

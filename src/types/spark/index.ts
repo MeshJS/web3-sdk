@@ -247,8 +247,8 @@ export interface MintTokenParams {
   recipientAddress: string;
 }
 
-// Export dev-wallet types
 export * from "./dev-wallet";
+export * from "./tokenization";
 
 // Types copied from @buildonspark/spark-sdk since they are currently private
 // Source: https://github.com/buildonspark/spark-sdk
