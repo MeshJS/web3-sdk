@@ -36,7 +36,7 @@ import {
  * const balance = await sparkWallet.getTokenBalance();
  * ```
  */
-export class SparkWalletDeveloperControlled {
+export class SparkIssuerWalletDeveloperControlled {
   readonly sdk: Web3Sdk;
   private wallet: IssuerSparkWallet | null = null;
   private walletInfo: Web3ProjectSparkWallet | null = null;
@@ -376,7 +376,7 @@ export class SparkWalletDeveloperControlled {
    * await sparkWallet.mintTokens(BigInt("1000000"));
    * ```
    */
-  async getWallet(walletId: string): Promise<SparkWalletDeveloperControlled> {
+  async getWallet(walletId: string): Promise<SparkIssuerWalletDeveloperControlled> {
     if (this.sdk.privateKey === undefined) {
       throw new Error("Private key not found - required to decrypt wallet");
     }
@@ -399,7 +399,7 @@ export class SparkWalletDeveloperControlled {
         options: { network: sparkWalletInfo.network },
       });
 
-      return new SparkWalletDeveloperControlled({
+      return new SparkIssuerWalletDeveloperControlled({
         sdk: this.sdk,
         wallet: issuerSparkWallet,
         walletInfo: sparkWalletInfo

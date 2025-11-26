@@ -1,9 +1,7 @@
 import { Web3Sdk } from "..";
 import { MeshWallet } from "@meshsdk/wallet";
-import { decryptWithPrivateKey, encryptWithPublicKey } from "../../functions";
+import { decryptWithPrivateKey } from "../../functions";
 import { Web3ProjectCardanoWallet, TokenCreationParams } from "../../types";
-import { deserializeBech32Address } from "@meshsdk/core-cst";
-import { v4 as uuidv4 } from "uuid";
 import {
   CardanoTransactionResult,
   CardanoTokenBalanceParams,
@@ -24,8 +22,12 @@ export class CardanoWalletDeveloperControlled {
   private wallet: MeshWallet | null = null;
   private walletInfo: Web3ProjectCardanoWallet | null = null;
 
-  constructor({ sdk, wallet, walletInfo }: { 
-    sdk: Web3Sdk; 
+  constructor({
+    sdk,
+    wallet,
+    walletInfo,
+  }: {
+    sdk: Web3Sdk;
     wallet?: MeshWallet;
     walletInfo?: Web3ProjectCardanoWallet;
   }) {
@@ -139,8 +141,12 @@ export class CardanoWalletDeveloperControlled {
    * });
    * ```
    */
-  async createToken(params: TokenCreationParams): Promise<CardanoTransactionResult> {
-    throw new Error("Cardano token creation not implemented yet - awaiting CIP-113 standard");
+  async createToken(
+    params: TokenCreationParams,
+  ): Promise<CardanoTransactionResult> {
+    throw new Error(
+      "Cardano token creation not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -151,8 +157,14 @@ export class CardanoWalletDeveloperControlled {
    *
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
-  async mintTokens(params: { tokenId: string; amount: string; address?: string }): Promise<CardanoTransactionResult> {
-    throw new Error("Cardano token minting not implemented yet - awaiting CIP-113 standard");
+  async mintTokens(params: {
+    tokenId: string;
+    amount: string;
+    address?: string;
+  }): Promise<CardanoTransactionResult> {
+    throw new Error(
+      "Cardano token minting not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -163,8 +175,12 @@ export class CardanoWalletDeveloperControlled {
    *
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
-  async transferTokens(params: CardanoTransferTokensParams): Promise<CardanoTransactionResult> {
-    throw new Error("Cardano token transfer not implemented yet - awaiting CIP-113 standard");
+  async transferTokens(
+    params: CardanoTransferTokensParams,
+  ): Promise<CardanoTransactionResult> {
+    throw new Error(
+      "Cardano token transfer not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -175,8 +191,12 @@ export class CardanoWalletDeveloperControlled {
    *
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
-  async batchTransferTokens(params: CardanoBatchTransferParams): Promise<CardanoTransactionResult> {
-    throw new Error("Cardano batch token transfer not implemented yet - awaiting CIP-113 standard");
+  async batchTransferTokens(
+    params: CardanoBatchTransferParams,
+  ): Promise<CardanoTransactionResult> {
+    throw new Error(
+      "Cardano batch token transfer not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -187,8 +207,12 @@ export class CardanoWalletDeveloperControlled {
    *
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
-  async getTokenBalance(params: CardanoTokenBalanceParams): Promise<CardanoTokenBalanceResult> {
-    throw new Error("Cardano token balance query not implemented yet - awaiting CIP-113 standard");
+  async getTokenBalance(
+    params: CardanoTokenBalanceParams,
+  ): Promise<CardanoTokenBalanceResult> {
+    throw new Error(
+      "Cardano token balance query not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -200,7 +224,9 @@ export class CardanoWalletDeveloperControlled {
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
   async getTokenMetadata(params: { tokenId: string }): Promise<any> {
-    throw new Error("Cardano token metadata query not implemented yet - awaiting CIP-113 standard");
+    throw new Error(
+      "Cardano token metadata query not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -211,8 +237,12 @@ export class CardanoWalletDeveloperControlled {
    *
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
-  async burnTokens(params: CardanoBurnTokensParams): Promise<CardanoTransactionResult> {
-    throw new Error("Cardano token burning not implemented yet - awaiting CIP-113 standard");
+  async burnTokens(
+    params: CardanoBurnTokensParams,
+  ): Promise<CardanoTransactionResult> {
+    throw new Error(
+      "Cardano token burning not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -223,8 +253,12 @@ export class CardanoWalletDeveloperControlled {
    *
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
-  async freezeTokens(params: CardanoFreezeTokensParams): Promise<CardanoFreezeResult> {
-    throw new Error("Cardano token freezing not implemented yet - awaiting CIP-113 standard");
+  async freezeTokens(
+    params: CardanoFreezeTokensParams,
+  ): Promise<CardanoFreezeResult> {
+    throw new Error(
+      "Cardano token freezing not implemented yet - awaiting CIP-113 standard",
+    );
   }
 
   /**
@@ -235,7 +269,11 @@ export class CardanoWalletDeveloperControlled {
    *
    * @throws {Error} Method not implemented yet - awaiting CIP-113
    */
-  async unfreezeTokens(params: CardanoUnfreezeTokensParams): Promise<CardanoFreezeResult> {
-    throw new Error("Cardano token unfreezing not implemented yet - awaiting CIP-113 standard");
+  async unfreezeTokens(
+    params: CardanoUnfreezeTokensParams,
+  ): Promise<CardanoFreezeResult> {
+    throw new Error(
+      "Cardano token unfreezing not implemented yet - awaiting CIP-113 standard",
+    );
   }
 }
