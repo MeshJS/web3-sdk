@@ -94,6 +94,12 @@ export type OpenWindowParams =
       networkId: string;
       message: string;
     }
+  | {
+      method: "spark-claim-static-deposit";
+      projectId: string;
+      networkId: string;
+      txId: string;
+    }
   /** to be deprecated */
   | {
       method: "sign-tx";
