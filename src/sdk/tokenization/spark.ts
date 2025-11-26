@@ -5,6 +5,7 @@ import { IssuerSparkWallet } from "@buildonspark/issuer-sdk";
 import {
   Bech32mTokenIdentifier,
   decodeBech32mTokenIdentifier,
+  encodeBech32mTokenIdentifier,
 } from "@buildonspark/spark-sdk";
 import { extractIdentityPublicKey } from "../../chains/spark/utils";
 import { SparkFreezeResult } from "../../types/spark/dev-wallet";
@@ -305,8 +306,13 @@ export class TokenizationSpark {
 
     const tokenMetadata = await this.wallet.getIssuerTokenMetadata();
     const tokenId = Buffer.from(tokenMetadata.rawTokenIdentifier).toString("hex");
+    const network = this.walletInfo.network === "MAINNET" ? "MAINNET" : "REGTEST";
+    const bech32mTokenId = encodeBech32mTokenIdentifier({
+      tokenIdentifier: tokenMetadata.rawTokenIdentifier,
+      network,
+    });
     const txHash = await this.wallet.transferTokens({
-      tokenIdentifier: tokenId as Bech32mTokenIdentifier,
+      tokenIdentifier: bech32mTokenId,
       tokenAmount: params.amount,
       receiverSparkAddress: params.toAddress,
     });
