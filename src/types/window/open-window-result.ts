@@ -6,7 +6,10 @@ export type OpenWindowResult =
       data:
         | {
             method: "enable";
+            // DECPRECATED! for backwards compat
             bitcoinPubKeyHash: string;
+            bitcoinMainnetPubKeyHash: string;
+            bitcoinTestnetPubKeyHash: string;
             cardanoPubKeyHash: string;
             cardanoStakeCredentialHash: string;
             sparkMainnetPubKeyHash: string;
