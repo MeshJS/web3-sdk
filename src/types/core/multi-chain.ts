@@ -1,5 +1,6 @@
 import { MeshWallet } from "@meshsdk/wallet";
 import type { SparkIssuerWalletDeveloperControlled } from "../../sdk/wallet-developer-controlled/spark-issuer";
+import { IssuerSparkWallet } from "@buildonspark/issuer-sdk";
 
 /**
  * Standardized network ID type (0 = testnet, 1 = mainnet)
@@ -42,7 +43,7 @@ export interface MultiChainWalletInfo {
 export interface MultiChainWalletInstance {
   info: MultiChainWalletInfo;
   cardanoWallet?: MeshWallet;
-  sparkIssuerWallet?: SparkIssuerWalletDeveloperControlled;
+  sparkIssuerWallet?: IssuerSparkWallet;
 }
 
 /**

@@ -4,7 +4,22 @@ import { decryptWithPrivateKey } from "../../functions";
 import { Web3ProjectCardanoWallet, TokenCreationParams } from "../../types";
 
 /**
- * CardanoWalletDeveloperControlled - Manages Cardano-specific developer-controlled wallets
+ * CardanoWalletDeveloperControlled - Manages Cardano-specific developer-controlled wallets.
+ *
+ * Provides wallet management operations for Cardano wallets.
+ *
+ * @example
+ * ```typescript
+ * // List all Cardano wallets
+ * const wallets = await sdk.wallet.cardano.getWallets();
+ *
+ * // Get wallets by tag
+ * const treasuryWallets = await sdk.wallet.cardano.getWalletsByTag("treasury");
+ *
+ * // Get a specific wallet with initialized MeshWallet
+ * const { info, wallet } = await sdk.wallet.cardano.getWallet("wallet-id");
+ * const addresses = wallet.getAddresses();
+ * ```
  */
 export class CardanoWalletDeveloperControlled {
   readonly sdk: Web3Sdk;
@@ -18,7 +33,15 @@ export class CardanoWalletDeveloperControlled {
   }
 
   /**
-   * Retrieves all Cardano wallets for the project
+   * Retrieves all Cardano wallets for the project.
+   *
+   * @returns Promise resolving to array of wallet information
+   *
+   * @example
+   * ```typescript
+   * const wallets = await sdk.wallet.cardano.getWallets();
+   * console.log(`Found ${wallets.length} Cardano wallets`);
+   * ```
    */
   async getWallets(): Promise<Web3ProjectCardanoWallet[]> {
     const { data, status } = await this.sdk.axiosInstance.get(
@@ -33,7 +56,18 @@ export class CardanoWalletDeveloperControlled {
   }
 
   /**
-   * Retrieves a specific Cardano wallet by ID
+   * Retrieves a specific Cardano wallet by ID and initializes a MeshWallet instance.
+   *
+   * @param walletId - The wallet ID to retrieve
+   * @param decryptKey - If true, returns the decrypted mnemonic in wallet info
+   * @returns Promise resolving to wallet info and initialized MeshWallet
+   *
+   * @example
+   * ```typescript
+   * const { info, wallet } = await sdk.wallet.cardano.getWallet("wallet-id");
+   * const addresses = wallet.getAddresses();
+   * console.log("Base address:", addresses.baseAddressBech32);
+   * ```
    */
   async getWallet(
     walletId: string,
@@ -81,7 +115,15 @@ export class CardanoWalletDeveloperControlled {
   }
 
   /**
-   * Get Cardano wallets by tag
+   * Gets Cardano wallets filtered by tag.
+   *
+   * @param tag - The tag to filter by
+   * @returns Promise resolving to array of matching wallet information
+   *
+   * @example
+   * ```typescript
+   * const wallets = await sdk.wallet.cardano.getWalletsByTag("treasury");
+   * ```
    */
   async getWalletsByTag(tag: string): Promise<Web3ProjectCardanoWallet[]> {
     if (this.sdk.privateKey === undefined) {

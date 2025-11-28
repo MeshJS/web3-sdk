@@ -15,30 +15,24 @@ import { v4 as uuidv4 } from "uuid";
 
 /**
  * The `WalletDeveloperControlled` class provides functionality for managing developer-controlled wallets
- * within a Web3 project.
+ * within a Web3 project. Supports multi-chain wallets with a shared mnemonic for Spark and Cardano.
  *
  * @example
  * ```typescript
- * // ✅ Create wallet with both chains
- * const { sparkWallet, cardanoWallet } = await sdk.wallet.createWallet({
- *   tags: ["tokenization"],
- *   network: "MAINNET"
+ * // Create a new multi-chain wallet
+ * const { info, sparkIssuerWallet, cardanoWallet } = await sdk.wallet.createWallet({
+ *   tags: ["treasury"],
  * });
  *
- * // Use Spark wallet directly
- * await sparkWallet.createToken({
- *   tokenName: "MyToken",
- *   tokenTicker: "MTK",
- *   decimals: 8,
- *   isFreezable: true
- * });
+ * // Load an existing wallet by ID
+ * const { info, sparkWallet, cardanoWallet } = await sdk.wallet.initWallet("wallet-id");
  *
- * // Load existing wallet
- * const { sparkWallet: existingWallet } = await sdk.wallet.initWallet("wallet-id");
- * await existingWallet.mintTokens(BigInt("1000000"));
+ * // Get a wallet for a specific chain
+ * const { cardanoWallet } = await sdk.wallet.getWallet("wallet-id", "cardano");
+ * const { sparkIssuerWallet } = await sdk.wallet.getWallet("wallet-id", "spark");
  *
- * // Or access via
- * await sdk.wallet.spark.getWallet("wallet-id");
+ * // List all project wallets
+ * const wallets = await sdk.wallet.getProjectWallets();
  * ```
  */
 export class WalletDeveloperControlled {
@@ -152,16 +146,8 @@ export class WalletDeveloperControlled {
     );
 
     if (status === 200) {
-      const sparkWalletInfo: Web3ProjectSparkWallet = {
-        id: walletId,
-        projectId: this.sdk.projectId,
-        tags: options.tags || [],
-        key: encryptedKey,
-        publicKey: networkId === 1 ? mainnetPublicKey : regtestPublicKey,
-        network: sparkNetwork,
-      };
-
-      const cardanoWalletInfo: Web3ProjectCardanoWallet = {
+      // cardanoWalletInfo prepared for future Cardano tokenization support
+      const _cardanoWalletInfo: Web3ProjectCardanoWallet = {
         id: walletId,
         projectId: this.sdk.projectId,
         tags: options.tags || [],
@@ -182,6 +168,15 @@ export class WalletDeveloperControlled {
       this.cardano = cardanoWalletDev;
 
       if (options.enableTokenization) {
+        const sparkWalletInfo: Web3ProjectSparkWallet = {
+          id: walletId,
+          projectId: this.sdk.projectId,
+          tags: options.tags || [],
+          key: encryptedKey,
+          publicKey: networkId === 1 ? mainnetPublicKey : regtestPublicKey,
+          network: sparkNetwork,
+        };
+
         this.sdk.tokenization.spark.setWallet(sparkWallet, sparkWalletInfo);
       }
 
@@ -241,25 +236,6 @@ export class WalletDeveloperControlled {
       mnemonicOrSeed: sharedMnemonic,
       options: { network: sparkNetwork },
     });
-
-    const sparkWalletInfo: Web3ProjectSparkWallet = {
-      id: walletId,
-      projectId: this.sdk.projectId,
-      tags: walletInfo.tags || [],
-      key: walletInfo.key,
-      publicKey: await sparkWallet.getIdentityPublicKey(),
-      network: sparkNetwork,
-    };
-
-    const cardanoWalletInfo: Web3ProjectCardanoWallet = {
-      id: walletId,
-      projectId: this.sdk.projectId,
-      tags: walletInfo.tags || [],
-      key: walletInfo.key,
-      pubKeyHash: walletInfo.chains?.cardano?.pubKeyHash || "",
-      stakeCredentialHash:
-        walletInfo.chains?.cardano?.stakeCredentialHash || "",
-    };
 
     const sparkWalletDev = new SparkIssuerWalletDeveloperControlled({
       sdk: this.sdk,
@@ -331,25 +307,18 @@ export class WalletDeveloperControlled {
       instance.cardanoWallet = cardanoWallet;
     }
 
-    if ((chain === "spark" || !chain) && walletInfo.chains.spark && mnemonic) {
+    if (
+      (chain === "spark" || !chain) &&
+      walletInfo.chains.spark &&
+      mnemonic
+    ) {
       const sparkNetwork = networkId === 1 ? "MAINNET" : "REGTEST";
       const { wallet: sparkWallet } = await IssuerSparkWallet.initialize({
         mnemonicOrSeed: mnemonic,
         options: { network: sparkNetwork },
       });
 
-      const sparkWalletInfo: Web3ProjectSparkWallet = {
-        id: projectWalletId,
-        projectId: this.sdk.projectId,
-        tags: walletInfo.tags || [],
-        key: walletInfo.key,
-        publicKey: await sparkWallet.getIdentityPublicKey(),
-        network: sparkNetwork,
-      };
-
-      instance.sparkIssuerWallet = new SparkIssuerWalletDeveloperControlled({
-        sdk: this.sdk,
-      });
+      instance.sparkIssuerWallet = sparkWallet;
     }
 
     return instance;
