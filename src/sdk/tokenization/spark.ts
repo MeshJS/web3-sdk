@@ -48,17 +48,21 @@ export type {
  * ```typescript
  * const sdk = new Web3Sdk({ ... });
  *
- * // Create a new token (automatically creates a new wallet)
+ * // Create a new token (requires wallet with enableTokenization: true)
+ * const { info } = await sdk.wallet.createWallet({
+ *   tags: ["tokenization"],
+ *   enableTokenization: true,
+ * });
  * const result = await sdk.tokenization.spark.createToken({
  *   tokenName: "MyToken",
  *   tokenTicker: "MTK",
  *   decimals: 8,
  *   isFreezable: true,
  * });
- * // result contains { txId, tokenId, walletId }
+ * // result contains { txId, tokenId (bech32m), walletId }
  *
  * // Load an existing token by ID (initializes wallet from policy)
- * await sdk.tokenization.spark.initWalletByTokenId("token-id-hex");
+ * await sdk.tokenization.spark.initWallet("btknrt1...");
  *
  * // Perform operations on the loaded token
  * await sdk.tokenization.spark.mintTokens({ amount: BigInt("1000000") });
