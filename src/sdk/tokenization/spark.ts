@@ -204,12 +204,17 @@ export class TokenizationSpark {
     });
 
     const tokenMetadata = await this.wallet.getIssuerTokenMetadata();
-    const tokenId = Buffer.from(tokenMetadata.rawTokenIdentifier).toString("hex");
+    const tokenIdHex = Buffer.from(tokenMetadata.rawTokenIdentifier).toString("hex");
+    const network = this.walletInfo.network === "MAINNET" ? "MAINNET" : "REGTEST";
+    const tokenId = encodeBech32mTokenIdentifier({
+      tokenIdentifier: tokenMetadata.rawTokenIdentifier,
+      network,
+    });
 
     // Save tokenization policy to database
     try {
       await this.sdk.axiosInstance.post("/api/tokenization/tokens", {
-        tokenId,
+        tokenId: tokenIdHex,
         projectId: this.sdk.projectId,
         walletId: this.walletInfo.id,
         chain: "spark",
@@ -218,7 +223,7 @@ export class TokenizationSpark {
 
       // Log the create transaction
       await this.logTransaction({
-        tokenId,
+        tokenId: tokenIdHex,
         walletInfo: this.walletInfo,
         type: "create",
         txHash: txId,
