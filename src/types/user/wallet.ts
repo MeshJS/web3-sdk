@@ -34,7 +34,8 @@ export type Web3WalletRecovery = {
 export type Web3WalletKeyHashes = {
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
-  bitcoinPubKeyHash: string;
+  bitcoinMainnetPubKeyHash: string;
+  bitcoinTestnetPubKeyHash: string;
   sparkMainnetPubKeyHash: string;
   sparkRegtestPubKeyHash: string;
 };

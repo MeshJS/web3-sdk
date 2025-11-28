@@ -128,7 +128,8 @@ export class Web3Wallet {
       keyHashes: {
         cardanoPubKeyHash: res.data.cardanoPubKeyHash,
         cardanoStakeCredentialHash: res.data.cardanoStakeCredentialHash,
-        bitcoinPubKeyHash: res.data.bitcoinPubKeyHash,
+        bitcoinMainnetPubKeyHash: res.data.bitcoinMainnetPubKeyHash,
+        bitcoinTestnetPubKeyHash: res.data.bitcoinTestnetPubKeyHash,
         sparkMainnetPubKeyHash: res.data.sparkMainnetPubKeyHash,
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
@@ -242,7 +243,9 @@ export class Web3Wallet {
       key: {
         type: "address",
         address: getBitcoinAddressFromPubkey(
-          options.keyHashes.bitcoinPubKeyHash,
+          options.networkId === 1
+            ? options.keyHashes.bitcoinMainnetPubKeyHash
+            : options.keyHashes.bitcoinTestnetPubKeyHash,
           options.networkId,
         ),
       },
