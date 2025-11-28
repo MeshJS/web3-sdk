@@ -1,5 +1,4 @@
 import { MeshWallet } from "@meshsdk/wallet";
-import type { SparkIssuerWalletDeveloperControlled } from "../../sdk/wallet-developer-controlled/spark-issuer";
 import { IssuerSparkWallet } from "@buildonspark/issuer-sdk";
 
 /**

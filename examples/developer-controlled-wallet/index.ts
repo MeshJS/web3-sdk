@@ -1,10 +1,11 @@
 import { Web3Sdk } from "@meshsdk/web3-sdk";
 
 /**
- * Example: Developer-Controlled Wallet with New API
+ * Example: Developer-Controlled Wallet
  *
- * This example demonstrates the new wallet-first API for developer-controlled wallets.
- * Perfect for token issuance, treasury management, and automated operations.
+ * This example demonstrates wallet management with multi-chain support (Spark and Cardano).
+ * Use sdk.wallet.* for wallet operations.
+ * Use sdk.tokenization.spark.* for token operations (see tokenization example).
  */
 
 async function main() {
@@ -17,67 +18,52 @@ async function main() {
     privateKey: "your-private-key", // Required for developer-controlled wallets
   });
 
-  console.log("🚀 Creating developer-controlled wallet...");
-  
+  // === CREATE WALLET ===
+
+  console.log("Creating developer-controlled wallet...");
+
   // Create wallet with both Spark and Cardano chains (shared mnemonic)
-  const { sparkWallet, cardanoWallet } = await sdk.wallet.createWallet({
-    tags: ["tokenization", "treasury"]
+  const { info, sparkIssuerWallet, cardanoWallet } = await sdk.wallet.createWallet({
+    tags: ["treasury"],
   });
 
-  console.log("✅ Wallet created!");
+  console.log("Wallet created:", info.id);
 
-  // === SPARK TOKEN OPERATIONS ===
-  
-  console.log("\n🪙 Creating Spark token...");
-  const tokenTxId = await sparkWallet.createToken({
-    tokenName: "Example Token",
-    tokenTicker: "EXAM",
-    decimals: 8,
-    maxSupply: 1000000n,
-    isFreezable: true
-  });
-  console.log("Token created:", tokenTxId);
+  // === LIST WALLETS ===
 
-  console.log("\n💰 Minting tokens...");
-  const mintTxId = await sparkWallet.mintTokens(BigInt("100000"));
-  console.log("Minted tokens:", mintTxId);
+  console.log("\nListing all project wallets...");
+  const wallets = await sdk.wallet.getProjectWallets();
+  console.log(`Found ${wallets.length} wallets`);
 
-  console.log("\n📊 Getting token info...");
-  const balance = await sparkWallet.getTokenBalance();
-  const metadata = await sparkWallet.getTokenMetadata();
-  console.log("Token balance:", balance.balance);
-  console.log("Token name:", metadata.tokenName);
+  // === GET WALLET BY CHAIN ===
 
-  console.log("\n📤 Transferring tokens...");
-  const transferTxId = await sparkWallet.transferTokens({
-    tokenIdentifier: "your-token-identifier",
-    amount: BigInt("1000"),
-    toAddress: "spark1recipient..."
-  });
-  console.log("Transfer complete:", transferTxId);
+  console.log("\nGetting wallet for specific chain...");
 
-  // === COMPLIANCE OPERATIONS ===
-  
-  console.log("\n🚫 Freezing tokens for compliance...");
-  const freezeResult = await sparkWallet.freezeTokens({
-    address: "spark1suspicious...",
-    freezeReason: "Compliance investigation"
-  });
-  console.log("Frozen outputs:", freezeResult.impactedOutputIds.length);
+  // Get Cardano wallet
+  const { cardanoWallet: cardano } = await sdk.wallet.getWallet(info.id, "cardano");
+  const addresses = cardano!.getAddresses();
+  console.log("Cardano base address:", addresses.baseAddressBech32);
 
-  console.log("\n✅ Unfreezing tokens...");
-  const unfreezeResult = await sparkWallet.unfreezeTokens({
-    address: "spark1suspicious..."
-  });
-  console.log("Unfrozen outputs:", unfreezeResult.impactedOutputIds.length);
+  // Get Spark wallet info
+  const sparkWalletInfo = await sdk.wallet.sparkIssuer.get(info.id);
+  console.log("Spark wallet public key:", sparkWalletInfo.publicKey);
 
-  // === LOADING EXISTING WALLET ===
-  
-  console.log("\n🔄 Loading existing wallet...");
-  const { sparkWallet: existingWallet } = await sdk.wallet.initWallet("existing-wallet-id");
-  
-  const existingBalance = await existingWallet.getTokenBalance();
-  console.log("Existing wallet balance:", existingBalance.balance);
+  // === LOAD EXISTING WALLET ===
+
+  console.log("\nLoading existing wallet...");
+  const { info: existingInfo, sparkWallet, cardanoWallet: existingCardano } =
+    await sdk.wallet.initWallet("existing-wallet-id");
+
+  console.log("Loaded wallet:", existingInfo.id);
+
+  // === LIST BY TAG ===
+
+  console.log("\nListing wallets by tag...");
+  const sparkWallets = await sdk.wallet.sparkIssuer.getByTag("treasury");
+  const cardanoWallets = await sdk.wallet.cardano.getWalletsByTag("treasury");
+
+  console.log(`Found ${sparkWallets.length} Spark wallets with 'treasury' tag`);
+  console.log(`Found ${cardanoWallets.length} Cardano wallets with 'treasury' tag`);
 }
 
 // Run example

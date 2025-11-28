@@ -37,7 +37,7 @@ export class SparkIssuerWalletDeveloperControlled {
    * const walletInfo = await sdk.wallet.sparkIssuer.get("existing-wallet-id");
    * ```
    */
-  async get(walletId: string): Promise<Web3ProjectSparkWallet> {
+  async getWallet(walletId: string): Promise<Web3ProjectSparkWallet> {
     const networkParam = this.sdk.network === "mainnet" ? "mainnet" : "regtest";
     const { data, status } = await this.sdk.axiosInstance.get(
       `api/project-wallet/${this.sdk.projectId}/${walletId}?chain=spark&network=${networkParam}`,
