@@ -45,7 +45,7 @@ async function main() {
   console.log("Cardano base address:", addresses.baseAddressBech32);
 
   // Get Spark wallet info
-  const sparkWalletInfo = await sdk.wallet.sparkIssuer.get(info.id);
+  const sparkWalletInfo = await sdk.wallet.sparkIssuer.getWallet(info.id);
   console.log("Spark wallet public key:", sparkWalletInfo.publicKey);
 
   // === LOAD EXISTING WALLET ===

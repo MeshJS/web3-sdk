@@ -1,3 +1,5 @@
+import { IssuerSparkWallet } from "@buildonspark/issuer-sdk";
+
 /**
  * Token transaction record from database
  */
@@ -56,8 +58,16 @@ export type TokenizationPolicy = {
 };
 
 /**
+ * Parameters for initializing wallet - either by token ID or wallet ID.
+ * When using walletId, you can optionally pass the wallet instance to skip decryption.
+ */
+export type InitWalletParams =
+  | { tokenId: string }
+  | { walletId: string; wallet?: IssuerSparkWallet };
+
+/**
  * Parameters for creating a new token.
- * Requires enableTokenization: true in createWallet() or initWallet(tokenId) to be called first.
+ * Requires initWallet() to be called first.
  */
 export type CreateTokenParams = {
   tokenName: string;

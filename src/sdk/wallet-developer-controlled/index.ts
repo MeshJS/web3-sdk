@@ -4,7 +4,6 @@ import {
   MultiChainWalletInstance,
   SupportedChain,
 } from "../../types/core/multi-chain";
-import { Web3ProjectCardanoWallet, Web3ProjectSparkWallet } from "../../types";
 import { CardanoWalletDeveloperControlled } from "./cardano";
 import { SparkIssuerWalletDeveloperControlled } from "./spark-issuer";
 import { MeshWallet } from "@meshsdk/wallet";
@@ -52,18 +51,15 @@ export class WalletDeveloperControlled {
    *
    * @param options - Wallet creation options
    * @param options.tags - Optional tags for the wallet
-   * @param options.enableTokenization - If true, links the wallet to sdk.tokenization.spark for seamless token creation
-   * @returns Promise that resolves to both chain wallet instances
+   * @returns Promise that resolves to wallet info and chain wallet instances
    *
    * @example
    * ```typescript
-   * // With tokenization enabled
-   * const { info } = await sdk.wallet.createWallet({
-   *   tags: ["tokenization"],
-   *   enableTokenization: true
-   * });
+   * // Create wallet
+   * const { info } = await sdk.wallet.createWallet({ tags: ["tokenization"] });
    *
-   * // createToken works seamlessly - wallet is already linked
+   * // For tokenization, use initWallet then createToken
+   * await sdk.tokenization.spark.initWallet({ walletId: info.id });
    * await sdk.tokenization.spark.createToken({
    *   tokenName: "MyToken",
    *   tokenTicker: "MTK",
@@ -75,7 +71,6 @@ export class WalletDeveloperControlled {
   async createWallet(
     options: {
       tags?: string[];
-      enableTokenization?: boolean;
     } = {},
   ): Promise<{
     info: MultiChainWalletInfo;
@@ -124,7 +119,6 @@ export class WalletDeveloperControlled {
       sparkRegtestWallet.getIdentityPublicKey(),
     ]);
 
-    const sparkNetwork = networkId === 1 ? "MAINNET" : "REGTEST";
     const sparkWallet =
       networkId === 1 ? sparkMainnetWallet : sparkRegtestWallet;
 
@@ -147,40 +141,6 @@ export class WalletDeveloperControlled {
     );
 
     if (status === 200) {
-      // cardanoWalletInfo prepared for future Cardano tokenization support
-      const _cardanoWalletInfo: Web3ProjectCardanoWallet = {
-        id: walletId,
-        projectId: this.sdk.projectId,
-        tags: options.tags || [],
-        key: encryptedKey,
-        pubKeyHash,
-        stakeCredentialHash,
-      };
-
-      const sparkWalletDev = new SparkIssuerWalletDeveloperControlled({
-        sdk: this.sdk,
-      });
-
-      const cardanoWalletDev = new CardanoWalletDeveloperControlled({
-        sdk: this.sdk
-      });
-
-      this.sparkIssuer = sparkWalletDev;
-      this.cardano = cardanoWalletDev;
-
-      if (options.enableTokenization) {
-        const sparkWalletInfo: Web3ProjectSparkWallet = {
-          id: walletId,
-          projectId: this.sdk.projectId,
-          tags: options.tags || [],
-          key: encryptedKey,
-          publicKey: networkId === 1 ? mainnetPublicKey : regtestPublicKey,
-          network: sparkNetwork,
-        };
-
-        this.sdk.tokenization.spark.setWallet(sparkWallet, sparkWalletInfo);
-      }
-
       return {
         info: walletData as MultiChainWalletInfo,
         sparkIssuerWallet: sparkWallet,
@@ -248,19 +208,19 @@ export class WalletDeveloperControlled {
   }
 
   /**
-   * Retrieves a multi-chain wallet with optional chain-specific loading.
+   * Retrieves a multi-chain wallet for a specific chain.
    *
    * @param walletId - The unique identifier of the wallet
-   * @param chain - Optional specific chain to load (performance optimization)
+   * @param chain - The chain to load ("spark" or "cardano")
    * @returns Promise that resolves to multi-chain wallet instance
    *
    * @example
    * ```typescript
-   * // Load specific chain
+   * // Load Spark wallet
    * const { sparkIssuerWallet } = await sdk.wallet.getWallet("wallet-id", "spark");
    *
-   * // Load Cardano chain
-   * const { info, cardanoWallet } = await sdk.wallet.getWallet("wallet-id", "cardano");
+   * // Load Cardano wallet
+   * const { cardanoWallet } = await sdk.wallet.getWallet("wallet-id", "cardano");
    * ```
    */
   async getWallet(
@@ -317,7 +277,10 @@ export class WalletDeveloperControlled {
   }
 
   /**
-   * Get a specific project wallet by ID
+   * Retrieves wallet metadata by ID.
+   *
+   * @param walletId - The unique identifier of the wallet
+   * @returns Promise that resolves to wallet info
    */
   async getProjectWallet(walletId: string): Promise<MultiChainWalletInfo> {
     const { data, status } = await this.sdk.axiosInstance.get(
@@ -332,7 +295,9 @@ export class WalletDeveloperControlled {
   }
 
   /**
-   * Get all project wallets
+   * Retrieves all wallets for the project.
+   *
+   * @returns Promise that resolves to array of wallet info
    */
   async getProjectWallets(): Promise<MultiChainWalletInfo[]> {
     const { data, status } = await this.sdk.axiosInstance.get(
