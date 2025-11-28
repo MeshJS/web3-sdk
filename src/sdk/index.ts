@@ -3,6 +3,7 @@ import { WalletDeveloperControlled } from "./wallet-developer-controlled/";
 import { Web3Project } from "../types";
 import { IFetcher, ISubmitter } from "@meshsdk/common";
 import { Sponsorship } from "./sponsorship";
+import { Tokenization } from "./tokenization";
 
 export const meshUniversalStaticUtxo = {
   mainnet: {
@@ -93,6 +94,7 @@ export class Web3Sdk {
   project: Web3Project | undefined;
   wallet: WalletDeveloperControlled;
   sponsorship: Sponsorship;
+  tokenization: Tokenization;
 
   constructor({
     appUrl,
@@ -130,6 +132,9 @@ export class Web3Sdk {
     this.sponsorship = new Sponsorship({
       sdk: this,
     });
+    this.tokenization = new Tokenization({
+      sdk: this,
+    });
   }
 
   async getProject() {
@@ -151,3 +156,4 @@ export class Web3Sdk {
 }
 
 export * from "./sponsorship";
+export * from "./wallet-developer-controlled";
