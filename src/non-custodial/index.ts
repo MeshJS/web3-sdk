@@ -31,9 +31,12 @@ export type CreateWalletBody = {
   webauthnCredentialId?: string; // if using webauthn, this credential is the passkey
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
-  bitcoinPubKeyHash: string;
+  bitcoinMainnetPubKeyHash: string;
+  bitcoinTestnetPubKeyHash: string;
   sparkMainnetPubKeyHash: string;
   sparkRegtestPubKeyHash: string;
+  sparkMainnetStaticDepositAddress: string;
+  sparkRegtestStaticDepositAddress: string;
   projectId: string;
 };
 
@@ -56,7 +59,8 @@ export type GetWalletBody = {
   webauthnCredentialId: string | null;
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
-  bitcoinPubKeyHash: string;
+  bitcoinMainnetPubKeyHash: string | null;
+  bitcoinTestnetPubKeyHash: string | null;
   sparkMainnetPubKeyHash: string | null;
   sparkRegtestPubKeyHash: string | null;
   projectId: string;
@@ -302,9 +306,12 @@ export class Web3NonCustodialProvider {
       encryptedDeviceShard,
       encryptedRecoveryShard,
       authShard,
-      bitcoinPubKeyHash,
+      bitcoinMainnetPubKeyHash,
+      bitcoinTestnetPubKeyHash,
       sparkMainnetPubKeyHash,
       sparkRegtestPubKeyHash,
+      sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress,
     } = await clientGenerateWallet(
       deviceShardEncryptionKey,
       recoveryShardEncryptionKey,
@@ -315,13 +322,16 @@ export class Web3NonCustodialProvider {
       projectId: this.projectId,
       recoveryShard: encryptedRecoveryShard,
       authShard,
-      bitcoinPubKeyHash,
+      bitcoinMainnetPubKeyHash,
+      bitcoinTestnetPubKeyHash,
       cardanoPubKeyHash: cardanoPubKeyHash,
       cardanoStakeCredentialHash: cardanoStakeCredentialHash,
       sparkMainnetPubKeyHash,
       sparkRegtestPubKeyHash,
       webauthnCredentialId: webauthnCredentialId,
       recoveryShardQuestion: recoveryQuestion,
+      sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress,
     };
     const res = await fetch(this.appOrigin + "/api/wallet", {
       method: "POST",

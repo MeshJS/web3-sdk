@@ -27,7 +27,7 @@ export async function clientGenerateWallet(
   });
 
   /* bitcoin */
-  const bitcoinWallet = new EmbeddedWallet({
+  const bitcoinTestnetWallet = new EmbeddedWallet({
     network: "Testnet",
     key: {
       type: "mnemonic",
@@ -35,7 +35,16 @@ export async function clientGenerateWallet(
     },
   });
 
-  const bitcoinPubKeyHash = bitcoinWallet.getPublicKey();
+  const bitcoinMainnetWallet = new EmbeddedWallet({
+    network: "Mainnet",
+    key: {
+      type: "mnemonic",
+      words: mnemonic.split(" "),
+    },
+  });
+
+  const bitcoinTestnetPubKeyHash = bitcoinTestnetWallet.getPublicKey();
+  const bitcoinMainnetPubKeyHash = bitcoinMainnetWallet.getPublicKey();
 
   /* cardano */
   const cardanoWallet = new MeshWallet({
@@ -67,19 +76,29 @@ export async function clientGenerateWallet(
     },
   });
 
-  const [sparkMainnetPubKeyHash, sparkRegtestPubKeyHash] = await Promise.all([
+  const [
+    sparkMainnetPubKeyHash,
+    sparkRegtestPubKeyHash,
+    sparkMainnetStaticDepositAddress,
+    sparkRegtestStaticDepositAddress,
+  ] = await Promise.all([
     sparkMainnetWallet.getIdentityPublicKey(),
     sparkRegtestWallet.getIdentityPublicKey(),
+    sparkMainnetWallet.getStaticDepositAddress(),
+    sparkRegtestWallet.getStaticDepositAddress(),
   ]);
 
   return {
     encryptedDeviceShard,
     authShard: keyShare2!,
     encryptedRecoveryShard,
-    bitcoinPubKeyHash: bitcoinPubKeyHash,
+    bitcoinMainnetPubKeyHash,
+    bitcoinTestnetPubKeyHash,
     cardanoPubKeyHash: cardanoKeyHashes.pubKeyHash,
     cardanoStakeCredentialHash: cardanoKeyHashes.stakeCredentialHash,
     sparkMainnetPubKeyHash: sparkMainnetPubKeyHash,
     sparkRegtestPubKeyHash: sparkRegtestPubKeyHash,
+    sparkMainnetStaticDepositAddress,
+    sparkRegtestStaticDepositAddress,
   };
 }

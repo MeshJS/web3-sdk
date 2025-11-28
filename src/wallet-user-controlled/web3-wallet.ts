@@ -128,10 +128,15 @@ export class Web3Wallet {
       keyHashes: {
         cardanoPubKeyHash: res.data.cardanoPubKeyHash,
         cardanoStakeCredentialHash: res.data.cardanoStakeCredentialHash,
-        bitcoinPubKeyHash: res.data.bitcoinPubKeyHash,
+        bitcoinMainnetPubKeyHash: res.data.bitcoinMainnetPubKeyHash,
+        bitcoinTestnetPubKeyHash: res.data.bitcoinTestnetPubKeyHash,
         sparkMainnetPubKeyHash: res.data.sparkMainnetPubKeyHash,
         sparkRegtestPubKeyHash: res.data.sparkRegtestPubKeyHash,
       },
+      sparkMainnetStaticDepositAddress:
+        res.data.sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress:
+        res.data.sparkRegtestStaticDepositAddress,
       sparkscanApiKey: options.sparkscanApiKey,
       baseUrl: options.baseUrl,
     });
@@ -190,6 +195,42 @@ export class Web3Wallet {
     return { success: true, data: { method: "disable" } };
   }
 
+  async onramp(options: { chain: "cardano" | "bitcoin" }) {
+    const chain = options.chain;
+    const method: "cardano-onramp" | "bitcoin-onramp" = `${chain}-onramp`;
+    if (!this.projectId) {
+      throw new ApiError({
+        code: 2,
+        info: "Cannot start onramp without a projectId.",
+      });
+    }
+
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: method,
+        projectId: this.projectId,
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false)
+      throw new ApiError({
+        code: 2,
+        info: "UserDeclined - User declined to sign the message.",
+      });
+
+    if (res.data.method !== "cardano-onramp") {
+      throw new ApiError({
+        code: 2,
+        info: "Received the wrong response from the iframe.",
+      });
+    }
+    return {
+      success: true,
+      data: { method },
+    };
+  }
+
   static async initBitcoinWallet(options: {
     projectId: string;
     appUrl: string;
@@ -202,7 +243,9 @@ export class Web3Wallet {
       key: {
         type: "address",
         address: getBitcoinAddressFromPubkey(
-          options.keyHashes.bitcoinPubKeyHash,
+          options.networkId === 1
+            ? options.keyHashes.bitcoinMainnetPubKeyHash
+            : options.keyHashes.bitcoinTestnetPubKeyHash,
           options.networkId,
         ),
       },
@@ -396,6 +439,8 @@ export class Web3Wallet {
     networkId: 0 | 1,
     projectId: string,
     appUrl: string,
+    sparkMainnetStaticDepositAddress: string,
+    sparkRegtestStaticDepositAddress: string,
     sparkscanApiKey?: string,
     baseUrl = "https://api.sparkscan.io",
   ): Promise<Web3SparkWallet> {
@@ -410,6 +455,8 @@ export class Web3Wallet {
       appUrl,
       sparkApiKey: sparkscanApiKey,
       sparkApiUrl: baseUrl,
+      sparkMainnetStaticDepositAddress: sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress: sparkRegtestStaticDepositAddress,
       address: getSparkAddressFromPubkey(
         networkId === 1
           ? keyHashes.sparkMainnetPubKeyHash
@@ -445,6 +492,8 @@ export class Web3Wallet {
     user,
     keyHashes,
     baseUrl,
+    sparkMainnetStaticDepositAddress,
+    sparkRegtestStaticDepositAddress,
     sparkscanApiKey,
   }: {
     networkId: 0 | 1;
@@ -455,6 +504,8 @@ export class Web3Wallet {
     appUrl?: string;
     user?: UserSocialData;
     keyHashes: Web3WalletKeyHashes;
+    sparkMainnetStaticDepositAddress: string;
+    sparkRegtestStaticDepositAddress: string;
     baseUrl?: string;
     sparkscanApiKey?: string;
   }) {
@@ -480,6 +531,8 @@ export class Web3Wallet {
       networkId,
       projectId,
       appUrl,
+      sparkMainnetStaticDepositAddress,
+      sparkRegtestStaticDepositAddress,
       sparkscanApiKey,
       baseUrl,
     );

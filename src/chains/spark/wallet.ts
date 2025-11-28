@@ -11,6 +11,8 @@ export type Web3SparkWalletOptions = {
   sparkApiUrl: string;
   publicKeyHex: string;
   sparkApiKey?: string;
+  sparkMainnetStaticDepositAddress: string;
+  sparkRegtestStaticDepositAddress: string;
 };
 export class Web3SparkWallet {
   networkId: 0 | 1;
@@ -20,6 +22,9 @@ export class Web3SparkWallet {
   sparkApiUrl: string;
   publicKeyHex: string;
   sparkApiKey?: string;
+  sparkMainnetStaticDepositAddress: string;
+  sparkRegtestStaticDepositAddress: string;
+
   private readonly _axiosInstance: AxiosInstance;
 
   constructor(options: Web3SparkWalletOptions) {
@@ -30,6 +35,10 @@ export class Web3SparkWallet {
     this.sparkApiUrl = options.sparkApiUrl;
     this.publicKeyHex = options.publicKeyHex;
     this.sparkApiKey = options.sparkApiKey;
+    this.sparkMainnetStaticDepositAddress =
+      options.sparkMainnetStaticDepositAddress;
+    this.sparkRegtestStaticDepositAddress =
+      options.sparkRegtestStaticDepositAddress;
 
     this._axiosInstance = axios.create({
       baseURL: options.sparkApiUrl,
@@ -173,6 +182,36 @@ export class Web3SparkWallet {
     }
 
     return { txid: res.data.txid };
+  }
+
+  public async claimStaticDeposit({ txId }: { txId: string }) {
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "spark-claim-static-deposit",
+        txId,
+        projectId: this.projectId,
+        networkId: String(this.networkId),
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false) {
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined the transfer.",
+      });
+    }
+
+    if (res.data.method !== "spark-claim-static-deposit") {
+      throw new ApiError({
+        code: 2,
+        info: "Recieved the wrong response from wallet popover.",
+      });
+    }
+
+    return {
+      transferId: res.data.transferId,
+    };
   }
 
   public async signMessage({ message }: { message: string }) {

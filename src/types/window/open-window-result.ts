@@ -6,15 +6,26 @@ export type OpenWindowResult =
       data:
         | {
             method: "enable";
+            // DECPRECATED! for backwards compat
             bitcoinPubKeyHash: string;
+            bitcoinMainnetPubKeyHash: string;
+            bitcoinTestnetPubKeyHash: string;
             cardanoPubKeyHash: string;
             cardanoStakeCredentialHash: string;
             sparkMainnetPubKeyHash: string;
             sparkRegtestPubKeyHash: string;
+            sparkMainnetStaticDepositAddress: string;
+            sparkRegtestStaticDepositAddress: string;
             user: UserSocialData;
           }
         | {
             method: "export-wallet";
+          }
+        | {
+            method: "bitcoin-onramp";
+          }
+        | {
+            method: "cardano-onramp";
           }
         | {
             method: "disable";
@@ -56,6 +67,10 @@ export type OpenWindowResult =
         | {
             method: "spark-sign-message";
             signature: string;
+          }
+        | {
+            method: "spark-claim-static-deposit";
+            transferId: string;
           }
         /** to be deprecated */
         | {

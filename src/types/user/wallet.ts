@@ -17,9 +17,12 @@ export type Web3WalletObject = {
   webauthnCredentialId: string | null;
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
-  bitcoinPubKeyHash: string;
+  bitcoinMainnetPubKeyHash: string | null;
+  bitcoinTestnetPubKeyHash: string | null;
   sparkMainnetPubKeyHash: string | null;
   sparkRegtestPubKeyHash: string | null;
+  sparkMainnetStaticDepositAddress: string | null;
+  sparkRegtestStaticDepositAddress: string | null;
   projectId: string;
 };
 
@@ -31,7 +34,8 @@ export type Web3WalletRecovery = {
 export type Web3WalletKeyHashes = {
   cardanoPubKeyHash: string;
   cardanoStakeCredentialHash: string;
-  bitcoinPubKeyHash: string;
+  bitcoinMainnetPubKeyHash: string;
+  bitcoinTestnetPubKeyHash: string;
   sparkMainnetPubKeyHash: string;
   sparkRegtestPubKeyHash: string;
 };

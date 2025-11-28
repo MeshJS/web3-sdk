@@ -23,6 +23,7 @@ export type OpenWindowParams =
   | {
       method: "bitcoin-sign-message";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       address: string;
       message: string;
@@ -31,6 +32,7 @@ export type OpenWindowParams =
   | {
       method: "bitcoin-sign-psbt";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       psbt: string;
       signInputs: string;
@@ -39,12 +41,18 @@ export type OpenWindowParams =
   | {
       method: "bitcoin-send-transfer";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       recipients: string;
     }
   | {
+      method: "bitcoin-onramp";
+      projectId: string;
+    }
+  | {
       method: "cardano-sign-data";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       payload: string;
       address?: string;
@@ -52,14 +60,20 @@ export type OpenWindowParams =
   | {
       method: "cardano-sign-tx";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       unsignedTx: string;
       partialSign: "true" | "false";
       returnFullTx: "true" | "false";
     }
   | {
+      method: "cardano-onramp";
+      projectId: string;
+    }
+  | {
       method: "spark-transfer";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       receiverSparkAddress: string;
       amountSats: string;
@@ -67,6 +81,7 @@ export type OpenWindowParams =
   | {
       method: "spark-transfer-token";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       receiverSparkAddress: string;
       tokenIdentifier: string;
@@ -75,8 +90,15 @@ export type OpenWindowParams =
   | {
       method: "spark-sign-message";
       projectId: string;
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string;
       message: string;
+    }
+  | {
+      method: "spark-claim-static-deposit";
+      projectId: string;
+      networkId: string;
+      txId: string;
     }
   /** to be deprecated */
   | {
@@ -86,6 +108,7 @@ export type OpenWindowParams =
       unsignedTx: string;
       partialSign: "true" | "false";
       chain: string | "undefined";
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId?: string;
     }
   | {
@@ -95,5 +118,6 @@ export type OpenWindowParams =
       payload: string;
       address: string | "undefined";
       chain: string | "undefined";
+      // we technically don't need network id's here, a mistake that made it into our current builds.
       networkId: string | "undefined";
     };
