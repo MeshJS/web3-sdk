@@ -41,6 +41,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@buildonspark/issuer-sdk": "^0.0.107",
     "@buildonspark/spark-sdk": "^0.4.2",
     "@meshsdk/bitcoin": "1.9.0-beta.87",
     "@meshsdk/common": "1.9.0-beta.87",
