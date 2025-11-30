@@ -51,10 +51,8 @@ export type {
  * ```typescript
  * const sdk = new Web3Sdk({ ... });
  *
- * // Create wallet and token
- * const { info } = await sdk.wallet.createWallet({ tags: ["tokenization"] });
- * const { tokenId } = await sdk.tokenization.spark.createToken({
- *   walletId: info.id,
+ * // Create token (wallet is created automatically)
+ * const { tokenId, walletId } = await sdk.tokenization.spark.createToken({
  *   tokenName: "MyToken",
  *   tokenTicker: "MTK",
  *   decimals: 8,
@@ -62,10 +60,7 @@ export type {
  * });
  *
  * // Load existing token by token ID
- * await sdk.tokenization.spark.initWallet({ tokenId: "btknrt1..." });
- *
- * // Or load by wallet ID
- * await sdk.tokenization.spark.initWallet({ walletId: "wallet-uuid" });
+ * const policy = await sdk.tokenization.spark.initWallet({ tokenId: "btknrt1..." });
  *
  * // Perform token operations
  * await sdk.tokenization.spark.mintTokens({ amount: BigInt("1000000") });
@@ -82,15 +77,6 @@ export class TokenizationSpark {
   }
 
   /**
-   * Sets the wallet for tokenization operations.
-   * @internal Called by sdk.wallet.createWallet() when enableTokenization is true.
-   */
-  setWallet(wallet: IssuerSparkWallet, walletInfo: Web3ProjectSparkWallet): void {
-    this.wallet = wallet;
-    this.walletInfo = walletInfo;
-  }
-
-  /**
    * Gets the current wallet ID if one is loaded.
    */
   getWalletId(): string | null {
@@ -98,10 +84,18 @@ export class TokenizationSpark {
   }
 
   /**
-   * Internal method to initialize the wallet by wallet ID.
-   * If wallet instance is provided, uses it directly without decryption.
+   * Clears the currently loaded wallet state.
+   * Call this before creating a new token if you want to start fresh.
    */
-  private async initWalletByWalletId(walletId: string, walletInstance?: IssuerSparkWallet): Promise<void> {
+  clearWallet(): void {
+    this.wallet = null;
+    this.walletInfo = null;
+  }
+
+  /**
+   * Internal method to initialize the wallet by wallet ID.
+   */
+  private async initWalletByWalletId(walletId: string): Promise<void> {
     const networkParam = this.sdk.network === "mainnet" ? "mainnet" : "regtest";
     const { data, status } = await this.sdk.axiosInstance.get(
       `api/project-wallet/${this.sdk.projectId}/${walletId}?chain=spark&network=${networkParam}`,
@@ -113,56 +107,44 @@ export class TokenizationSpark {
 
     const walletInfo = data as Web3ProjectSparkWallet;
 
-    if (walletInstance) {
-      this.wallet = walletInstance;
-    } else {
-      if (this.sdk.privateKey === undefined) {
-        throw new Error("Private key not found - required to decrypt wallet");
-      }
-
-      const mnemonic = await decryptWithPrivateKey({
-        privateKey: this.sdk.privateKey,
-        encryptedDataJSON: walletInfo.key,
-      });
-
-      const { wallet } = await IssuerSparkWallet.initialize({
-        mnemonicOrSeed: mnemonic,
-        options: { network: walletInfo.network },
-      });
-
-      this.wallet = wallet;
+    if (this.sdk.privateKey === undefined) {
+      throw new Error("Private key not found - required to decrypt wallet");
     }
 
+    const mnemonic = await decryptWithPrivateKey({
+      privateKey: this.sdk.privateKey,
+      encryptedDataJSON: walletInfo.key,
+    });
+
+    const { wallet } = await IssuerSparkWallet.initialize({
+      mnemonicOrSeed: mnemonic,
+      options: { network: walletInfo.network },
+    });
+
+    this.wallet = wallet;
     this.walletInfo = walletInfo;
   }
 
   /**
-   * Initializes the tokenization wallet. Pass either tokenId or walletId, not both.
+   * Initializes the tokenization wallet by token ID.
    *
-   * @param params - Either { tokenId } or { walletId }
-   * @returns The tokenization policy (when using tokenId) or void (when using walletId)
+   * @param params - { tokenId } - the token ID to load
+   * @returns The tokenization policy
    *
    * @example
    * ```typescript
-   * // By token ID - looks up policy and loads wallet
+   * // Load existing token by token ID
    * const policy = await sdk.tokenization.spark.initWallet({ tokenId: "btknrt1..." });
-   *
-   * // By wallet ID - loads wallet directly
-   * await sdk.tokenization.spark.initWallet({ walletId: "wallet-uuid" });
    *
    * // Then perform operations
    * await sdk.tokenization.spark.mintTokens({ amount: BigInt(1000) });
    * ```
    */
-  async initWallet(params: InitWalletParams): Promise<TokenizationPolicy | void> {
-    if ("tokenId" in params && params.tokenId) {
-      const normalizedTokenId = this.normalizeTokenId(params.tokenId);
-      const policy = await this.getTokenizationPolicy(normalizedTokenId);
-      await this.initWalletByWalletId(policy.walletId);
-      return policy;
-    } else if ("walletId" in params && params.walletId) {
-      await this.initWalletByWalletId(params.walletId, params.wallet);
-    }
+  async initWallet(params: InitWalletParams): Promise<TokenizationPolicy> {
+    const normalizedTokenId = this.normalizeTokenId(params.tokenId);
+    const policy = await this.getTokenizationPolicy(normalizedTokenId);
+    await this.initWalletByWalletId(policy.walletId);
+    return policy;
   }
 
   /**
@@ -181,18 +163,23 @@ export class TokenizationSpark {
 
   /**
    * Creates a new token on the Spark network.
-   * Requires initWallet() to be called first.
+   * Automatically creates a new wallet if none is loaded.
    *
    * @param params - Token creation parameters
    * @returns Object containing txId, tokenId, and walletId
    *
    * @example
    * ```typescript
-   * // Create wallet and initialize
-   * const { info } = await sdk.wallet.createWallet({ tags: ["tokenization"] });
-   * await sdk.tokenization.spark.initWallet({ walletId: info.id });
+   * // Simple one-step token creation (creates wallet automatically)
+   * const { tokenId, walletId } = await sdk.tokenization.spark.createToken({
+   *   tokenName: "MyToken",
+   *   tokenTicker: "MTK",
+   *   decimals: 8,
+   *   isFreezable: true,
+   * });
    *
-   * // Create token
+   * // Or load existing wallet first
+   * await sdk.tokenization.spark.initWallet({ walletId: "existing-wallet-id" });
    * const { tokenId } = await sdk.tokenization.spark.createToken({
    *   tokenName: "MyToken",
    *   tokenTicker: "MTK",
@@ -207,7 +194,23 @@ export class TokenizationSpark {
     walletId: string;
   }> {
     if (!this.wallet || !this.walletInfo) {
-      throw new Error("No wallet loaded. Call initWallet() first.");
+      const { info, sparkIssuerWallet } = await this.sdk.wallet.createWallet({
+        tags: ["tokenization"],
+      });
+
+      const networkParam = this.sdk.network === "mainnet" ? "MAINNET" : "REGTEST";
+      this.walletInfo = {
+        id: info.id,
+        key: info.key,
+        tags: info.tags,
+        projectId: info.projectId,
+        publicKey:
+          networkParam === "MAINNET"
+            ? info.chains.spark?.mainnetPublicKey || ""
+            : info.chains.spark?.regtestPublicKey || "",
+        network: networkParam,
+      };
+      this.wallet = sparkIssuerWallet;
     }
 
     const txId = await this.wallet.createToken({
