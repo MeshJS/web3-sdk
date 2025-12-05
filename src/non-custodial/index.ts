@@ -181,9 +181,7 @@ export class Web3NonCustodialProvider {
 
   constructor(params: Web3NonCustodialProviderParams) {
     this.projectId = params.projectId;
-    this.appOrigin = params.appOrigin
-      ? params.appOrigin
-      : "https://web3.meshjs.dev";
+    this.appOrigin = params.appOrigin ? params.appOrigin : "https://utxos.dev";
     this.storageLocation = params.storageLocation
       ? params.storageLocation
       : "local_storage";
@@ -519,7 +517,7 @@ export class Web3NonCustodialProvider {
         response_type: "code",
         client_id: this.twitterOauth2ClientId,
         redirect_uri: this.appOrigin + "/api/auth",
-        scope: "users.read+tweet.read+offline.access",
+        scope: "users.read+tweet.read+offline.access+users.email",
         state: btoa(twitterState),
         code_challenge: "challenge",
         code_challenge_method: "plain",
