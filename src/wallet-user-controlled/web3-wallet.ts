@@ -118,6 +118,7 @@ export class Web3Wallet {
     }
 
     const wallet = await Web3Wallet.initWallet({
+      // Not actually deprecated, just want developers to get a danger line when using this function (it's not for public use.)
       networkId: options.networkId,
       fetcher: options.fetcher,
       submitter: options.submitter,
@@ -471,7 +472,7 @@ export class Web3Wallet {
 
   /**
    * Initializes a new instance of a Web3 wallet with the specified options.
-   *
+   * @deprecated - Don't use this function unless you know exactly what you're doing.
    * @param params - The parameters required to initialize the wallet.
    * @param params.networkId - The network ID to connect to. Must be either `0` (testnet) or `1` (mainnet).
    * @param params.address - The wallet address to associate with the wallet instance.
@@ -482,7 +483,7 @@ export class Web3Wallet {
    *
    * @returns A promise that resolves to an initialized instance of `Web3Wallet`.
    */
-  private static async initWallet({
+  static async initWallet({
     networkId,
     fetcher,
     submitter,
