@@ -46,6 +46,74 @@ export interface TokenMetadata {
   isFreezable: boolean | null;
 }
 
+/**
+ * Token transaction participant info
+ * Used in TokenTransaction for from/to fields
+ */
+export interface TokenTransactionParticipant {
+  type: string;
+  identifier: string;
+  pubkey: string;
+}
+
+/**
+ * Individual token transaction from Sparkscan API
+ * @see https://docs.sparkscan.io/api/tokens#get-token-transactions
+ */
+export interface TokenTransaction {
+  id: string;
+  type: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  from: TokenTransactionParticipant;
+  to: TokenTransactionParticipant;
+  amount: number;
+  valueUsd?: number;
+  tokenMetadata?: TokenMetadata;
+  multiIoDetails?: any;
+}
+
+/**
+ * Token transactions response from Sparkscan API
+ * @see https://docs.sparkscan.io/api/tokens#get-token-transactions
+ */
+export interface TokenTransactionsResponse {
+  meta: {
+    totalItems: number;
+    limit: number;
+    offset: number;
+  };
+  data: TokenTransaction[];
+}
+
+/**
+ * Token balance information for an address
+ */
+export interface AddressTokenBalance {
+  tokenIdentifier: string;
+  tokenAddress: string;
+  name: string;
+  ticker: string;
+  decimals: number;
+  balance: number;
+  valueUsd?: number;
+  issuerPublicKey: string;
+  maxSupply: number | null;
+  isFreezable: boolean | null;
+}
+
+/**
+ * Address tokens response from Sparkscan API
+ * @see https://docs.sparkscan.io/api/address#get-address-tokens
+ */
+export interface AddressTokensResponse {
+  address: string;
+  pubkey: string;
+  totalValueUsd: number;
+  tokens: AddressTokenBalance[];
+}
+
 export interface TransactionOutput {
   address: string;
   pubkey: string;
@@ -164,6 +232,23 @@ export interface AddressSummary {
 export interface LatestTxidResponse {
   [address: string]: string | null;
 }
+
+export interface TokenCreationParams {
+  tokenName: string;
+  tokenTicker: string;
+  decimals: number;
+  maxSupply?: string;
+  isFreezable: boolean;
+}
+
+export interface MintTokenParams {
+  tokenIdentifier: string;
+  amount: bigint;
+  recipientAddress: string;
+}
+
+export * from "./dev-wallet";
+export * from "./tokenization";
 
 // Types copied from @buildonspark/spark-sdk since they are currently private
 // Source: https://github.com/buildonspark/spark-sdk
