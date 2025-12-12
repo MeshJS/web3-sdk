@@ -7,5 +7,5 @@ Visit [UTXOS](https://utxos.dev/) website for more information.
 ## Installation
 
 ```bash
-npm install @meshsdk/web3-sdk
+npm install @utxos/sdk
 ```

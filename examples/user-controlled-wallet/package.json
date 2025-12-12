@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@meshsdk/provider": "^1.9.0-beta.26",
-    "@meshsdk/web3-sdk": "^0.0.17",
+    "@utxos/sdk": "^0.0.77",
     "next": "15.2.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
