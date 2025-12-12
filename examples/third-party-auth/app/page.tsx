@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { Web3Wallet } from "@meshsdk/web3-sdk";
+import { Web3Wallet } from "@utxos/sdk";
 
 export default function Home() {
   const searchParams = useSearchParams();
@@ -50,7 +50,7 @@ export default function Home() {
               refreshToken: token as string,
             });
 
-            console.log(await wallet.getChangeAddress());
+            console.log(await wallet.cardano.getChangeAddress());
           }}
         >
           Auto Sign In With Token{" "}

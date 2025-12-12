@@ -1,4 +1,4 @@
-import { EnableWeb3WalletOptions, Web3Wallet } from "@meshsdk/web3-sdk";
+import { EnableWeb3WalletOptions, Web3Wallet } from "@utxos/sdk";
 import { useState } from "react";
 
 export default function Home() {
