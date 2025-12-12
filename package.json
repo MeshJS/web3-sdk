@@ -1,6 +1,6 @@
 {
-  "name": "@meshsdk/web3-sdk",
-  "version": "0.0.76",
+  "name": "@utxos/sdk",
+  "version": "0.0.77",
   "description": "UTXOS SDK - Web3 infrastructure platform for UTXO blockchains",
   "main": "./dist/index.cjs",
   "browser": "./dist/index.js",
@@ -44,8 +44,8 @@
     "@buildonspark/spark-sdk": "^0.4.2",
     "@meshsdk/bitcoin": "1.9.0-beta.89",
     "@meshsdk/common": "1.9.0-beta.89",
-    "@meshsdk/core": "1.9.0-beta.89",
     "@meshsdk/core-cst": "1.9.0-beta.89",
+    "@meshsdk/transaction": "1.9.0-beta.89",
     "@meshsdk/wallet": "1.9.0-beta.89",
     "@peculiar/webcrypto": "^1.5.0",
     "axios": "^1.8.3",
