@@ -1,5 +1,5 @@
 {
-  "name": "@meshsdk/web3-sdk",
+  "name": "@utxos/dev",
   "version": "0.0.77",
   "description": "UTXOS SDK - Web3 infrastructure platform for UTXO blockchains",
   "main": "./dist/index.cjs",
