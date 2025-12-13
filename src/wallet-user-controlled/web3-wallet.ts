@@ -51,6 +51,9 @@ type Web3WalletContructorOptions = {
  * Mesh wallet-as-a-service are designed to be strictly non-custodial,
  * meaning neither the developer nor Mesh can access the user's private key.
  *
+ * @deprecated This class is part of the deprecated @meshsdk/web3-sdk package.
+ * Please migrate to @utxos/sdk: https://www.npmjs.com/package/@utxos/sdk
+ *
  * @param options - The options to initialize the wallet.
  * @param options.projectId - Project ID
  * @param options.appUrl - An optional backend URL, only used for development.

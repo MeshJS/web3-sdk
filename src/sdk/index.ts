@@ -79,6 +79,10 @@ export const meshUniversalStaticUtxo = {
   },
 };
 
+/**
+ * @deprecated This class is part of the deprecated @meshsdk/web3-sdk package.
+ * Please migrate to @utxos/sdk: https://www.npmjs.com/package/@utxos/sdk
+ */
 export class Web3Sdk {
   readonly axiosInstance: AxiosInstance;
 
