@@ -72,6 +72,10 @@ export type OpenWindowResult =
             method: "spark-claim-static-deposit";
             transferId: string;
           }
+        | {
+            method: "spark-withdraw-to-bitcoin";
+            withdrawalId: string;
+          }
         /** to be deprecated */
         | {
             method: "sign-data";

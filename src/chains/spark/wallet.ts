@@ -214,6 +214,46 @@ export class Web3SparkWallet {
     };
   }
 
+  public async withdrawToBitcoin({
+    exitSpeed,
+    amountSats,
+    deductFeeFromWithdrawalAmount,
+  }: {
+    exitSpeed: "fast" | "medium" | "slow";
+    amountSats: number;
+    deductFeeFromWithdrawalAmount: boolean;
+  }) {
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "spark-withdraw-to-bitcoin",
+        exitSpeed,
+        amountSats,
+        deductFeeFromWithdrawalAmount,
+        projectId: this.projectId,
+        networkId: String(this.networkId),
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false) {
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined the transfer.",
+      });
+    }
+
+    if (res.data.method !== "spark-withdraw-to-bitcoin") {
+      throw new ApiError({
+        code: 2,
+        info: "Recieved the wrong response from wallet popover.",
+      });
+    }
+
+    return {
+      withdrawalId: res.data.withdrawalId,
+    };
+  }
+
   public async signMessage({ message }: { message: string }) {
     const res: OpenWindowResult = await openWindow(
       {

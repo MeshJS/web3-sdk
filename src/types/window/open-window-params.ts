@@ -100,6 +100,14 @@ export type OpenWindowParams =
       networkId: string;
       txId: string;
     }
+  | {
+      method: "spark-withdraw-to-bitcoin";
+      projectId: string;
+      networkId: string;
+      exitSpeed: "fast" | "medium" | "slow";
+      amountSats: number;
+      deductFeeFromWithdrawalAmount: boolean;
+    }
   /** to be deprecated */
   | {
       method: "sign-tx";
