@@ -1,5 +1,11 @@
 import axios, { AxiosInstance } from "axios";
-import { openWindow, AddressSummary, OpenWindowResult, ApiError } from "../../";
+import {
+  openWindow,
+  AddressSummary,
+  OpenWindowResult,
+  ApiError,
+  ExitSpeed,
+} from "../../";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 
@@ -211,6 +217,50 @@ export class Web3SparkWallet {
 
     return {
       transferId: res.data.transferId,
+    };
+  }
+
+  public async withdrawToBitcoin({
+    exitSpeed,
+    amountSats,
+    deductFeeFromWithdrawalAmount,
+    withdrawalAddress,
+  }: {
+    exitSpeed: ExitSpeed;
+    amountSats: number;
+    deductFeeFromWithdrawalAmount: boolean;
+    withdrawalAddress: string;
+  }) {
+    const res: OpenWindowResult = await openWindow(
+      {
+        method: "spark-withdraw-to-bitcoin",
+        exitSpeed,
+        withdrawalAddress,
+        amountSats: String(amountSats),
+        deductFeeFromWithdrawalAmount:
+          deductFeeFromWithdrawalAmount === true ? "true" : "false",
+        projectId: this.projectId,
+        networkId: String(this.networkId),
+      },
+      this.appUrl,
+    );
+
+    if (res.success === false) {
+      throw new ApiError({
+        code: 3,
+        info: "UserDeclined - User declined the transfer.",
+      });
+    }
+
+    if (res.data.method !== "spark-withdraw-to-bitcoin") {
+      throw new ApiError({
+        code: 2,
+        info: "Recieved the wrong response from wallet popover.",
+      });
+    }
+
+    return {
+      withdrawalId: res.data.withdrawalId,
     };
   }
 
