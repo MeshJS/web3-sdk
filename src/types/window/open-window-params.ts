@@ -1,4 +1,5 @@
 import { Web3AuthProvider } from "../core";
+import { ExitSpeed } from "../spark";
 
 /** in this schema you will see string versions of undefined & boolean, this type is exclusively used for converting into URLSearchParams (where undefined & booleans don't exist) */
 export type OpenWindowParams =
@@ -104,9 +105,10 @@ export type OpenWindowParams =
       method: "spark-withdraw-to-bitcoin";
       projectId: string;
       networkId: string;
-      exitSpeed: "fast" | "medium" | "slow";
-      amountSats: number;
-      deductFeeFromWithdrawalAmount: boolean;
+      exitSpeed: ExitSpeed;
+      amountSats: string;
+      deductFeeFromWithdrawalAmount: "true" | "false";
+      withdrawalAddress: string;
     }
   /** to be deprecated */
   | {

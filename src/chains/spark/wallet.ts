@@ -1,5 +1,11 @@
 import axios, { AxiosInstance } from "axios";
-import { openWindow, AddressSummary, OpenWindowResult, ApiError } from "../../";
+import {
+  openWindow,
+  AddressSummary,
+  OpenWindowResult,
+  ApiError,
+  ExitSpeed,
+} from "../../";
 
 export type ValidSparkNetwork = "MAINNET" | "REGTEST";
 
@@ -218,17 +224,21 @@ export class Web3SparkWallet {
     exitSpeed,
     amountSats,
     deductFeeFromWithdrawalAmount,
+    withdrawalAddress,
   }: {
-    exitSpeed: "fast" | "medium" | "slow";
+    exitSpeed: ExitSpeed;
     amountSats: number;
     deductFeeFromWithdrawalAmount: boolean;
+    withdrawalAddress: string;
   }) {
     const res: OpenWindowResult = await openWindow(
       {
         method: "spark-withdraw-to-bitcoin",
         exitSpeed,
-        amountSats,
-        deductFeeFromWithdrawalAmount,
+        withdrawalAddress,
+        amountSats: String(amountSats),
+        deductFeeFromWithdrawalAmount:
+          deductFeeFromWithdrawalAmount === true ? "true" : "false",
         projectId: this.projectId,
         networkId: String(this.networkId),
       },
